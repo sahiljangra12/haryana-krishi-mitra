@@ -1,12 +1,12 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120010338";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120010338";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120010338";
-import * as src from "./sources.js?v=20261120010338";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120010338";
-import * as card from "./soilcard.js?v=20261120010338";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120010338";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120010338";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120010338";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120011716";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120011716";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120011716";
+import * as src from "./sources.js?v=20261120011716";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120011716";
+import * as card from "./soilcard.js?v=20261120011716";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120011716";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120011716";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120011716";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -108,6 +108,15 @@ function setPoint(lat, lon, fly = true) {
   state.district = nearestDistrict(lat, lon);
   fillSelects();
   checkInside(lat, lon);
+  if (searchPin) { map.removeLayer(searchPin); searchPin = null; }
+  showPlaceName(lat, lon);
+}
+async function showPlaceName(lat, lon) {
+  const el = $("#locNote");
+  el.classList.remove("hidden");
+  el.innerHTML = `${ic("map-pin")}<span>${lat.toFixed(5)}, ${lon.toFixed(5)}</span>`;
+  const name = await src.reverseGeocode(lat, lon);
+  if (state.point && state.point[0] === lat && state.point[1] === lon) el.innerHTML = `${ic("map-pin")}<span>${t("selected")}: <b>${esc(name || L_(state.district))}</b><br><span class="hint">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></span>`;
 }
 function drawSquare() {
   if (square) map.removeLayer(square);
@@ -145,23 +154,79 @@ $("#doneBtn").onclick = () => {
     state.district = nearestDistrict(c.lat, c.lng);
     fillSelects();
     checkInside(c.lat, c.lng);
+    showPlaceName(c.lat, c.lng);
   }
 };
 $("#clearBtn").onclick = () => { clearShape(); state.drawing = false; $("#drawBtn").classList.remove("on"); };
 $("#acres").oninput = drawSquare;
+
+/* ---------- place search ---------- */
+let searchPin = null;
+const KIND_LABEL = {
+  exact: { en: "Exact point", hi: "सटीक जगह" }, address: { en: "Address", hi: "पता" }, place: { en: "Village / town", hi: "गाँव / कस्बा" },
+  road: { en: "Road", hi: "सड़क" }, pin: { en: "PIN code area", hi: "पिन कोड क्षेत्र" },
+};
+const ZOOM = { exact: 18, address: 17, place: 15, road: 15, pin: 13 };
+
+function goTo(p) {
+  $("#searchResults").innerHTML = "";
+  $("#q").value = p.label;
+  if (searchPin) map.removeLayer(searchPin);
+  if (p.kind === "exact") {
+    setPoint(p.lat, p.lon, false);
+    map.setView([p.lat, p.lon], ZOOM.exact);
+    $("#locNote").innerHTML = `${ic("circle-check")}<span>${t("pinnedExact")}</span>`;
+  } else {
+    // a village or PIN is an area, not a field: show where it is and ask the farmer to tap the field
+    searchPin = L.circleMarker([p.lat, p.lon], { radius: 9, color: "#fff", weight: 3, fillColor: "#2d6e8e", fillOpacity: 1 }).addTo(map).bindTooltip(p.label);
+    map.setView([p.lat, p.lon], ZOOM[p.kind] || 15);
+    $("#locNote").innerHTML = `${ic("map-pin")}<span>${t("tapYourField")}</span>`;
+  }
+  $("#locNote").classList.remove("hidden");
+  $(".mapcard").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function showResults(list, note = "") {
+  const box = $("#searchResults");
+  box.innerHTML = (note ? `<p class="hint" style="color:#eef3e8">${note}</p>` : "") + list.map((p, i) => `<button type="button" data-i="${i}">
+      <span class="kind k-${p.kind}">${L_(KIND_LABEL[p.kind] || KIND_LABEL.place)}</span><span class="lbl">${esc(p.label)}</span><span class="src">${esc(p.src)}</span></button>`).join("");
+  $$("button", box).forEach((b) => (b.onclick = () => goTo(list[+b.dataset.i])));
+}
 
 $("#searchForm").onsubmit = async (e) => {
   e.preventDefault();
   const q = $("#q").value.trim();
   if (!q) return;
   const box = $("#searchResults");
-  box.textContent = "…";
+  if (src.isShortMapsLink(q)) { box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("shortLink")}</p>`; return; }
+  box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("searching")}</p>`;
   try {
     const r = await src.geocode(q);
-    box.innerHTML = r.length ? r.map((p, i) => `<button type="button" data-i="${i}">${esc(p.display_name)}</button>`).join("") : "—";
-    $$("button", box).forEach((b) => (b.onclick = () => { const p = r[+b.dataset.i]; map.setView([+p.lat, +p.lon], 15); box.innerHTML = ""; }));
-  } catch (err) { box.textContent = t("error") + ": " + err.message; }
+    if (!r.length) { box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("notFound")}</p>`; return; }
+    if (r.length === 1 && r[0].kind === "exact") return goTo(r[0]);
+    showResults(r, r.every((x) => x.kind === "pin" || x.kind === "road") ? t("onlyArea") : "");
+  } catch (err) { box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("error")}: ${esc(err.message)}</p>`; }
 };
+
+// type-ahead suggestions
+let sugTimer = null, sugSeq = 0;
+$("#q").addEventListener("input", () => {
+  clearTimeout(sugTimer);
+  const text = $("#q").value;
+  sugTimer = setTimeout(async () => {
+    const seq = ++sugSeq;
+    let list = [];
+    try { list = await src.suggest(text); } catch {}
+    if (seq !== sugSeq || !list.length) return;
+    const box = $("#searchResults");
+    box.innerHTML = list.map((s, i) => `<button type="button" data-i="${i}"><span class="kind k-place">${ic("search")}</span><span class="lbl">${esc(s.text.replace(/, IND$/, ""))}</span></button>`).join("");
+    $$("button", box).forEach((b) => (b.onclick = async () => {
+      const p = await src.resolveSuggestion(list[+b.dataset.i]).catch(() => null);
+      if (p) goTo(p);
+    }));
+  }, 300);
+});
+
 $("#locBtn").onclick = () => {
   if (!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition((p) => setPoint(p.coords.latitude, p.coords.longitude), (e) => ($("#msg").textContent = e.message), { enableHighAccuracy: true, timeout: 15000 });

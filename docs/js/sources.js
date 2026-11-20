@@ -250,9 +250,107 @@ async function liveMandiFromBrowser() {
   return { updated: new Date().toISOString(), source: "Agmarknet via data.gov.in (live, fetched by your browser)", records };
 }
 
-/* ---------------- Geocoding (OpenStreetMap Nominatim) ---------------- */
+/* ---------------- Geocoding ----------------
+   Village-level addresses in India are patchy in every free database, so we:
+   1. read exact coordinates or a Google Maps link if the farmer pastes one,
+   2. clean filler words ("village", "tehsil", "district", PIN codes),
+   3. ask Esri (best coverage of Haryana villages) and OpenStreetMap in parallel,
+   4. retry with smaller parts of the address if nothing good comes back,
+   5. keep only results inside Haryana, de-duplicated and ranked.
+   The farmer then taps their exact field; reverseGeocode() names the nearest village to confirm. */
+
+const HR_BBOX = "74.4,27.6,77.6,31.0";
+const inHaryana = (lat, lon) => lat > 27.6 && lat < 31.0 && lon > 74.4 && lon < 77.6;
+const ESRI_GEO = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
+
+// "29.7621, 76.8623", "29.7621 N 76.8623 E", Google Maps links (@lat,lon / q=lat,lon / !3dlat!4dlon)
+export const isShortMapsLink = (t) => /maps\.app\.goo\.gl|goo\.gl\/maps/i.test(t || "");
+export function parseCoordinates(text) {
+  const t = (text || "").trim();
+  let m = /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(t) || /[@?&](?:q=|ll=|query=|center=)?(-?\d{1,2}\.\d{2,}),\s*(-?\d{1,3}\.\d{2,})/.exec(t) || /^(-?\d{1,2}\.\d+)\s*°?\s*[N]?\s*[,\s]\s*(-?\d{1,3}\.\d+)\s*°?\s*[E]?$/i.exec(t);
+  if (!m) return null;
+  const lat = parseFloat(m[1]), lon = parseFloat(m[2]);
+  return isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
+}
+
+const FILLER = /\b(vill(age)?|vpo|v\.?\s?p\.?\s?o\.?|gaon|gram|po|p\.o\.|post|teh(sil)?|teh\.|block|distt?\.?|district|dist\.|pin(\s*code)?|haryana|india|near|opp(osite)?|h\.?\s?no\.?|house\s*no\.?)\b|गांव|गाँव|ग्राम|तहसील|ज़िला|जिला|डाकघर|हरियाणा|पिन/gi;
+export function cleanAddress(q) {
+  const pin = (/\b1[23]\d{4}\b/.exec(q) || [])[0] || null; // Haryana PINs start with 12/13
+  const parts = q.replace(/\b1[23]\d{4}\b/g, " ").replace(FILLER, " ").split(/[,;\n]+/).map((p) => p.replace(/[^\p{L}\p{M}\p{N}\s\-.]/gu, " ").replace(/\s+/g, " ").replace(/^[\s.\-]+|[\s.\-]+$/g, "").trim()).filter((p) => p.length > 1 && !/^[\d\s.\-]+$/.test(p));
+  return { parts, pin };
+}
+
+const KIND = { Locality: "place", POI: "place", PointAddress: "address", StreetAddress: "address", StreetName: "road", Postal: "pin", PostalExt: "pin" };
+
+async function esriFind(text) {
+  const u = `${ESRI_GEO}/findAddressCandidates?f=json&singleLine=${encodeURIComponent(text)}&countryCode=IND&searchExtent=${HR_BBOX}&maxLocations=6&outFields=Addr_type,City,Subregion,Region&forStorage=false`;
+  const j = await getJSON(u, {}, 12000);
+  return (j.candidates || []).map((c) => ({ label: c.address, lat: c.location.y, lon: c.location.x, score: c.score, kind: KIND[c.attributes.Addr_type] || "place", src: "Esri" }));
+}
+async function osmFind(text) {
+  const u = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=in&viewbox=${HR_BBOX}&bounded=1&q=${encodeURIComponent(text)}`;
+  const j = await getJSON(u, {}, 12000);
+  return j.map((p) => ({ label: p.display_name.split(",").slice(0, 4).join(","), lat: +p.lat, lon: +p.lon, score: 80 + (p.importance || 0) * 10, kind: p.class === "place" ? "place" : p.class === "highway" ? "road" : "address", src: "OpenStreetMap" }));
+}
+
+function merge(lists) {
+  const out = [];
+  for (const r of lists.flat()) {
+    if (!r || !inHaryana(r.lat, r.lon)) continue;
+    const dup = out.find((o) => Math.abs(o.lat - r.lat) < 0.004 && Math.abs(o.lon - r.lon) < 0.004);
+    if (dup) { dup.score = Math.max(dup.score, r.score) + 3; continue; }
+    out.push({ ...r });
+  }
+  const rank = { address: 3, place: 2, road: 1, pin: 0 };
+  return out.sort((a, b) => b.score + rank[b.kind] * 4 - (a.score + rank[a.kind] * 4));
+}
 
 export async function geocode(q) {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=in&q=${encodeURIComponent(q + ", Haryana")}`;
-  return getJSON(url);
+  const coord = parseCoordinates(q);
+  if (coord) return [{ label: `${coord.lat.toFixed(5)}, ${coord.lon.toFixed(5)}`, ...coord, score: 100, kind: "exact", src: "coordinates" }];
+  const { parts, pin } = cleanAddress(q);
+  const full = parts.join(", ");
+  const tries = [full];
+  if (parts.length > 1) {
+    tries.push(`${parts[0]}, ${parts[parts.length - 1]}`); // village + district
+    tries.push(parts[0]);
+  }
+  if (pin) tries.push(`${parts[0] || ""} ${pin}`.trim());
+  let results = [];
+  for (const t of [...new Set(tries)].filter(Boolean)) {
+    const got = await Promise.allSettled([esriFind(t), osmFind(t)]);
+    results = merge([results, ...got.map((g) => (g.status === "fulfilled" ? g.value : []))]);
+    // stop as soon as we have a confident village/address-level hit
+    if (results.some((r) => r.kind !== "pin" && r.kind !== "road" && r.score >= 90)) break;
+  }
+  return results.slice(0, 8);
+}
+
+// Type-ahead suggestions (Esri). Only Haryana suggestions are kept.
+export async function suggest(text) {
+  if (!text || text.trim().length < 3 || parseCoordinates(text)) return [];
+  const { parts } = cleanAddress(text);
+  const u = `${ESRI_GEO}/suggest?f=json&text=${encodeURIComponent(parts.join(", ") || text)}&countryCode=IND&searchExtent=${HR_BBOX}&maxSuggestions=8`;
+  const j = await getJSON(u, {}, 8000);
+  return (j.suggestions || []).filter((s) => /haryana|हरियाणा/i.test(s.text)).slice(0, 6);
+}
+export async function resolveSuggestion(s) {
+  const u = `${ESRI_GEO}/findAddressCandidates?f=json&singleLine=${encodeURIComponent(s.text)}&magicKey=${encodeURIComponent(s.magicKey)}&outFields=Addr_type&forStorage=false`;
+  const j = await getJSON(u, {}, 10000);
+  const c = (j.candidates || [])[0];
+  return c ? { label: c.address, lat: c.location.y, lon: c.location.x, score: c.score, kind: KIND[c.attributes.Addr_type] || "place", src: "Esri" } : null;
+}
+
+// Name of the nearest village / locality for a tapped point
+export async function reverseGeocode(lat, lon) {
+  try {
+    const j = await getJSON(`${ESRI_GEO}/reverseGeocode?f=json&location=${lon},${lat}&featureTypes=Locality,PointAddress,StreetAddress&forStorage=false`, {}, 8000);
+    if (j.address) return [j.address.Neighborhood, j.address.City || j.address.District, j.address.Subregion].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(", ");
+  } catch {}
+  try {
+    const j = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=14&lat=${lat}&lon=${lon}`, {}, 8000);
+    const a = j.address || {};
+    return [a.village || a.hamlet || a.town || a.suburb || a.city, a.county || a.state_district].filter(Boolean).join(", ");
+  } catch {}
+  return "";
 }
