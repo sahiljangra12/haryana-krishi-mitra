@@ -38,6 +38,11 @@ scripts/fetch_prices.py               daily Agmarknet fetch (standard library on
 ### Advisor scoring (out of 100)
 Profit (40), water fit (25: irrigation access, crop water need, district groundwater stress or salinity), soil fit (20: SoilGrids texture, pH and alkalinity tolerance), region fit (10: NE or SW agro-zone), price safety (5: MSP or no MSP, adjusted by the farmer's risk choice). The planning price is MSP for wheat and paddy (strong procurement), a blend of MSP and mandi price for partially procured crops, and the live mandi price for non-MSP crops. When there's no live price, a reference price is used and clearly flagged.
 
+## Mandi prices and the India geo-fence
+data.gov.in only answers requests from inside India. So the site gets prices in two ways:
+1. **From the visitor's browser (default).** When a farmer in India opens the site, their browser fetches today's Haryana prices directly from data.gov.in. This needs no setup.
+2. **Server-side, saved to `docs/data/` (optional).** The GitHub Action saves prices for everyone, including visitors outside India, and builds the price-trend history. It only works if it can reach India: set the repository variable `PRICE_PROXY` to an India-based relay (for example, a small proxy on an Indian cloud region) or run the workflow on a self-hosted runner in India. Without that, the Action logs a warning and exits cleanly.
+
 ## Setup (one time)
 1. **Get a free data.gov.in API key:** register at https://data.gov.in → My Account → API key.
 2. In this repo, go to **Settings → Secrets and variables → Actions → New repository secret**. Name it `DATA_GOV_IN_API_KEY` and paste the key. Without it, the public sample key is used, which returns far fewer records.

@@ -34,12 +34,13 @@ def fetch_page(key, offset, limit, filter_field):
         "limit": limit,
         f"filters[{filter_field}]": "Haryana",
     }
-    url = f"https://api.data.gov.in/resource/{RESOURCE}?" + urllib.parse.urlencode(params)
+    base = os.environ.get("PRICE_PROXY", "https://api.data.gov.in").rstrip("/")
+    url = f"{base}/resource/{RESOURCE}?" + urllib.parse.urlencode(params)
     last = None
-    for attempt in range(4):
+    for attempt in range(2):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "krishi-mitra-haryana/1.0"})
-            with urllib.request.urlopen(req, timeout=90) as r:
+            with urllib.request.urlopen(req, timeout=45) as r:
                 return json.load(r)
         except Exception as e:  # network hiccups are common on this API
             last = e
@@ -64,6 +65,18 @@ def num(v):
 
 
 def main():
+    try:
+        return run()
+    except RuntimeError as e:
+        # data.gov.in is geo-fenced to India; GitHub-hosted runners (US) usually time out.
+        # Don't fail the workflow — the website falls back to fetching prices from the farmer's browser.
+        print(f"::warning::{e}. data.gov.in is often unreachable from outside India; "
+              "the site will fetch prices from visitors' browsers instead. Use a self-hosted runner in India "
+              "or set PRICE_PROXY to an India-based proxy to enable server-side updates.")
+        return 0
+
+
+def run():
     key = os.environ.get("DATA_GOV_IN_API_KEY") or SAMPLE_KEY
     using_sample = key == SAMPLE_KEY
     limit = 10 if using_sample else 1000

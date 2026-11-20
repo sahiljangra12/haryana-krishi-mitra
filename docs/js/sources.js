@@ -212,7 +212,42 @@ export async function mandiPrices() {
     getJSON(new URL("price_history.json", base) + "?v=" + Date.now()).catch(() => null),
   ]);
   _prices = { latest, history };
+  // data.gov.in is geo-fenced to India, so the GitHub Action (US servers) may not reach it.
+  // Farmers' browsers in India can: fetch live prices directly when the saved file is missing or stale.
+  const stale = !latest?.records?.length || Date.now() - Date.parse(latest.updated) > 36 * 3600e3;
+  if (stale) {
+    try {
+      const live = await liveMandiFromBrowser();
+      if (live.records.length) _prices.latest = live;
+    } catch (e) { /* outside India or API down: keep whatever we have */ }
+  }
   return _prices;
+}
+
+const OGD_RESOURCE = "9ef84268-d588-465a-a308-a864a43d0070";
+const OGD_SAMPLE_KEY = "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b";
+function toIso(d) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d || "");
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : d;
+}
+async function liveMandiFromBrowser() {
+  let key = OGD_SAMPLE_KEY;
+  try { key = localStorage.getItem("km-ogd-key") || key; } catch {}
+  const limit = key === OGD_SAMPLE_KEY ? 10 : 1000;
+  const page = (offset) => getJSON(`https://api.data.gov.in/resource/${OGD_RESOURCE}?api-key=${key}&format=json&limit=${limit}&offset=${offset}&filters%5Bstate.keyword%5D=Haryana`, {}, 15000);
+  const first = await page(0);
+  let recs = first.records || [];
+  const total = Math.min(+first.total || recs.length, 400);
+  if (total > recs.length) {
+    const offsets = [];
+    for (let o = limit; o < total; o += limit) offsets.push(o);
+    const more = await pool(offsets, 6, page);
+    more.forEach((m) => m && (recs = recs.concat(m.records || [])));
+  }
+  const records = recs
+    .filter((r) => String(r.state).toLowerCase() === "haryana" && +r.modal_price > 0)
+    .map((r) => ({ district: r.district, market: r.market, commodity: r.commodity, variety: r.variety, grade: r.grade, date: toIso(r.arrival_date), min: +r.min_price || +r.modal_price, max: +r.max_price || +r.modal_price, modal: +r.modal_price }));
+  return { updated: new Date().toISOString(), source: "Agmarknet via data.gov.in (live, fetched by your browser)", records };
 }
 
 /* ---------------- Geocoding (OpenStreetMap Nominatim) ---------------- */

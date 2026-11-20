@@ -28,6 +28,7 @@ jobs:
       - name: Fetch Haryana mandi prices
         env:
           DATA_GOV_IN_API_KEY: ${{ secrets.DATA_GOV_IN_API_KEY }}
+          PRICE_PROXY: ${{ vars.PRICE_PROXY }}
         run: python scripts/fetch_prices.py
       - name: Commit if changed
         run: |
