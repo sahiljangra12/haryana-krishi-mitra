@@ -3,6 +3,9 @@ import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js";
 import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js";
 import * as src from "./sources.js";
 import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js";
+import * as card from "./soilcard.js";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -14,6 +17,9 @@ const state = {
   district: DISTRICTS.find((d) => d.name === "Karnal"),
   report: null, prices: null, forecast: null, forecastFor: null,
   season: upcomingSeason(),
+  card: (() => { try { return JSON.parse(localStorage.getItem("km-card") || "{}"); } catch { return {}; } })(),
+  opts: { leavingPaddy: false, dsr: false, straw: false },
+  techFocus: null,
 };
 
 /* ---------------- i18n paint ---------------- */
@@ -46,6 +52,8 @@ function showTab(name) {
   if (name === "prices") renderPrices();
   if (name === "weather") renderWeather();
   if (name === "about") renderAbout();
+  if (name === "soilcard") renderCard();
+  if (name === "techniques") renderTechniques();
   try { history.replaceState(null, "", "#" + name); } catch {}
 }
 
@@ -270,10 +278,12 @@ function renderReport() {
       <p class="hint">${t("soilTip")}</p>
       ${r.climate ? `<h3>${t("climate")}</h3><canvas id="climChart" height="90"></canvas>` : ""}
     </div>
-    <div class="card noprint"><button class="btn big" id="toAdvice">🌱 ${t("tabAdvice")} →</button></div>`;
+    <div class="card noprint row wrap"><button class="btn big" id="toAdvice">🌱 ${t("tabAdvice")} →</button><button class="btn big" style="background:#8d6e63" id="toCard">🧪 ${t("tabCard")} →</button><button class="btn big" style="background:#c9a227" id="toTech">🎥 ${t("tabTech")} →</button></div>`;
 
   $("#printBtn").onclick = () => window.print();
   $("#toAdvice").onclick = () => showTab("advice");
+  $("#toCard").onclick = () => showTab("soilcard");
+  $("#toTech").onclick = () => { state.techCat = "star"; showTab("techniques"); };
 
   if (ndviChart) ndviChart.destroy();
   if (r.series.length) {
@@ -308,45 +318,278 @@ function renderReport() {
 /* ---------------- advice ---------------- */
 $("#seasonSel").onchange = (e) => { state.season = e.target.value; renderAdvice(); };
 $("#districtSel").onchange = (e) => { state.district = DISTRICTS.find((d) => d.name === e.target.value); renderAdvice(); };
+for (const [id, k] of [["optPaddy", "leavingPaddy"], ["optDsr", "dsr"], ["optStraw", "straw"]]) {
+  $("#" + id).onchange = (e) => { state.opts[k] = e.target.checked; renderAdvice(); };
+}
+
+function adviceSoil() {
+  const base = state.report?.soil || null;
+  return state.card && Object.keys(state.card).length ? card.cardToSoil(state.card, base || {}) : base;
+}
+
+let compareChart = null;
+const whatIf = {}; // crop id -> {yield, price, cost}
 
 async function renderAdvice() {
   if (!state.prices) { try { state.prices = await src.mandiPrices(); } catch {} }
-  const r = state.report;
-  const latest = r?.series?.[r.series.length - 1];
-  $("#adviceNote").textContent = r ? `${L_(state.district)} · ${r.soil?.texture || ""} · pH ${r.soil?.phh2o?.toFixed(1) ?? "—"} · ${(state.areaAcres || +$("#acres").value).toFixed(2)} ${t("acres")}` : t("needReport");
-  const recs = recommend({
-    season: state.season, district: state.district, soil: r?.soil, water: $("#water").value, risk: $("#risk").value,
-    acres: state.areaAcres || +$("#acres").value || 1, prices: state.prices, ndmi: latest?.ndmi, annualRain: r?.climate?.annualRain,
-  });
   const lang = getLang();
+  const r = state.report;
+  const soil = adviceSoil();
+  const latest = r?.series?.[r.series.length - 1];
+  const acres = state.areaAcres || +$("#acres").value || 1;
+  const bits = [L_(state.district)];
+  if (soil?.texture) bits.push(soil.texture);
+  if (soil?.phh2o) bits.push("pH " + soil.phh2o.toFixed(1));
+  if (soil?.fromCard) bits.push(lang === "hi" ? "मृदा कार्ड ✓" : "soil card ✓");
+  bits.push(acres.toFixed(2) + " " + t("acres"));
+  $("#adviceNote").textContent = r || soil?.fromCard ? bits.join(" · ") : t("needReport");
+  ["optPaddy", "optDsr", "optStraw"].forEach((id, i) => ($("#" + id).checked = !!state.opts[["leavingPaddy", "dsr", "straw"][i]]));
+
+  const recs = recommend({
+    season: state.season, district: state.district, soil, water: $("#water").value, risk: $("#risk").value,
+    acres, prices: state.prices, ndmi: latest?.ndmi, annualRain: r?.climate?.annualRain,
+  });
+  const exp = exposures({ climate: r?.climate, forecast: state.forecast, soil, water: $("#water").value });
+  const fertCostPerAcre = {};
+  if (state.card && Object.keys(state.card).length) for (const x of recs) { const fp = card.fertilizerPlan(x.crop.id, state.card, 1); if (fp) fertCostPerAcre[x.crop.id] = fp.total; }
+  const ctx = { acres, exposures: exp, opts: state.opts, fertCostPerAcre };
+  recs.forEach((x) => (x.sc = scenarios(x, ctx, whatIf[x.crop.id])));
+
+  // comparison chart
+  const top = recs.slice(0, 7);
+  if (compareChart) compareChart.destroy();
+  compareChart = new Chart($("#compareChart"), {
+    type: "bar",
+    data: {
+      labels: top.map((x) => L_(x.crop)),
+      datasets: [
+        { label: t("bad"), data: top.map((x) => Math.round(x.sc.bad)), backgroundColor: "#ef9a9a" },
+        { label: t("normal"), data: top.map((x) => Math.round(x.sc.normal)), backgroundColor: "#c9a227" },
+        { label: t("good"), data: top.map((x) => Math.round(x.sc.good)), backgroundColor: "#66bb6a" },
+      ],
+    },
+    options: { plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${rupee(c.raw)}` } } }, scales: { y: { ticks: { callback: (v) => "₹" + (v / 1000).toFixed(0) + "k" } } } },
+  });
+  const safest = [...top].sort((a, b) => b.sc.bad - a.sc.bad)[0];
+  const best = [...top].sort((a, b) => b.sc.expected - a.sc.expected)[0];
+  $("#riskSummary").innerHTML = lang === "hi"
+    ? `📈 जोखिम-समायोजित सबसे ज़्यादा मुनाफ़ा: <b>${esc(L_(best.crop))}</b> (${rupee(best.sc.expected)})। 🛡️ ख़राब साल में सबसे सुरक्षित: <b>${esc(L_(safest.crop))}</b> (${rupee(safest.sc.bad)})। ${r?.climate ? t("climateBasis") : t("climateDefault")}।`
+    : `📈 Highest risk-adjusted profit: <b>${esc(L_(best.crop))}</b> (${rupee(best.sc.expected)}). 🛡️ Safest in a bad year: <b>${esc(L_(safest.crop))}</b> (${rupee(safest.sc.bad)}). ${r?.climate ? t("climateBasis") : t("climateDefault")}.`;
+
+  renderCalendar(top);
+
+  const maxPart = { prof: 40, soilFit: 20, w: 25, zone: 10, risk: 5 };
+  const partNames = { prof: "partProfit", soilFit: "partSoil", w: "partWater", zone: "partZone", risk: "partRisk" };
+  const lvl = (v) => (v < 0.15 ? t("low_") : v < 0.3 ? t("med_") : t("high_"));
   $("#advice").innerHTML = `<h2>${t("topPicks")} — ${L_(SEASONS[state.season])}</h2>` + recs.map((x, i) => {
-    const c = x.crop, b = x.budget;
-    const maxPart = { prof: 40, soilFit: 20, w: 25, zone: 10, risk: 5 };
-    const partNames = { prof: "partProfit", soilFit: "partSoil", w: "partWater", zone: "partZone", risk: "partRisk" };
-    const liveTxt = x.live ? `${rupee(x.live.modal)} (${x.live.scope === "district" ? L_(state.district) : "Haryana"}, ${x.live.date}, ${x.live.n} ${lang === "hi" ? "रिकॉर्ड" : "records"})` : "—";
-    return `<div class="card crop ${i === 0 ? "rank1" : ""}">
+    const c = x.crop, b = x.budget, sc = x.sc;
+    const liveTxt = x.live ? `${rupee(x.live.modal)} (${x.live.scope === "district" ? L_(state.district) : "Haryana"}, ${x.live.date})` : "—";
+    const fp = state.card && Object.keys(state.card).length ? card.fertilizerPlan(c.id, state.card, acres) : null;
+    const techs = TECHNIQUES.filter((tq) => tq.crops.includes(c.id)).slice(0, 4);
+    const w = whatIf[c.id] || {};
+    const yMax = Math.ceil(c.yield[1] * 1.5), pMax = Math.ceil((x.pp.price * 2) / 100) * 100, cMax = Math.ceil((c.cost[1] * 1.6) / 1000) * 1000;
+    return `<div class="card crop ${i === 0 ? "rank1" : ""}" data-crop="${c.id}">
       <header><h3>${i + 1}. ${esc(L_(c))}</h3><span class="scorepill">${t("score")} ${x.score}/100</span></header>
+      <div class="scen">
+        <div class="bad">${t("bad")}<b class="${sc.bad >= 0 ? "pos" : "neg"}">${rupee(sc.bad)}</b></div>
+        <div>${t("normal")}<b>${rupee(sc.normal)}</b></div>
+        <div class="good">${t("good")}<b>${rupee(sc.good)}</b></div>
+        <div class="exp">${t("riskAdj")}<b>${rupee(sc.expected)}</b></div>
+      </div>
       <div class="money">
-        <div>${t("expProfit")}<b class="${b.mid >= 0 ? "pos" : "neg"}">${rupee(b.profit[0])} … ${rupee(b.profit[1])}</b><span class="hint">${rupee(b.perAcreMid)} ${t("perAcre")}</span></div>
-        <div>${t("totalCost")}<b>${rupee(b.cost[0])} … ${rupee(b.cost[1])}</b></div>
-        <div>${t("revenue")}<b>${rupee(b.revenue[0])} … ${rupee(b.revenue[1])}</b><span class="hint">${c.yield[0]}–${c.yield[1]} q/${t("acres")}</span></div>
+        <div>${t("totalCost")}<b>${rupee(sc.costMid * acres)}</b><span class="hint">${rupee(sc.costMid)} ${t("perAcre")}</span></div>
         <div>${t("priceUsed")}<b>${rupee(x.pp.price)}/q</b><span class="hint">${t("basis_" + x.pp.basis)}${c.msp ? ` · MSP ${rupee(c.msp)}` : ""}<br>${lang === "hi" ? "मंडी" : "Mandi"}: ${liveTxt}</span></div>
-        <div>${t("breakEven")}<b>${rupee(b.breakEven)}/q</b></div>
+        <div>${t("breakEven")}<b>${rupee(b.breakEven)}/q</b><span class="hint">${t("breakEvenYield")}: ${Math.max(0, sc.breakEvenYield).toFixed(1)} q/${t("acres")}</span></div>
+        ${sc.incentives.perAcre ? `<div>${t("incentiveIncl")}<b class="pos">${rupee(sc.incentives.perAcre * acres)}</b><span class="hint">${sc.incentives.list.map((l) => esc(L_(INCENTIVE_LABEL[l.key])) + " " + rupee(l.amount) + "/" + t("acres")).join("<br>")}</span></div>` : ""}
+      </div>
+      <div class="grid2 inner">
+        <div>
+          <b>${t("climateRisk")}: ${lvl(sc.climate.score)}</b> <span class="hint">(${lang === "hi" ? "ख़राब साल में उपज हानि" : "bad-year yield loss"} ≈ ${Math.round(sc.climate.score * 100)}%)</span>
+          <div class="hz">${Object.entries(sc.climate.parts).filter(([, v]) => v > 0.01).map(([k, v]) => `<span>${L_(HAZARD_LABEL[k])}</span><div class="b" style="width:${Math.min(100, v * 160)}%;opacity:${0.4 + v}"></div><span class="num">${Math.round(v * 100)}</span>`).join("")}</div>
+        </div>
+        <div>
+          <b>${t("marketRisk")}: ${lvl(sc.marketRisk)}</b>
+          <p class="hint" style="margin:0.2rem 0"><b>${t("demand")}:</b> ${esc(L_(MARKET[c.id].demand))}</p>
+        </div>
       </div>
       <div class="tags">${x.reasons.map((r) => `<span>${esc(t("r_" + r.k, { v: r.v }))}</span>`).join("")}</div>
+      <details class="whatif"><summary>🎚️ ${t("whatIf")}</summary>
+        <div class="sl"><span>${t("yieldPA")}</span><input type="range" data-k="yield" min="0" max="${yMax}" step="0.5" value="${w.yield ?? sc.yMid}"><span class="num v-yield">${(w.yield ?? sc.yMid).toFixed(1)}</span></div>
+        <div class="sl"><span>${t("pricePQ")}</span><input type="range" data-k="price" min="0" max="${pMax}" step="25" value="${w.price ?? sc.price}"><span class="num v-price">${rupee(w.price ?? sc.price)}</span></div>
+        <div class="sl"><span>${t("costPA")}</span><input type="range" data-k="cost" min="0" max="${cMax}" step="500" value="${Math.round(w.cost ?? sc.costMid)}"><span class="num v-cost">${rupee(w.cost ?? sc.costMid)}</span></div>
+        <div class="out">${t("profitIs")} (${acres.toFixed(2)} ${t("acres")}): <span class="v-profit ${sc.normal >= 0 ? "pos" : "neg"}">${rupee(sc.normal)}</span></div>
+        <button class="btn ghost reset" type="button">↺</button>
+      </details>
       <p><b>${t("sowing")}:</b> ${esc(c.sowWindow)}<br><b>${t("varieties")}:</b> ${esc(c.varieties)}${c.priceNote ? `<br><i>${esc(c.priceNote)}</i>` : ""}</p>
       <details ${i === 0 ? "open" : ""}><summary>${t("precautions")}</summary><ul class="notes">${L_(c.precautions).map((p) => `<li>${esc(p)}</li>`).join("")}</ul></details>
-      <details><summary>${t("budgetSplit")} (${(state.areaAcres || +$("#acres").value).toFixed(2)} ${t("acres")})</summary>
-        <div class="bars">${b.lines.map((l) => `<span>${L_(COST_LABELS[l.key])}</span><div class="b" style="width:${(100 * c.costSplit[l.key]) / 0.45}%"></div><span class="num">${rupee(l.amount)}</span>`).join("")}</div>
+      ${fp ? `<details><summary>🧪 ${t("fertFromCard")} — ${rupee(fp.total)}</summary>${fertTable(fp)}</details>` : ""}
+      <details><summary>${t("budgetSplit")} (${acres.toFixed(2)} ${t("acres")})</summary>
+        <div class="bars">${b.lines.map((l) => `<span>${L_(COST_LABELS[l.key])}</span><div class="b" style="width:${(100 * c.costSplit[l.key]) / 0.45}%"></div><span class="num">${rupee(l.key === "fertilizer" && fp ? fp.total : l.amount)}</span>`).join("")}</div>
       </details>
       <details><summary>${t("why")}</summary>
         <div class="bars">${Object.entries(x.parts).map(([k, v]) => `<span>${t(partNames[k])}</span><div class="b" style="width:${(100 * Math.max(0, v)) / maxPart[k]}%;background:#2e7d32"></div><span class="num">${Math.round(Math.max(0, v))}/${maxPart[k]}</span>`).join("")}</div>
       </details>
+      ${techs.length ? `<details><summary>🎥 ${t("learnMore")}</summary><div class="vids">${techs.map((tq) => `<p><b>${esc(L_(tq))}</b> — ${esc(L_(tq.what))}<br><a class="vbtn" href="${tq.video}" target="_blank" rel="noopener">▶ ${t("watch")}</a> <a href="#techniques" data-goto="${tq.id}">${t("howTo")} →</a></p>`).join("")}</div></details>` : ""}
     </div>`;
   }).join("");
+
+  // what-if sliders: live update without re-rendering the whole list
+  $$("#advice .crop").forEach((el) => {
+    const id = el.dataset.crop;
+    const row = recs.find((x) => x.crop.id === id);
+    const upd = () => {
+      const ov = {};
+      $$("input[type=range]", el).forEach((s) => (ov[s.dataset.k] = +s.value));
+      whatIf[id] = ov;
+      const sc = scenarios(row, ctx, ov);
+      $(".v-yield", el).textContent = ov.yield.toFixed(1);
+      $(".v-price", el).textContent = rupee(ov.price);
+      $(".v-cost", el).textContent = rupee(ov.cost);
+      const out = $(".v-profit", el);
+      out.textContent = rupee(sc.normal);
+      out.className = "v-profit " + (sc.normal >= 0 ? "pos" : "neg");
+    };
+    $$("input[type=range]", el).forEach((s) => (s.oninput = upd));
+    $(".reset", el).onclick = () => { delete whatIf[id]; renderAdvice(); };
+  });
+  $$("#advice [data-goto]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); state.techFocus = a.dataset.goto; showTab("techniques"); }));
+}
+
+function renderCalendar(rows) {
+  const lang = getLang();
+  const months = lang === "hi" ? ["ज", "फ", "मा", "अ", "म", "जू", "जु", "अ", "सि", "अ", "न", "दि"] : ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+  let html = `<div></div>` + months.map((m) => `<div class="h">${m}</div>`).join("");
+  for (const x of rows) {
+    const c = x.crop;
+    const sow = SEASONS[c.season].sow;
+    const start = c.id === "wheat" ? 11 : c.id === "mustard" ? 10 : c.id === "paddy" ? 6 : c.id === "basmati" ? 7 : c.id === "cotton" ? 4 : sow[Math.floor(sow.length / 2)];
+    const months_ = Math.max(2, Math.round(c.duration / 30));
+    const cells = Array(12).fill("");
+    for (let k = 0; k <= months_; k++) {
+      const m = (start - 1 + k) % 12;
+      cells[m] = k === 0 ? "sow" : k === months_ ? "harv" : "grow";
+    }
+    html += `<div class="n">${esc(L_(c))}</div>` + cells.map((cl) => `<div class="c ${cl}"></div>`).join("");
+  }
+  $("#calendar").innerHTML = html + `</div>`;
+  $("#calendar").insertAdjacentHTML("afterend", "");
+  const legend = $("#calLegend") || Object.assign(document.createElement("div"), { id: "calLegend", className: "legendrow" });
+  legend.innerHTML = `<span><i style="background:#c9a227"></i>${lang === "hi" ? "बुवाई" : "Sowing"}</span><span><i style="background:#8bc34a"></i>${lang === "hi" ? "बढ़वार" : "Growing"}</span><span><i style="background:#e65100"></i>${lang === "hi" ? "कटाई" : "Harvest"}</span>`;
+  $("#calendar").after(legend);
 }
 $("#water").onchange = () => $("#tab-advice").classList.contains("active") && renderAdvice();
 $("#risk").onchange = $("#water").onchange;
+
+/* ---------------- soil health card ---------------- */
+function fertTable(fp) {
+  const lang = getLang();
+  const diff = fp.generalCost - fp.total;
+  return `<table><tr><th>${t("product")}</th><th class="num">${t("qty")}</th><th class="num">${t("bags")}</th><th class="num">${t("cost")}</th></tr>` +
+    fp.items.map((it) => `<tr><td>${L_(card.FERT[it.f])}</td><td class="num">${Math.round(it.kg)} kg</td><td class="num">${it.bags.toFixed(1)}</td><td class="num">${rupee(it.cost)}</td></tr>`).join("") +
+    `<tr><th>${lang === "hi" ? "कुल" : "Total"}</th><td></td><td></td><th class="num">${rupee(fp.total)}</th></tr></table>
+    <p class="hint">${t("nutrientNeed")}: N ${Math.round(fp.N)} · P₂O₅ ${Math.round(fp.P2O5)} · K₂O ${Math.round(fp.K2O)} kg. ${t("vsGeneral")}: ${rupee(fp.generalCost)} → <b class="${diff >= 0 ? "pos" : "neg"}">${diff >= 0 ? t("saving") + " " + rupee(diff) : rupee(-diff) + " " + t("extra")}</b></p>`;
+}
+
+function renderCardTable() {
+  const lang = getLang();
+  $("#cardTable").innerHTML = `<tr><th>${lang === "hi" ? "मापदंड" : "Parameter"}</th><th>${lang === "hi" ? "मान" : "Value"}</th><th>${lang === "hi" ? "इकाई" : "Unit"}</th><th>${lang === "hi" ? "स्तर" : "Rating"}</th></tr>` +
+    card.PARAMS.map((p) => {
+      const v = state.card[p.id];
+      const r = card.rate(p.id, v);
+      const lab = r ? card.RATING_LABEL[r] : null;
+      return `<tr><td>${esc(L_(p))}</td><td><input type="number" step="any" data-p="${p.id}" value="${v ?? ""}"></td><td>${p.unit}</td><td>${lab ? `<span class="badge ${lab.cls}">${L_(lab)}</span>` : "—"}</td></tr>`;
+    }).join("");
+  $$("#cardTable input").forEach((inp) => (inp.onchange = () => {
+    const v = inp.value === "" ? null : +inp.value;
+    if (v == null) delete state.card[inp.dataset.p]; else state.card[inp.dataset.p] = v;
+    saveCard();
+    renderCard();
+  }));
+}
+function saveCard() { try { localStorage.setItem("km-card", JSON.stringify(state.card)); } catch {} }
+
+function renderCard() {
+  renderCardTable();
+  const lang = getLang();
+  const has = Object.keys(state.card).length > 0;
+  const adv = has ? card.cardAdvice(state.card, lang) : [];
+  $("#cardAdvice").innerHTML = !has ? `<p class="hint">${t("cardEmpty")}</p>` :
+    (adv.length ? adv.map((a) => `<div class="alert ${a.lvl}">${esc(a.text)}</div>`).join("") : `<p>✅ ${lang === "hi" ? "मिट्टी संतुलित है — सामान्य खाद मात्रा पर्याप्त।" : "Soil is balanced — the general dose is fine."}</p>`) +
+    `<p class="hint">✔ ${t("cardUsed")}</p>`;
+  const fc = $("#fertCrop");
+  if (!fc.options.length || fc.dataset.lang !== lang) {
+    const keep = fc.value || "wheat";
+    fc.innerHTML = CROPS.filter((c) => card.RDF[c.id]).map((c) => `<option value="${c.id}">${esc(L_(c))}</option>`).join("");
+    fc.value = keep; fc.dataset.lang = lang;
+  }
+  const fp = has ? card.fertilizerPlan(fc.value, state.card, +$("#fertAcres").value || 1) : null;
+  $("#fertPlan").innerHTML = fp ? fertTable(fp) : `<p class="hint">${t("cardEmpty")}</p>`;
+}
+$("#fertCrop").onchange = renderCard;
+$("#fertAcres").oninput = renderCard;
+$("#cardClear").onclick = () => { state.card = {}; saveCard(); $("#cardPreview").classList.add("hidden"); $("#ocrText").textContent = ""; renderCard(); };
+$("#cardSample").onclick = () => {
+  const r = card.parseCard(card.SAMPLE_TEXT);
+  state.card = r.values; saveCard();
+  $("#ocrText").textContent = card.SAMPLE_TEXT;
+  renderCard();
+};
+$("#cardFile").onchange = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const pr = $("#cardProgress");
+  pr.classList.remove("hidden");
+  const setP = (f) => { $(".bar", pr).style.width = `${Math.round(f * 100)}%`; $(".ptext", pr).textContent = `${t("cardReading")} ${Math.round(f * 100)}%`; };
+  setP(0.02);
+  if (file.type.startsWith("image/")) { const img = $("#cardPreview"); img.src = URL.createObjectURL(file); img.classList.remove("hidden"); }
+  try {
+    const res = await card.scanCard(file, (f) => setP(f));
+    $("#ocrText").textContent = res.text;
+    state.card = { ...state.card, ...res.values };
+    saveCard();
+    $(".ptext", pr).textContent = `✔ ${res.found} ${t("cardFound")}`;
+    $(".bar", pr).style.width = "100%";
+    renderCard();
+  } catch (err) {
+    $(".ptext", pr).textContent = t("error") + ": " + err.message;
+  }
+  e.target.value = "";
+};
+
+/* ---------------- techniques ---------------- */
+state.techCat = "";
+$("#techSearch").oninput = renderTechniques;
+function renderTechniques() {
+  const lang = getLang();
+  const soil = adviceSoil();
+  const latest = state.report?.series?.[state.report.series.length - 1];
+  const uneven = latest?.ndviStd && latest.ndvi > 0.25 && latest.ndviStd / latest.ndvi > 0.12;
+  let top = [];
+  try { top = recommend({ season: state.season, district: state.district, soil, water: $("#water").value, risk: $("#risk").value, acres: 1, prices: state.prices }).slice(0, 3).map((x) => x.crop.id); } catch {}
+  const rel = relevantTechniques({ district: state.district, soil, uneven, cardDone: Object.keys(state.card).length > 0, topCrops: top });
+  $("#techChips").innerHTML = [`<button class="chip ${state.techCat === "" ? "on" : ""}" data-c="">${t("all")}</button>`, `<button class="chip ${state.techCat === "star" ? "on" : ""}" data-c="star">⭐ ${t("forYou")}</button>`]
+    .concat(Object.entries(CATEGORIES).map(([k, v]) => `<button class="chip ${state.techCat === k ? "on" : ""}" data-c="${k}">${v.icon} ${L_(v)}</button>`)).join("");
+  $$("#techChips .chip").forEach((b) => (b.onclick = () => { state.techCat = b.dataset.c; renderTechniques(); }));
+  const q = $("#techSearch").value.trim().toLowerCase();
+  let list = TECHNIQUES.filter((tq) => (state.techCat === "" || (state.techCat === "star" ? rel.has(tq.id) : tq.cat === state.techCat)));
+  if (q) list = list.filter((tq) => [tq.en, tq.hi, tq.what.en, tq.what.hi, ...tq.crops].join(" ").toLowerCase().includes(q));
+  list.sort((a, b) => (rel.has(b.id) ? 1 : 0) - (rel.has(a.id) ? 1 : 0));
+  $("#techList").innerHTML = list.map((tq) => `<div class="card tech ${rel.has(tq.id) ? "star" : ""}" id="tech-${tq.id}">
+      <h3>${CATEGORIES[tq.cat].icon} ${esc(L_(tq))} ${rel.has(tq.id) ? `<span class="badge">⭐ ${t("forYou")}</span>` : ""}</h3>
+      <p><b>${t("whatIs")}:</b> ${esc(L_(tq.what))}</p>
+      <b>${t("benefits")}</b><ul class="notes">${L_(tq.benefits).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      <details><summary>${t("howTo")}</summary><ol class="notes">${L_(tq.steps).map((x) => `<li>${esc(x)}</li>`).join("")}</ol></details>
+      ${tq.subsidy ? `<div class="sub">🏛️ <b>${t("support")}:</b> ${esc(L_(tq.subsidy))}</div>` : ""}
+      <p class="tags">${tq.crops.map((id) => { const c = CROPS.find((x) => x.id === id); return c ? `<span>${esc(L_(c))}</span>` : ""; }).join("")}</p>
+      <a class="vbtn" href="${tq.video}" target="_blank" rel="noopener">▶ ${t("watch")}</a>
+      <a class="lbtn" href="${tq.link}" target="_blank" rel="noopener">🏛️ ${t("official")}</a>
+    </div>`).join("") || `<p class="hint">—</p>`;
+  if (state.techFocus) {
+    const el = $("#tech-" + state.techFocus);
+    state.techFocus = null;
+    if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.querySelector("details")?.setAttribute("open", ""); }
+  }
+}
 
 /* ---------------- prices ---------------- */
 let trendChart = null;
@@ -447,6 +690,9 @@ function renderAbout() {
       <li><b>फसल सलाह:</b> हर फसल को मुनाफ़ा (40), पानी (25), मिट्टी (20), क्षेत्र (10) और दाम सुरक्षा (5) पर अंक मिलते हैं। हर अंक का कारण दिखाया जाता है।</li>
       <li><b>भाव:</b> MSP सरकारी अधिसूचना से; मंडी भाव Agmarknet (data.gov.in) से दिन में दो बार अपडेट।</li>
       <li><b>मौसम:</b> Open-Meteo का 10 दिन का पूर्वानुमान, पाला, भारी बारिश, गर्मी और तेज़ हवा की चेतावनी के साथ।</li>
+      <li><b>मृदा कार्ड स्कैनर:</b> फोटो या PDF से 12 मापदंड पढ़कर (फ़ोन पर ही, Tesseract OCR) बोरियों में खाद योजना और लागत।</li>
+      <li><b>जोखिम लेखा:</b> हर फसल के लिए ख़राब/सामान्य/अच्छे साल का मुनाफ़ा — आपकी जगह के 5 साल के मौसम (पाला, गर्मी, सूखा, जल-भराव), बाज़ार जोखिम, मांग और सरकारी प्रोत्साहन जोड़कर। स्लाइडर से "अगर ऐसा हो तो" देखें।</li>
+      <li><b>तकनीकें:</b> DSR, लेज़र लेवलिंग, हैप्पी सीडर, ड्रिप, IPM आदि — चरण, फायदे, सरकारी सहायता और वीडियो।</li>
     </ul>
     <h3>सीमाएं</h3>
     <p>लागत और उपज के आंकड़े हरियाणा के औसत अनुमान हैं, आपके खेत के नहीं। भविष्य के दाम की भविष्यवाणी नहीं की जाती — आज के भाव और MSP का उपयोग होता है। बड़े फैसलों से पहले KVK या कृषि विभाग से सलाह लें।</p>
@@ -467,6 +713,9 @@ function renderAbout() {
       <li><b>Crop advice:</b> each crop is scored on profit (40), water fit (25), soil fit (20), region fit (10) and price safety (5). Every score is explained.</li>
       <li><b>Prices:</b> MSP from the official Government of India notifications; mandi prices from Agmarknet (data.gov.in), refreshed twice a day.</li>
       <li><b>Weather:</b> 10-day Open-Meteo forecast with frost, heavy-rain, heat and wind alerts.</li>
+      <li><b>Soil Health Card scanner:</b> reads 12 parameters from a photo or PDF (on your phone, Tesseract OCR) and gives a fertilizer plan in bags with cost.</li>
+      <li><b>Risk accounting:</b> bad / normal / good-year profit per crop combining 5-year local climate (frost, heat, drought, waterlogging), market risk and demand, and government incentives. Sliders let you test "what if".</li>
+      <li><b>Techniques:</b> DSR, laser levelling, Happy Seeder, drip, IPM and more — steps, benefits, government support and videos.</li>
     </ul>
     <h3>Limitations</h3>
     <p>Cost and yield numbers are Haryana-average estimates, not measured on your field. The app does not forecast future prices — it uses today's mandi price and MSP. Confirm big decisions with your KVK or agriculture officer.</p>
@@ -491,5 +740,5 @@ $$(".lang button").forEach((b) => (b.onclick = () => {
 }));
 paintStatic();
 const initial = location.hash.slice(1);
-if (["advice", "prices", "weather", "about"].includes(initial)) showTab(initial);
+if (["advice", "soilcard", "techniques", "prices", "weather", "about"].includes(initial)) showTab(initial);
 window.__km = { state, map }; // handy for debugging in the console

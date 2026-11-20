@@ -90,6 +90,11 @@ export function recommend(ctx) {
       if (crop.salinityTol === "high") soilFit += 0; else if (crop.salinityTol === "medium") soilFit -= 4; else soilFit -= 8;
       reasons.push({ k: "alkaline", v: ph.toFixed(1) });
     }
+    const ec = ctx.soil?.ec;
+    if (ec && ec > 3) {
+      soilFit -= crop.salinityTol === "high" ? 0 : crop.salinityTol === "medium" ? 6 : 12;
+      reasons.push({ k: "saline", v: ec.toFixed(1) });
+    }
     s += Math.max(0, soilFit);
 
     // 3) water fit (0–25)

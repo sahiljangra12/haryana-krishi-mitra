@@ -29,6 +29,8 @@
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="land" data-t="tabLand"></button>
     <button class="tab" data-tab="advice" data-t="tabAdvice"></button>
+    <button class="tab" data-tab="soilcard" data-t="tabCard"></button>
+    <button class="tab" data-tab="techniques" data-t="tabTech"></button>
     <button class="tab" data-tab="prices" data-t="tabPrices"></button>
     <button class="tab" data-tab="weather" data-t="tabWeather"></button>
     <button class="tab" data-tab="about" data-t="tabAbout"></button>
@@ -99,9 +101,78 @@
           </label>
         </div>
         <p id="adviceNote" class="hint"></p>
+        <fieldset class="opts">
+          <legend data-t="incentivesQ"></legend>
+          <label><input type="checkbox" id="optPaddy" /> <span data-t="optPaddy"></span></label>
+          <label><input type="checkbox" id="optDsr" /> <span data-t="optDsr"></span></label>
+          <label><input type="checkbox" id="optStraw" /> <span data-t="optStraw"></span></label>
+        </fieldset>
+      </div>
+      <div class="card" id="compareCard">
+        <h2 data-t="compareTitle"></h2>
+        <p class="hint" data-t="compareHint"></p>
+        <canvas id="compareChart" height="120"></canvas>
+        <div id="riskSummary" class="hint"></div>
+      </div>
+      <div class="card">
+        <h2 data-t="calendarTitle"></h2>
+        <div id="calendar" class="calendar"></div>
       </div>
       <div id="advice"></div>
       <p class="disclaimer" data-t="disclaimer"></p>
+    </section>
+
+    <!-- SOIL HEALTH CARD -->
+    <section id="tab-soilcard" class="panel">
+      <div class="grid2">
+        <div class="card">
+          <h2 data-t="cardTitle"></h2>
+          <p class="hint" data-t="cardIntro"></p>
+          <label class="upload">
+            <input type="file" id="cardFile" accept="image/*,application/pdf" capture="environment" />
+            <span>📷 <span data-t="cardUpload"></span></span>
+          </label>
+          <div class="row wrap">
+            <button class="btn ghost" id="cardSample" type="button" data-t="cardSample"></button>
+            <button class="btn ghost" id="cardClear" type="button" data-t="clear"></button>
+          </div>
+          <div id="cardProgress" class="progress hidden"><div class="bar"></div><span class="ptext"></span></div>
+          <p class="hint" data-t="cardPrivacy"></p>
+          <img id="cardPreview" class="cardpreview hidden" alt="" />
+        </div>
+        <div class="card">
+          <h2 data-t="cardValues"></h2>
+          <p class="hint" data-t="cardCheck"></p>
+          <table id="cardTable" class="cardtable"></table>
+        </div>
+      </div>
+      <div class="card" id="cardAdviceBox">
+        <h2 data-t="cardFindings"></h2>
+        <div id="cardAdvice"></div>
+      </div>
+      <div class="card">
+        <h2 data-t="fertTitle"></h2>
+        <div class="row wrap">
+          <label><span data-t="filterCrop"></span> <select id="fertCrop"></select></label>
+          <label><span data-t="acres"></span> <input id="fertAcres" type="number" min="0.25" step="0.25" value="2" /></label>
+        </div>
+        <div id="fertPlan"></div>
+        <p class="hint" data-t="fertNote"></p>
+      </div>
+      <details class="card"><summary data-t="ocrRaw"></summary><pre id="ocrText" class="ocrtext"></pre></details>
+    </section>
+
+    <!-- TECHNIQUES -->
+    <section id="tab-techniques" class="panel">
+      <div class="card">
+        <h2 data-t="techTitle"></h2>
+        <p class="hint" data-t="techIntro"></p>
+        <div class="row wrap">
+          <input id="techSearch" type="search" data-tph="techSearch" />
+        </div>
+        <div id="techChips" class="chips"></div>
+      </div>
+      <div id="techList" class="techgrid"></div>
     </section>
 
     <!-- PRICES -->
