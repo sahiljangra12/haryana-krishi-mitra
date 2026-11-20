@@ -1,12 +1,12 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=202611200059";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=202611200059";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=202611200059";
-import * as src from "./sources.js?v=202611200059";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=202611200059";
-import * as card from "./soilcard.js?v=202611200059";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=202611200059";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=202611200059";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=202611200059";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=202611200102";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=202611200102";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=202611200102";
+import * as src from "./sources.js?v=202611200102";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=202611200102";
+import * as card from "./soilcard.js?v=202611200102";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=202611200102";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=202611200102";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=202611200102";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -267,8 +267,18 @@ function renderReport() {
   const diff = latest && r.neighbour != null ? latest.ndvi - r.neighbour : null;
   const ndviWord = (v) => (v < 0.2 ? (lang === "hi" ? "खाली या अभी बोया गया" : "Bare or just sown") : v < 0.4 ? (lang === "hi" ? "कम हरियाली" : "Low cover") : v < 0.6 ? (lang === "hi" ? "मध्यम हरियाली" : "Moderate cover") : lang === "hi" ? "घनी, स्वस्थ फसल" : "Dense, healthy crop");
   const pos = (v) => `${Math.max(0, Math.min(100, ((v + 0.1) / 1.0) * 100))}%`;
-  const b = state.feature ? L.geoJSON(state.feature).getBounds().pad(1.2) : null;
-  const snap = b ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}&bboxSR=4326&imageSR=3857&size=600,500&format=jpg&f=image` : "";
+  // satellite snapshot with the field boundary drawn on top; extent fixed to the image's 6:5 aspect so the outline lines up
+  let snap = "", outline = "";
+  if (state.feature) {
+    const fb = L.geoJSON(state.feature).getBounds();
+    const c0 = fb.getCenter(), kx = 111320 * Math.cos((c0.lat * Math.PI) / 180), ky = 111320;
+    const wM = (fb.getEast() - fb.getWest()) * kx, hM = (fb.getNorth() - fb.getSouth()) * ky;
+    const W = Math.max(wM, hM * 1.2, 300) * 3.2, H = W / 1.2;
+    const west = c0.lng - W / 2 / kx, east = c0.lng + W / 2 / kx, south = c0.lat - H / 2 / ky, north = c0.lat + H / 2 / ky;
+    snap = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${west},${south},${east},${north}&bboxSR=4326&imageSR=4326&size=600,500&format=jpg&f=image`;
+    const pts = state.feature.geometry.coordinates[0].map(([x, y]) => `${(((x - west) / (east - west)) * 600).toFixed(1)},${(((north - y) / (north - south)) * 500).toFixed(1)}`).join(" ");
+    outline = `<svg viewBox="0 0 600 500" preserveAspectRatio="none" aria-hidden="true"><polygon points="${pts}" fill="rgba(240,190,30,0.12)" stroke="#f0be1e" stroke-width="3"/></svg>`;
+  }
   el.innerHTML = `
     <div class="card">
       <div class="section-head" style="margin-top:0">
@@ -276,7 +286,7 @@ function renderReport() {
         <button class="btn line noprint" id="printBtn">${ic("printer")}${t("printReport")}</button>
       </div>
       <div class="report-head">
-        ${snap ? `<img class="snap" src="${snap}" alt="${esc(t("fieldFromSky"))}" title="${esc(t("fieldFromSky"))}">` : ""}
+        ${snap ? `<div class="snapwrap"><img class="snap" src="${snap}" alt="${esc(t("fieldFromSky"))}" title="${esc(t("fieldFromSky"))}">${outline}</div>` : ""}
         <div class="kpis">
           <div class="kpi gold"><div class="l">${ic("scale")}${t("area")}</div><div class="v">${state.areaAcres.toFixed(2)}</div><div class="s">${t("acres")}, ${(state.areaAcres * 0.4047).toFixed(2)} ha</div></div>
           <div class="kpi"><div class="l">${ic("leaf")}${t("ndviNow")}</div><div class="v">${latest ? latest.ndvi.toFixed(2) : "-"}</div>
@@ -437,7 +447,7 @@ async function renderAdvice() {
         </div>
         <div class="money">
           <div><div class="l">${t("totalCost")}</div><b>${rupee(sc.costMid * acres)}</b><div class="s">${rupee(sc.costMid)} ${t("perAcre")}</div></div>
-          <div><div class="l">${t("priceUsed")}</div><b>${rupee(x.pp.price)} / q</b><div class="s">${t("basis_" + x.pp.basis)}${c.msp ? `, MSP ${rupee(c.msp)}` : ""}<br>${liveTxt}</div></div>
+          <div><div class="l">${t("priceUsed")}</div><b>${rupee(x.pp.price)} / q</b><div class="s">${t("basis_" + x.pp.basis)}${c.msp && x.pp.basis !== "msp" ? `, MSP ${rupee(c.msp)}` : ""}<br>${liveTxt}</div></div>
           <div><div class="l">${t("breakEven")}</div><b>${rupee(b.breakEven)} / q</b><div class="s">${t("breakEvenYield")}: ${Math.max(0, sc.breakEvenYield).toFixed(1)} q / ${t("acres")}</div></div>
           ${sc.incentives.perAcre ? `<div><div class="l">${t("incentiveIncl")}</div><b class="pos">${rupee(sc.incentives.perAcre * acres)}</b><div class="s">${sc.incentives.list.map((l) => esc(L_(INCENTIVE_LABEL[l.key])) + ": " + rupee(l.amount) + " / " + t("acres")).join("<br>")}</div></div>` : ""}
         </div>
