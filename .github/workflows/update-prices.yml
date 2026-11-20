@@ -5,9 +5,6 @@ on:
     # 06:40 and 12:40 UTC = 12:10 and 18:10 IST, after most mandis report
     - cron: "40 6,12 * * *"
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ["scripts/fetch_prices.py", ".github/workflows/update-prices.yml"]
 
 permissions:
   contents: write
@@ -18,6 +15,10 @@ concurrency:
 
 jobs:
   fetch:
+    # data.gov.in only answers requests from India. GitHub's runners are abroad, so scheduled runs are
+    # skipped (no failure emails, no wasted minutes) until the repo variable PRICE_PROXY points to an
+    # India-based relay. A manual "Run workflow" always runs, for testing.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.PRICE_PROXY != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
