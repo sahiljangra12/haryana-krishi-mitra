@@ -1,4 +1,4 @@
-import { t, getLang, setLang, rupee } from "./i18n.js";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=202611200047";
 import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=202611200047";
 import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=202611200047";
 import * as src from "./sources.js?v=202611200047";
