@@ -9,7 +9,7 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 | Tab | What the farmer gets | Data |
 |---|---|---|
 | **Land report** (ज़मीन रिपोर्ट) | Draw your field (or tap once and give acres). You get 12 months of crop greenness (NDVI) and moisture (NDMI), a cloud-masked history, a comparison with fields 1 km around, crop-season interpretation, an uneven-growth warning, soil texture, pH, organic carbon, N and CEC, and 5-year climate. Printable as PDF. | Copernicus **Sentinel-2 L2A** (10 m) via **Microsoft Planetary Computer** (STAC + titiler statistics); **ISRIC SoilGrids 2.0**; **NASA POWER** |
-| **What to grow** (क्या बोएं) | Crops for the coming Rabi, Kharif or Zaid season ranked 0–100. Each crop shows **bad / normal / good-year profit** and a **risk-adjusted profit** that combine the budget, straw income, soil-card fertilizer cost, Haryana incentives (MPMV, DSR, straw), **climate risk** (frost, terminal heat, drought, waterlogging and hail from 5 years of NASA POWER data at the field) and **market risk and demand**. It also shows what-if sliders for yield, price and cost, a comparison chart, a crop calendar, precautions and linked techniques and videos. | `js/crops.js` knowledge base, live mandi price, MSP |
+| **What to grow** (क्या बोएं) | Crops for the coming Rabi, Kharif or Zaid season ranked 0–100. Each crop shows **bad / normal / good-year profit** and a **risk-adjusted profit** that combine the budget, straw income, soil-card fertilizer cost, Haryana incentives (MPMV, DSR, straw), **climate risk** (frost, terminal heat, drought, waterlogging and hail from 5 years of NASA POWER data at the field) and **market risk and demand**. It also shows what-if sliders for yield, price and cost, a comparison chart, a crop calendar, precautions and linked techniques and videos. | `docs/js/crops.js` knowledge base, live mandi price, MSP |
 | **Mandi prices** (मंडी भाव) | Today's prices across Haryana mandis, filterable by crop and district, a price trend, and MSP vs market. | **Agmarknet** via **data.gov.in**, refreshed twice a day by a GitHub Action |
 | **Soil card scanner** (मृदा कार्ड) | Photograph the Soil Health Card or upload its PDF. Tesseract.js (English + Hindi) reads it on the phone, and digital PDFs are read directly. It extracts 12 parameters, rates them on the standard SHC thresholds, lets the farmer correct values, gives plain-language advice (gypsum, zinc, sulphur, organic carbon) and a crop-wise fertilizer plan in bags of urea, DAP and MOP with cost and savings vs. a blanket dose. The card values then drive the advisor. | Tesseract.js, pdf.js, `docs/js/soilcard.js` |
 | **Techniques & videos** (तकनीकें) | 17 techniques: DSR, crop diversification, laser levelling, Happy/Super Seeder, zero-till, drip/sprinkler, AWD, raised beds, IPM, seed treatment, soil testing, green manure, gypsum, summer moong, leaf colour chart, e-NAM/FPO, crop insurance. Each has steps, benefits, verified Haryana incentives and YouTube video links. Techniques that suit your field are starred. | `docs/js/techniques.js` |
@@ -23,10 +23,10 @@ docs/css/style.css
 docs/js/app.js             UI, map (Leaflet), charts (Chart.js)
 docs/js/sources.js         every external API call lives here
 docs/js/advisor.js         scoring, budgets, weather alerts, NDVI interpretation (transparent rules)
-docs/docs/js/soilcard.js   Soil Health Card OCR, parsing, rating, fertilizer plan
-docs/js/risk.js       climate/market risk, incentives, scenarios
-docs/js/techniques.js techniques library + video links
-docs/js/crops.js      crop knowledge base: MSP, yield, cost, water, soils, varieties, precautions (EN + HI)
+docs/js/soilcard.js        Soil Health Card OCR, parsing, rating, fertilizer plan
+docs/js/risk.js            climate/market risk, incentives, scenarios
+docs/js/techniques.js      techniques library + video links
+docs/js/crops.js           crop knowledge base: MSP, yield, cost, water, soils, varieties, precautions (EN + HI)
 docs/js/districts.js       22 districts, zone, groundwater status
 docs/js/i18n.js            Hindi / English strings
 scripts/fetch_prices.py               daily Agmarknet fetch (standard library only)
