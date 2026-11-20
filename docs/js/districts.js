@@ -27,6 +27,8 @@ export const DISTRICTS = [
   { name: "Yamunanagar", hi: "यमुनानगर", lat: 30.13, lon: 77.29, zone: "NE", gw: "moderate" },
 ];
 
+DISTRICTS.forEach((d) => (d.en = d.name));
+
 export function nearestDistrict(lat, lon) {
   let best = null, bd = Infinity;
   for (const d of DISTRICTS) {

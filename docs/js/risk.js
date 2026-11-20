@@ -48,15 +48,16 @@ export function exposures(ctx) {
   const yrs = ctx.climate?.years ? Object.values(ctx.climate.years) : [];
   const mean = yrs.length ? yrs.reduce((a, b) => a + b, 0) / yrs.length : null;
   const cv = yrs.length > 1 ? Math.sqrt(yrs.reduce((a, b) => a + (b - mean) ** 2, 0) / (yrs.length - 1)) / mean : 0.25;
-  const decJanMin = m ? (m[11].tmin + m[0].tmin) / 2 : 6;
-  const marMax = m ? m[2].tmax : 30;
+  // NASA POWER monthly T2M_MIN / T2M_MAX are the month's EXTREMES (coldest night, hottest day), averaged over 5 years
+  const decJanMin = m ? (m[11].tmin + m[0].tmin) / 2 : 4.5;
+  const marMax = m ? m[2].tmax : 36;
   const julAugRain = m ? (m[6].rain + m[7].rain) / 2 : 200;
   const fcMin = ctx.forecast?.daily ? Math.min(...ctx.forecast.daily.temperature_2m_min) : 99;
   const clayey = /clay/.test(ctx.soil?.texture || "") && !/sandy/.test(ctx.soil?.texture || "");
   const water = ctx.water || "good";
   return {
-    frost: clamp((8 - decJanMin) / 6 + (fcMin <= 3 ? 0.2 : 0)),
-    heat: clamp((marMax - 27) / 8),
+    frost: clamp((6 - decJanMin) / 5 + (fcMin <= 3 ? 0.2 : 0)),
+    heat: clamp((marMax - 33) / 7),
     drought: clamp((water === "good" ? 0.1 : water === "limited" ? 0.45 : 0.75) + (mean != null && mean < 450 ? 0.15 : 0) + clamp(cv - 0.2) * 0.8),
     waterlog: clamp((julAugRain - 120) / 250 + (clayey ? 0.2 : 0)),
     hail: 0.15,
@@ -64,15 +65,15 @@ export function exposures(ctx) {
   };
 }
 
-// Expected yield loss fraction in a bad year from climate (0–0.6)
+// Expected yield loss fraction in a bad year from climate (0–0.5)
 export function climateRisk(cropId, exp, season) {
   const s = SENS[cropId] || {};
   // monsoon waterlogging matters far less for winter crops
   const seasonal = { waterlog: season === "rabi" ? 0.3 : 1 };
   const parts = Object.fromEntries(["frost", "heat", "drought", "waterlog", "hail"].map((k) => [k, (s[k] || 0) * (exp[k] || 0) * (seasonal[k] ?? 1)]));
   // only seasonally relevant hazards: kharif crops can't get frost; summer moong can't get frost either
-  const combined = 1 - Object.values(parts).reduce((a, p) => a * (1 - p * 0.45), 1);
-  return { score: clamp(combined, 0, 0.6), parts };
+  const combined = 1 - Object.values(parts).reduce((a, p) => a * (1 - p * 0.3), 1);
+  return { score: clamp(combined, 0, 0.5), parts };
 }
 
 // Haryana incentives (Kharif 2026 announcements). Only applied when the farmer ticks the matching box.

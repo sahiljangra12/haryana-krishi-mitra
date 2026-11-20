@@ -306,8 +306,8 @@ function renderReport() {
         labels: months,
         datasets: [
           { type: "bar", label: (lang === "hi" ? "बारिश" : "Rain") + " (mm)", data: r.climate.monthly.map((m) => m.rain), backgroundColor: "rgba(30,136,229,0.5)", yAxisID: "y" },
-          { type: "line", label: "Max °C", data: r.climate.monthly.map((m) => m.tmax), borderColor: "#c62828", yAxisID: "y1" },
-          { type: "line", label: "Min °C", data: r.climate.monthly.map((m) => m.tmin), borderColor: "#1565c0", yAxisID: "y1" },
+          { type: "line", label: lang === "hi" ? "सबसे गर्म दिन °C" : "Hottest day °C", data: r.climate.monthly.map((m) => m.tmax), borderColor: "#c62828", yAxisID: "y1" },
+          { type: "line", label: lang === "hi" ? "सबसे ठंडी रात °C" : "Coldest night °C", data: r.climate.monthly.map((m) => m.tmin), borderColor: "#1565c0", yAxisID: "y1" },
         ],
       },
       options: { scales: { y: { position: "left", title: { display: true, text: "mm" } }, y1: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "°C" } } }, plugins: { legend: { position: "bottom" } } },
