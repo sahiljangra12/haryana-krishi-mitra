@@ -1,4 +1,4 @@
-# 🌾 Krishi Mitra Haryana · कृषि मित्र हरियाणा
+# Krishi Mitra Haryana · कृषि मित्र हरियाणा
 
 A free, open web app for Haryana farmers: a **satellite land report** for any field, **what to grow** with a per-acre **budget**, **precautions**, **10-day weather alerts** and **live mandi prices**. Hindi and English. No login, no API keys in the browser, and it runs entirely on GitHub Pages.
 
@@ -14,6 +14,11 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 | **Soil card scanner** (मृदा कार्ड) | Photograph the Soil Health Card or upload its PDF. Tesseract.js (English + Hindi) reads it on the phone, and digital PDFs are read directly. It extracts 12 parameters, rates them on the standard SHC thresholds, lets the farmer correct values, gives plain-language advice (gypsum, zinc, sulphur, organic carbon) and a crop-wise fertilizer plan in bags of urea, DAP and MOP with cost and savings vs. a blanket dose. The card values then drive the advisor. | Tesseract.js, pdf.js, `docs/js/soilcard.js` |
 | **Techniques & videos** (तकनीकें) | 17 techniques: DSR, crop diversification, laser levelling, Happy/Super Seeder, zero-till, drip/sprinkler, AWD, raised beds, IPM, seed treatment, soil testing, green manure, gypsum, summer moong, leaf colour chart, e-NAM/FPO, crop insurance. Each has steps, benefits, verified Haryana incentives and YouTube video links. Techniques that suit your field are starred. | `docs/js/techniques.js` |
 | **Weather** (मौसम) | 10-day forecast with farm alerts for frost, heavy rain, heat during grain filling, wind (don't spray) and rust/blight-favourable humidity. | **Open-Meteo** |
+
+## Design
+- Palette taken from the fields: soil brown `#3A2A1C`, field green `#2F6B3A`, mustard-flower yellow `#F0BE1E`, canal blue `#2D6E8E`.
+- Type: *Tiro Devanagari Hindi* for headings and *Hind* for interface text. Both are built for Devanagari, and Hindi is the default language.
+- The hero is a real satellite image of fields near Karnal. Crops and techniques use openly licensed photos from Wikimedia Commons, credited on the About page (`docs/js/images.js`). Icons are from [Lucide](https://lucide.dev) (ISC), inlined as an SVG sprite. The site uses no emojis.
 
 ## How it's built
 
