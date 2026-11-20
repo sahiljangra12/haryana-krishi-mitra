@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Krishi Mitra Haryana — कृषि मित्र हरियाणा</title>
+  <meta name="description" content="Free satellite land report, crop advice, budgets, weather alerts and live mandi prices for Haryana farmers." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo">🌾</span>
+      <div>
+        <h1 data-t="appName">कृषि मित्र हरियाणा</h1>
+        <p class="tag" data-t="tagline"></p>
+      </div>
+    </div>
+    <div class="lang">
+      <button data-lang="hi">हिंदी</button>
+      <button data-lang="en">English</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="land" data-t="tabLand"></button>
+    <button class="tab" data-tab="advice" data-t="tabAdvice"></button>
+    <button class="tab" data-tab="prices" data-t="tabPrices"></button>
+    <button class="tab" data-tab="weather" data-t="tabWeather"></button>
+    <button class="tab" data-tab="about" data-t="tabAbout"></button>
+  </nav>
+
+  <main>
+    <!-- LAND REPORT -->
+    <section id="tab-land" class="panel active">
+      <div class="grid2">
+        <div class="card controls">
+          <h2 data-t="step1"></h2>
+          <form id="searchForm" class="row">
+            <input id="q" type="search" data-tph="searchPh" autocomplete="off" />
+            <button type="submit" class="btn" data-t="search"></button>
+          </form>
+          <div id="searchResults" class="results"></div>
+          <button id="locBtn" class="btn ghost" type="button">📍 <span data-t="myLoc"></span></button>
+          <p class="hint" data-t="drawHint"></p>
+          <div class="row">
+            <button id="drawBtn" class="btn ghost" type="button" data-t="draw"></button>
+            <button id="doneBtn" class="btn ghost" type="button" data-t="done" disabled></button>
+            <button id="clearBtn" class="btn ghost" type="button" data-t="clear"></button>
+          </div>
+          <label><span data-t="sizeIfPoint"></span>
+            <div class="row"><input id="acres" type="number" min="0.25" max="200" step="0.25" value="2" /> <span data-t="acres"></span></div>
+          </label>
+          <label><span data-t="water"></span>
+            <select id="water">
+              <option value="good" data-t="waterGood"></option>
+              <option value="limited" data-t="waterLimited"></option>
+              <option value="rainfed" data-t="waterRainfed"></option>
+            </select>
+          </label>
+          <label><span data-t="risk"></span>
+            <select id="risk">
+              <option value="low" data-t="riskLow"></option>
+              <option value="medium" data-t="riskMed" selected></option>
+              <option value="high" data-t="riskHigh"></option>
+            </select>
+          </label>
+          <button id="analyseBtn" class="btn big" type="button" data-t="analyse"></button>
+          <div id="progress" class="progress hidden"><div class="bar"></div><span class="ptext"></span></div>
+          <p id="msg" class="msg"></p>
+        </div>
+        <div class="card mapcard">
+          <div id="map"></div>
+          <div class="layerbar">
+            <span data-t="overlay"></span>:
+            <label><input type="radio" name="layer" value="none" checked /> <span data-t="layerNone"></span></label>
+            <label><input type="radio" name="layer" value="ndvi" disabled /> <span data-t="layerNdvi"></span></label>
+            <label><input type="radio" name="layer" value="true" disabled /> <span data-t="layerTrue"></span></label>
+          </div>
+          <div class="legend hidden" id="ndviLegend"><span>0</span><div class="ramp"></div><span>0.9</span></div>
+        </div>
+      </div>
+      <div id="report" class="report hidden"></div>
+    </section>
+
+    <!-- ADVICE -->
+    <section id="tab-advice" class="panel">
+      <div class="card">
+        <div class="row wrap">
+          <label><span data-t="season"></span>
+            <select id="seasonSel"></select>
+          </label>
+          <label><span data-t="chooseDistrict"></span>
+            <select id="districtSel"></select>
+          </label>
+        </div>
+        <p id="adviceNote" class="hint"></p>
+      </div>
+      <div id="advice"></div>
+      <p class="disclaimer" data-t="disclaimer"></p>
+    </section>
+
+    <!-- PRICES -->
+    <section id="tab-prices" class="panel">
+      <div class="card">
+        <h2 data-t="pricesTitle"></h2>
+        <div class="row wrap">
+          <label><span data-t="filterCrop"></span> <select id="priceCrop"></select></label>
+          <label><span data-t="district"></span> <select id="priceDistrict"></select></label>
+        </div>
+        <p id="priceMeta" class="hint"></p>
+        <div id="trendBox" class="hidden"><h3 data-t="trend"></h3><canvas id="trendChart" height="110"></canvas></div>
+        <div class="tablewrap"><table id="priceTable"></table></div>
+      </div>
+      <div class="card">
+        <h2 data-t="mspTable"></h2>
+        <div class="tablewrap"><table id="mspTable"></table></div>
+        <p class="hint" id="mspSource"></p>
+      </div>
+    </section>
+
+    <!-- WEATHER -->
+    <section id="tab-weather" class="panel">
+      <div class="card">
+        <div class="row wrap"><label><span data-t="district"></span> <select id="weatherDistrict"></select></label></div>
+        <p id="weatherWhere" class="hint"></p>
+        <h2 data-t="alerts"></h2>
+        <div id="alerts"></div>
+        <h2 data-t="weatherTitle"></h2>
+        <div id="forecast" class="forecast"></div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section id="tab-about" class="panel">
+      <div class="card prose" id="aboutBox"></div>
+    </section>
+  </main>
+
+  <footer>
+    Data: Copernicus Sentinel-2 via Microsoft Planetary Computer · ISRIC SoilGrids · Open-Meteo · NASA POWER · Agmarknet / data.gov.in · © OpenStreetMap, Esri.
+    <a href="https://github.com/sahiljangra12/haryana-krishi-mitra">Source code</a>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
