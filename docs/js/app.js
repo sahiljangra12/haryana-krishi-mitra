@@ -497,11 +497,13 @@ function renderCardTable() {
       const v = state.card[p.id];
       const r = card.rate(p.id, v);
       const lab = r ? card.RATING_LABEL[r] : null;
-      return `<tr><td>${esc(L_(p))}</td><td><input type="number" step="any" data-p="${p.id}" value="${v ?? ""}"></td><td>${p.unit}</td><td>${lab ? `<span class="badge ${lab.cls}">${L_(lab)}</span>` : "—"}</td></tr>`;
+      const warn = state.cardFlags?.[p.id] ? ` <span title="check" class="badge neg">⚠ ${getLang() === "hi" ? "जांचें" : "check"}</span>` : "";
+      return `<tr><td>${esc(L_(p))}${warn}</td><td><input type="number" step="any" data-p="${p.id}" value="${v ?? ""}"></td><td>${p.unit}</td><td>${lab ? `<span class="badge ${lab.cls}">${L_(lab)}</span>` : "—"}</td></tr>`;
     }).join("");
   $$("#cardTable input").forEach((inp) => (inp.onchange = () => {
     const v = inp.value === "" ? null : +inp.value;
     if (v == null) delete state.card[inp.dataset.p]; else state.card[inp.dataset.p] = v;
+    if (state.cardFlags) delete state.cardFlags[inp.dataset.p];
     saveCard();
     renderCard();
   }));
@@ -527,7 +529,7 @@ function renderCard() {
 }
 $("#fertCrop").onchange = renderCard;
 $("#fertAcres").oninput = renderCard;
-$("#cardClear").onclick = () => { state.card = {}; saveCard(); $("#cardPreview").classList.add("hidden"); $("#ocrText").textContent = ""; renderCard(); };
+$("#cardClear").onclick = () => { state.card = {}; state.cardFlags = {}; saveCard(); $("#cardPreview").classList.add("hidden"); $("#ocrText").textContent = ""; renderCard(); };
 $("#cardSample").onclick = () => {
   const r = card.parseCard(card.SAMPLE_TEXT);
   state.card = r.values; saveCard();
@@ -546,6 +548,7 @@ $("#cardFile").onchange = async (e) => {
     const res = await card.scanCard(file, (f) => setP(f));
     $("#ocrText").textContent = res.text;
     state.card = { ...state.card, ...res.values };
+    state.cardFlags = res.flags || {};
     saveCard();
     $(".ptext", pr).textContent = `✔ ${res.found} ${t("cardFound")}`;
     $(".bar", pr).style.width = "100%";

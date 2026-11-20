@@ -13,18 +13,18 @@ export const FERT = {
 
 // Parameters printed on the SHC. unit = what the card prints. thresholds: [low/deficient below, high above]
 export const PARAMS = [
-  { id: "ph", en: "pH", hi: "पीएच", unit: "", keys: ["\\bp\\s?h\\b", "पीएच", "पी\\.?\\s?एच", "मृदा\\s*अभिक्रिया"], range: [3, 11] },
-  { id: "ec", en: "Electrical conductivity (EC)", hi: "विद्युत चालकता (EC)", unit: "dS/m", keys: ["\\bE\\.?\\s?C\\b", "electrical\\s*conductivity", "conductivity", "विद्युत\\s*चालकता", "चालकता"], range: [0, 20], th: [1, 3] },
-  { id: "oc", en: "Organic carbon (OC)", hi: "जैविक कार्बन (OC)", unit: "%", keys: ["organic\\s*carbon", "\\bO\\.?\\s?C\\b", "जैविक\\s*कार्बन", "कार्बनिक\\s*कार्बन"], range: [0, 5], th: [0.5, 0.75] },
-  { id: "n", en: "Available nitrogen (N)", hi: "उपलब्ध नाइट्रोजन (N)", unit: "kg/ha", keys: ["nitrogen", "\\(N\\)", "नाइट्रोजन", "नत्रजन"], range: [20, 1500], th: [280, 560] },
-  { id: "p", en: "Available phosphorus (P)", hi: "उपलब्ध फॉस्फोरस (P)", unit: "kg/ha", keys: ["phosph", "\\(P\\)", "फास्फोरस", "फॉस्फोरस", "स्फुर"], range: [0.5, 300], th: [10, 25] },
-  { id: "k", en: "Available potassium (K)", hi: "उपलब्ध पोटाश (K)", unit: "kg/ha", keys: ["potas", "\\(K\\)", "पोटाश", "पोटैशियम", "पोटेशियम"], range: [10, 2000], th: [110, 280] },
-  { id: "s", en: "Sulphur (S)", hi: "गंधक (S)", unit: "ppm", keys: ["sulph", "sulfur", "\\(S\\)", "गंधक", "सल्फर"], range: [0, 200], th: [10, 20] },
-  { id: "zn", en: "Zinc (Zn)", hi: "जस्ता (Zn)", unit: "ppm", keys: ["zinc", "\\bZn\\b", "जस्ता", "जिंक"], range: [0, 50], th: [0.6, 1.2] },
-  { id: "fe", en: "Iron (Fe)", hi: "लोहा (Fe)", unit: "ppm", keys: ["iron", "\\bFe\\b", "लोहा", "आयरन"], range: [0, 200], th: [4.5, 9] },
-  { id: "cu", en: "Copper (Cu)", hi: "तांबा (Cu)", unit: "ppm", keys: ["copper", "\\bCu\\b", "तांबा", "कॉपर", "कापर"], range: [0, 50], th: [0.2, 0.4] },
-  { id: "mn", en: "Manganese (Mn)", hi: "मैंगनीज (Mn)", unit: "ppm", keys: ["mangan", "\\bMn\\b", "मैंगनीज", "मैंगनीज़"], range: [0, 200], th: [2, 4] },
-  { id: "b", en: "Boron (B)", hi: "बोरॉन (B)", unit: "ppm", keys: ["boron", "\\bB\\b", "बोरोन", "बोरॉन"], range: [0, 20], th: [0.5, 1] },
+  { id: "ph", typMax: 10.5, en: "pH", hi: "पीएच", unit: "", keys: ["\\bp\\s?h\\b", "पीएच", "पी\\.?\\s?एच", "मृदा\\s*अभिक्रिया"], range: [3, 110] },
+  { id: "ec", typMax: 5, en: "Electrical conductivity (EC)", hi: "विद्युत चालकता (EC)", unit: "dS/m", keys: ["\\bE\\.?\\s?C\\b", "electrical\\s*conductivity", "conductivity", "विद्युत\\s*चालकता", "चालकता"], range: [0, 20], th: [1, 3] },
+  { id: "oc", typMax: 3, en: "Organic carbon (OC)", hi: "जैविक कार्बन (OC)", unit: "%", keys: ["organic\\s*carbon", "\\bO\\.?\\s?C\\b", "जैविक\\s*कार्बन", "कार्बनिक\\s*कार्बन"], range: [0, 5], th: [0.5, 0.75] },
+  { id: "n", typMax: 900, en: "Available nitrogen (N)", hi: "उपलब्ध नाइट्रोजन (N)", unit: "kg/ha", keys: ["nitrogen", "\\(N\\)", "नाइट्रोजन", "नत्रजन"], range: [20, 1500], th: [280, 560] },
+  { id: "p", typMax: 150, en: "Available phosphorus (P)", hi: "उपलब्ध फॉस्फोरस (P)", unit: "kg/ha", keys: ["phosph", "\\(P\\)", "फास्फोरस", "फॉस्फोरस", "स्फुर"], range: [0.5, 300], th: [10, 25] },
+  { id: "k", typMax: 1000, en: "Available potassium (K)", hi: "उपलब्ध पोटाश (K)", unit: "kg/ha", keys: ["potas", "\\(K\\)", "पोटाश", "पोटैशियम", "पोटेशियम"], range: [10, 2000], th: [110, 280] },
+  { id: "s", typMax: 60, en: "Sulphur (S)", hi: "गंधक (S)", unit: "ppm", keys: ["sulph", "sulfur", "\\(S\\)", "गंधक", "सल्फर"], range: [0, 200], th: [10, 20] },
+  { id: "zn", typMax: 8, en: "Zinc (Zn)", hi: "जस्ता (Zn)", unit: "ppm", keys: ["zinc", "\\bZn\\b", "जस्ता", "जिंक"], range: [0, 50], th: [0.6, 1.2] },
+  { id: "fe", typMax: 60, en: "Iron (Fe)", hi: "लोहा (Fe)", unit: "ppm", keys: ["iron", "\\bFe\\b", "लोहा", "आयरन"], range: [0, 200], th: [4.5, 9] },
+  { id: "cu", typMax: 8, en: "Copper (Cu)", hi: "तांबा (Cu)", unit: "ppm", keys: ["copper", "\\bCu\\b", "तांबा", "कॉपर", "कापर"], range: [0, 50], th: [0.2, 0.4] },
+  { id: "mn", typMax: 60, en: "Manganese (Mn)", hi: "मैंगनीज (Mn)", unit: "ppm", keys: ["mangan", "\\bMn\\b", "मैंगनीज", "मैंगनीज़"], range: [0, 200], th: [2, 4] },
+  { id: "b", typMax: 4, en: "Boron (B)", hi: "बोरॉन (B)", unit: "ppm", keys: ["boron", "\\bB\\b", "बोरोन", "बोरॉन"], range: [0, 20], th: [0.5, 1] },
 ];
 
 // General recommended dose, kg/ha N–P2O5–K2O, irrigated, Haryana (CCS HAU package of practices, rounded).
@@ -134,7 +134,7 @@ function normalise(t) {
 export function parseCard(raw) {
   const text = normalise(raw || "");
   const lines = text.split(/\n+/);
-  const values = {};
+  const values = {}, flags = {};
   for (const p of PARAMS) {
     const re = new RegExp(p.keys.join("|"), "i");
     for (let li = 0; li < lines.length && values[p.id] == null; li++) {
@@ -145,11 +145,19 @@ export function parseCard(raw) {
       // skip things that look like the normal-range column, e.g. "280-560" or "6.5-7.5"
       const rangeLike = new Set();
       for (const r of after.matchAll(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/g)) { rangeLike.add(parseFloat(r[1])); rangeLike.add(parseFloat(r[2])); }
-      const v = nums.find((n) => !rangeLike.has(n) && n >= p.range[0] && n <= p.range[1]);
-      if (v != null) values[p.id] = v;
+      let v = nums.find((n) => !rangeLike.has(n) && n >= p.range[0] && n <= p.range[1]);
+      if (v != null) {
+        // OCR often drops the decimal point ("1.1" -> "11"); repair values far above what soils show
+        if (v > p.typMax) {
+          const fixed = [10, 100].map((d) => v / d).find((x) => x <= p.typMax && x >= (p.id === "ph" ? 4 : 0));
+          if (fixed != null) v = +fixed.toFixed(2);
+          flags[p.id] = true;
+        }
+        values[p.id] = v;
+      }
     }
   }
-  return { values, found: Object.keys(values).length };
+  return { values, flags, found: Object.keys(values).length };
 }
 
 /* ---------- Rating & recommendations ---------- */
