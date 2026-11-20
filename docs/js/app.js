@@ -267,16 +267,17 @@ function renderReport() {
   const diff = latest && r.neighbour != null ? latest.ndvi - r.neighbour : null;
   const ndviWord = (v) => (v < 0.2 ? (lang === "hi" ? "खाली या अभी बोया गया" : "Bare or just sown") : v < 0.4 ? (lang === "hi" ? "कम हरियाली" : "Low cover") : v < 0.6 ? (lang === "hi" ? "मध्यम हरियाली" : "Moderate cover") : lang === "hi" ? "घनी, स्वस्थ फसल" : "Dense, healthy crop");
   const pos = (v) => `${Math.max(0, Math.min(100, ((v + 0.1) / 1.0) * 100))}%`;
-  // satellite snapshot with the field boundary drawn on top; extent fixed to the image's 6:5 aspect so the outline lines up
+  // satellite snapshot with the field boundary drawn on top, in Web Mercator so the outline lines up exactly
   let snap = "", outline = "";
   if (state.feature) {
-    const fb = L.geoJSON(state.feature).getBounds();
-    const c0 = fb.getCenter(), kx = 111320 * Math.cos((c0.lat * Math.PI) / 180), ky = 111320;
-    const wM = (fb.getEast() - fb.getWest()) * kx, hM = (fb.getNorth() - fb.getSouth()) * ky;
-    const W = Math.max(wM, hM * 1.2, 300) * 3.2, H = W / 1.2;
-    const west = c0.lng - W / 2 / kx, east = c0.lng + W / 2 / kx, south = c0.lat - H / 2 / ky, north = c0.lat + H / 2 / ky;
-    snap = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${west},${south},${east},${north}&bboxSR=4326&imageSR=4326&size=600,500&format=jpg&f=image`;
-    const pts = state.feature.geometry.coordinates[0].map(([x, y]) => `${(((x - west) / (east - west)) * 600).toFixed(1)},${(((north - y) / (north - south)) * 500).toFixed(1)}`).join(" ");
+    const R = 6378137, mx = (lon) => (R * lon * Math.PI) / 180, my = (lat) => R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+    const ring = state.feature.geometry.coordinates[0].map(([x, y]) => [mx(x), my(y)]);
+    const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const W = Math.max(Math.max(...xs) - Math.min(...xs), (Math.max(...ys) - Math.min(...ys)) * 1.2, 350) * 3.2, H = W / 1.2;
+    const x0 = cx - W / 2, x1 = cx + W / 2, y0 = cy - H / 2, y1 = cy + H / 2;
+    snap = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${x0},${y0},${x1},${y1}&bboxSR=3857&imageSR=3857&size=600,500&format=jpg&f=image`;
+    const pts = ring.map(([x, y]) => `${(((x - x0) / W) * 600).toFixed(1)},${(((y1 - y) / H) * 500).toFixed(1)}`).join(" ");
     outline = `<svg viewBox="0 0 600 500" preserveAspectRatio="none" aria-hidden="true"><polygon points="${pts}" fill="rgba(240,190,30,0.12)" stroke="#f0be1e" stroke-width="3"/></svg>`;
   }
   el.innerHTML = `
