@@ -43,6 +43,19 @@ function fillSelects() {
   pc.value = keepC || "";
 }
 
+/* ---------------- live prices arriving later ---------------- */
+let watching = false;
+function watchLivePrices() {
+  if (watching || !state.prices?.livePromise) return;
+  watching = true;
+  state.prices.livePromise.then((ok) => {
+    if (!ok) return;
+    const active = $(".tab.active")?.dataset.tab;
+    if (active === "advice") renderAdvice();
+    if (active === "prices") renderPrices();
+  });
+}
+
 /* ---------------- tabs ---------------- */
 function showTab(name) {
   $$(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
@@ -221,7 +234,7 @@ $("#analyseBtn").onclick = async () => {
 
   state.report = { lat, lon, series, scenesFound: R.sat?.scenesFound, satError: R.sat?.error, soil: R.soil?.error ? null : R.soil, soilError: R.soil?.error, climate: R.climate?.error ? null : R.climate, latestItem: latest?.item, neighbour, at: new Date() };
   if (!R.fc?.error) { state.forecast = R.fc; state.forecastFor = { lat, lon, label: L_(state.district) }; }
-  if (!R.prices?.error) state.prices = R.prices;
+  if (!R.prices?.error) { state.prices = R.prices; watchLivePrices(); }
 
   $$('input[name="layer"]').forEach((r) => (r.disabled = r.value !== "none" && !latest));
   if (latest) { $('input[name="layer"][value="ndvi"]').checked = true; setOverlay(); }
@@ -331,7 +344,7 @@ let compareChart = null;
 const whatIf = {}; // crop id -> {yield, price, cost}
 
 async function renderAdvice() {
-  if (!state.prices) { try { state.prices = await src.mandiPrices(); } catch {} }
+  if (!state.prices) { try { state.prices = await src.mandiPrices(); watchLivePrices(); } catch {} }
   const lang = getLang();
   const r = state.report;
   const soil = adviceSoil();
@@ -599,7 +612,7 @@ let trendChart = null;
 $("#priceCrop").onchange = renderPrices;
 $("#priceDistrict").onchange = renderPrices;
 async function renderPrices() {
-  if (!state.prices) { try { state.prices = await src.mandiPrices(); } catch {} }
+  if (!state.prices) { try { state.prices = await src.mandiPrices(); watchLivePrices(); } catch {} }
   const lang = getLang();
   // MSP table
   const seen = new Set();

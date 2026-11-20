@@ -216,10 +216,10 @@ export async function mandiPrices() {
   // Farmers' browsers in India can: fetch live prices directly when the saved file is missing or stale.
   const stale = !latest?.records?.length || Date.now() - Date.parse(latest.updated) > 36 * 3600e3;
   if (stale) {
-    try {
-      const live = await liveMandiFromBrowser();
-      if (live.records.length) _prices.latest = live;
-    } catch (e) { /* outside India or API down: keep whatever we have */ }
+    // don't block the page: fetch in the background and let the app re-render when it lands
+    _prices.livePromise = liveMandiFromBrowser()
+      .then((live) => { if (live.records.length) { _prices.latest = live; return true; } return false; })
+      .catch(() => false);
   }
   return _prices;
 }
