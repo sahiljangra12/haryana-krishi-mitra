@@ -1,12 +1,12 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=202611200102";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=202611200102";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=202611200102";
-import * as src from "./sources.js?v=202611200102";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=202611200102";
-import * as card from "./soilcard.js?v=202611200102";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=202611200102";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=202611200102";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=202611200102";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120010338";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120010338";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120010338";
+import * as src from "./sources.js?v=20261120010338";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120010338";
+import * as card from "./soilcard.js?v=20261120010338";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120010338";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120010338";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120010338";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
