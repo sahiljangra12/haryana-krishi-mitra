@@ -15,6 +15,16 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 | **Techniques & videos** (तकनीकें) | 17 techniques: DSR, crop diversification, laser levelling, Happy/Super Seeder, zero-till, drip/sprinkler, AWD, raised beds, IPM, seed treatment, soil testing, green manure, gypsum, summer moong, leaf colour chart, e-NAM/FPO, crop insurance. Each has steps, benefits, verified Haryana incentives and YouTube video links. Techniques that suit your field are starred. | `docs/js/techniques.js` |
 | **Weather** (मौसम) | 10-day forecast with farm alerts for frost, heavy rain, heat during grain filling, wind (don't spray) and rust/blight-favourable humidity. | **Open-Meteo** |
 
+## Finding a field
+Village-level addresses in India are patchy in every free database, so the search:
+1. Reads exact coordinates (`29.7621, 76.8623`) or a full Google Maps link and pins that spot.
+2. Strips filler words such as Village, VPO, Tehsil, Distt., जिला and PIN codes, then queries **Esri World Geocoder** (best coverage of Haryana villages) and **OpenStreetMap** together.
+3. Retries with village + district, then the village alone, then the PIN.
+4. Transliterates Hindi input (रम्भा → rambha).
+5. Drops any result outside Haryana, including Delhi and Chandigarh.
+
+Suggestions appear as you type. A village or PIN is an area, not a field, so the app drops a pin there and asks the farmer to tap the exact field. It then names the nearest village (reverse geocoding) to confirm.
+
 ## Design
 - Palette taken from the fields: soil brown `#3A2A1C`, field green `#2F6B3A`, mustard-flower yellow `#F0BE1E`, canal blue `#2D6E8E`.
 - Type: *Tiro Devanagari Hindi* for headings and *Hind* for interface text. Both are built for Devanagari, and Hindi is the default language.

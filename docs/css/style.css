@@ -119,7 +119,7 @@ input, select { font: inherit; padding: 0.55rem 0.7rem; border: 1px solid var(--
 .step-title:first-child { margin-top: 0; }
 
 /* ---------- map ---------- */
-.mapcard { padding: 0; overflow: hidden; position: relative; }
+.mapcard { padding: 0; overflow: hidden; position: relative; align-self: start; }
 #map { height: 580px; width: 100%; }
 @media (max-width: 880px) { #map { height: 400px; } .mapcard { order: -1; } }
 .layerbar { padding: 0.6rem 1rem; font-size: 0.92rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--line); }
