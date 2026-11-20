@@ -3,87 +3,329 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Krishi Mitra Haryana — कृषि मित्र हरियाणा</title>
-  <meta name="description" content="Free satellite land report, crop advice, budgets, weather alerts and live mandi prices for Haryana farmers." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌾</text></svg>" />
+  <title>Krishi Mitra Haryana | कृषि मित्र हरियाणा</title>
+  <meta name="description" content="Free satellite land report, crop advice, budgets, soil card scanner, weather alerts and mandi prices for Haryana farmers." />
+  <meta name="theme-color" content="#2f6b3a" />
+  <link rel="icon" href="img/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=202611200048" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600&family=Tiro+Devanagari+Hindi&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css?v=202611200059" />
 </head>
 <body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<symbol id="i-map-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+  <circle cx="12" cy="10" r="3" /></symbol>
+<symbol id="i-locate" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="5" y1="12" y2="12" />
+  <line x1="19" x2="22" y1="12" y2="12" />
+  <line x1="12" x2="12" y1="2" y2="5" />
+  <line x1="12" x2="12" y1="19" y2="22" />
+  <circle cx="12" cy="12" r="7" /></symbol>
+<symbol id="i-sprout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10" />
+  <path d="M10 20c5.5-2.5.8-6.4 3-10" />
+  <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z" />
+  <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z" /></symbol>
+<symbol id="i-wheat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22 16 8" />
+  <path d="M3.47 12.53 5 11l1.53 1.53a3.5 3.5 0 0 1 0 4.94L5 19l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z" />
+  <path d="M7.47 8.53 9 7l1.53 1.53a3.5 3.5 0 0 1 0 4.94L9 15l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z" />
+  <path d="M11.47 4.53 13 3l1.53 1.53a3.5 3.5 0 0 1 0 4.94L13 11l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z" />
+  <path d="M20 2h2v2a4 4 0 0 1-4 4h-2V6a4 4 0 0 1 4-4Z" />
+  <path d="M11.47 17.47 13 19l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L5 19l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z" />
+  <path d="M15.47 13.47 17 15l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L9 15l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z" />
+  <path d="M19.47 9.47 21 11l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L13 11l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z" /></symbol>
+<symbol id="i-flask-conical" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" />
+  <path d="M8.5 2h7" />
+  <path d="M7 16h10" /></symbol>
+<symbol id="i-book-open-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14" />
+  <path d="M16 12h2" />
+  <path d="M16 8h2" />
+  <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+  <path d="M6 12h2" />
+  <path d="M6 8h2" /></symbol>
+<symbol id="i-indian-rupee" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12" />
+  <path d="M6 8h12" />
+  <path d="m6 13 8.5 8" />
+  <path d="M6 13h3" />
+  <path d="M9 13c6.667 0 6.667-10 0-10" /></symbol>
+<symbol id="i-cloud-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2" />
+  <path d="m4.93 4.93 1.41 1.41" />
+  <path d="M20 12h2" />
+  <path d="m19.07 4.93-1.41 1.41" />
+  <path d="M15.947 12.65a4 4 0 0 0-5.925-4.128" />
+  <path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z" /></symbol>
+<symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+  <path d="M12 16v-4" />
+  <path d="M12 8h.01" /></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" />
+  <path d="m21 21-4.3-4.3" /></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+  <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+  <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></symbol>
+<symbol id="i-printer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+  <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" />
+  <rect x="6" y="14" width="12" height="8" rx="1" /></symbol>
+<symbol id="i-leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+  <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" /></symbol>
+<symbol id="i-droplets" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z" />
+  <path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97" /></symbol>
+<symbol id="i-droplet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" /></symbol>
+<symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></symbol>
+<symbol id="i-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88" />
+  <path d="M14.12 3.88 16 2" />
+  <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+  <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" />
+  <path d="M12 20v-9" />
+  <path d="M6.53 9C4.6 8.8 3 7.1 3 5" />
+  <path d="M6 13H2" />
+  <path d="M3 21c0-2.1 1.7-3.9 3.8-4" />
+  <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4" />
+  <path d="M22 13h-4" />
+  <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4" /></symbol>
+<symbol id="i-coins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6" />
+  <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
+  <path d="M7 6h1v4" />
+  <path d="m16.71 13.88.7.71-2.82 2.82" /></symbol>
+<symbol id="i-shield-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+  <path d="m9 12 2 2 4-4" /></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4" />
+  <path d="M16 2v4" />
+  <rect width="18" height="18" x="3" y="4" rx="2" />
+  <path d="M3 10h18" /></symbol>
+<symbol id="i-sliders-horizontal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4" />
+  <line x1="10" x2="3" y1="4" y2="4" />
+  <line x1="21" x2="12" y1="12" y2="12" />
+  <line x1="8" x2="3" y1="12" y2="12" />
+  <line x1="21" x2="16" y1="20" y2="20" />
+  <line x1="12" x2="3" y1="20" y2="20" />
+  <line x1="14" x2="14" y1="2" y2="6" />
+  <line x1="8" x2="8" y1="10" y2="14" />
+  <line x1="16" x2="16" y1="18" y2="22" /></symbol>
+<symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3" /></symbol>
+<symbol id="i-landmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" x2="21" y1="22" y2="22" />
+  <line x1="6" x2="6" y1="18" y2="11" />
+  <line x1="10" x2="10" y1="18" y2="11" />
+  <line x1="14" x2="14" y1="18" y2="11" />
+  <line x1="18" x2="18" y1="18" y2="11" />
+  <polygon points="12 2 20 7 4 7" /></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" />
+  <path d="M12 2v2" />
+  <path d="M12 20v2" />
+  <path d="m4.93 4.93 1.41 1.41" />
+  <path d="m17.66 17.66 1.41 1.41" />
+  <path d="M2 12h2" />
+  <path d="M20 12h2" />
+  <path d="m6.34 17.66-1.41 1.41" />
+  <path d="m19.07 4.93-1.41 1.41" /></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" /></symbol>
+<symbol id="i-cloud-rain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+  <path d="M16 14v6" />
+  <path d="M8 14v6" />
+  <path d="M12 16v6" /></symbol>
+<symbol id="i-cloud-drizzle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+  <path d="M8 19v1" />
+  <path d="M8 14v1" />
+  <path d="M16 19v1" />
+  <path d="M16 14v1" />
+  <path d="M12 21v1" />
+  <path d="M12 16v1" /></symbol>
+<symbol id="i-cloud-fog" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+  <path d="M16 17H7" />
+  <path d="M17 21H9" /></symbol>
+<symbol id="i-cloud-snow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+  <path d="M8 15h.01" />
+  <path d="M8 19h.01" />
+  <path d="M12 17h.01" />
+  <path d="M12 21h.01" />
+  <path d="M16 15h.01" />
+  <path d="M16 19h.01" /></symbol>
+<symbol id="i-cloud-lightning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973" />
+  <path d="m13 12-3 5h4l-3 5" /></symbol>
+<symbol id="i-cloud-sun-rain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2" />
+  <path d="m4.93 4.93 1.41 1.41" />
+  <path d="M20 12h2" />
+  <path d="m19.07 4.93-1.41 1.41" />
+  <path d="M15.947 12.65a4 4 0 0 0-5.925-4.128" />
+  <path d="M3 20a5 5 0 1 1 8.9-4H13a3 3 0 0 1 2 5.24" />
+  <path d="M11 20v2" />
+  <path d="M7 19v2" /></symbol>
+<symbol id="i-wind" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.8 19.6A2 2 0 1 0 14 16H2" />
+  <path d="M17.5 8a2.5 2.5 0 1 1 2 4H2" />
+  <path d="M9.8 4.4A2 2 0 1 1 11 8H2" /></symbol>
+<symbol id="i-thermometer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z" /></symbol>
+<symbol id="i-snowflake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="12" y2="12" />
+  <line x1="12" x2="12" y1="2" y2="22" />
+  <path d="m20 16-4-4 4-4" />
+  <path d="m4 8 4 4-4 4" />
+  <path d="m16 4-4 4-4-4" />
+  <path d="m8 20 4-4 4 4" /></symbol>
+<symbol id="i-triangle-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+  <path d="M12 9v4" />
+  <path d="M12 17h.01" /></symbol>
+<symbol id="i-circle-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+  <path d="m9 12 2 2 4-4" /></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+  <circle cx="12" cy="13" r="3" /></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <polyline points="17 8 12 3 7 8" />
+  <line x1="12" x2="12" y1="3" y2="15" /></symbol>
+<symbol id="i-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+  <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" /></symbol>
+<symbol id="i-rotate-ccw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+  <path d="M3 3v5h5" /></symbol>
+<symbol id="i-scan-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2" />
+  <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+  <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+  <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+  <path d="M7 12h10" /></symbol>
+<symbol id="i-trending-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+  <polyline points="16 7 22 7 22 13" /></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></symbol>
+<symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
+<symbol id="i-tractor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 11 11 .9a1 1 0 0 1 .8 1.1l-.665 4.158a1 1 0 0 1-.988.842H20" />
+  <path d="M16 18h-5" />
+  <path d="M18 5a1 1 0 0 0-1 1v5.573" />
+  <path d="M3 4h8.129a1 1 0 0 1 .99.863L13 11.246" />
+  <path d="M4 11V4" />
+  <path d="M7 15h.01" />
+  <path d="M8 10.1V4" />
+  <circle cx="18" cy="18" r="2" />
+  <circle cx="7" cy="15" r="5" /></symbol>
+<symbol id="i-waves" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
+  <path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" />
+  <path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1" /></symbol>
+<symbol id="i-mountain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z" /></symbol>
+<symbol id="i-satellite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7 9 3 5 7l4 4" />
+  <path d="m17 11 4 4-4 4-4-4" />
+  <path d="m8 12 4 4 6-6-4-4Z" />
+  <path d="m16 8 3-3" />
+  <path d="M9 21a6 6 0 0 0-6-6" /></symbol>
+<symbol id="i-pencil-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" />
+  <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
+  <path d="m15 5 3 3" /></symbol>
+<symbol id="i-trash-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" />
+  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+  <line x1="10" x2="10" y1="11" y2="17" />
+  <line x1="14" x2="14" y1="11" y2="17" /></symbol>
+<symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" />
+  <path d="m6 6 12 12" /></symbol>
+<symbol id="i-languages" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6" />
+  <path d="m4 14 6-6 2-3" />
+  <path d="M2 5h12" />
+  <path d="M7 2h1" />
+  <path d="m22 22-5-10-5 10" />
+  <path d="M14 18h6" /></symbol>
+<symbol id="i-external-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6" />
+  <path d="M10 14 21 3" />
+  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+<symbol id="i-circle-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+  <line x1="12" x2="12" y1="8" y2="12" />
+  <line x1="12" x2="12.01" y1="16" y2="16" /></symbol>
+<symbol id="i-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+  <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+  <path d="M7 21h10" />
+  <path d="M12 3v18" />
+  <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" /></symbol>
+<symbol id="i-chart-column" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16" />
+  <path d="M18 17V9" />
+  <path d="M13 17V5" />
+  <path d="M8 17v-3" /></symbol>
+<symbol id="i-store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+  <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+  <path d="M2 7h20" />
+  <path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7" /></symbol>
+<symbol id="i-list-checks" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4" />
+  <path d="m3 7 2 2 4-4" />
+  <path d="M13 6h8" />
+  <path d="M13 12h8" />
+  <path d="M13 18h8" /></symbol>
+</svg>
   <header class="top">
-    <div class="brand">
-      <span class="logo">🌾</span>
-      <div>
-        <h1 data-t="appName">कृषि मित्र हरियाणा</h1>
-        <p class="tag" data-t="tagline"></p>
-      </div>
-    </div>
-    <div class="lang">
+    <a class="brand" href="#land" aria-label="Krishi Mitra Haryana">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#2f6b3a"/><path d="M0 26 L40 14 L40 22 L0 34Z" fill="#f0be1e"/><path d="M0 34 L40 22 L40 30 L0 40Z" fill="#86b26a"/><path d="M0 18 L40 6 L40 14 L0 26Z" fill="#4c8a4f"/><path d="M14 0 L20 40" stroke="#1f4a28" stroke-width="1.5"/></svg>
+      <div><h1 data-t="appName">कृषि मित्र हरियाणा</h1><small data-t="brandSub"></small></div>
+    </a>
+    <div class="lang" role="group" aria-label="Language">
       <button data-lang="hi">हिंदी</button>
       <button data-lang="en">English</button>
     </div>
   </header>
 
+  <section class="hero" id="hero">
+    <img class="sat" alt="" src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=76.842,29.747,76.878,29.765&bboxSR=4326&imageSR=3857&size=1800,800&format=jpg&f=image" />
+    <div class="inner">
+      <h2 data-t="heroTitle"></h2>
+      <p class="lead" data-t="heroLead"></p>
+      <form id="searchForm" class="find">
+        <input id="q" type="search" data-tph="searchPh" autocomplete="off" aria-label="Village" />
+        <button type="submit" class="btn mustard"><svg class="ic"><use href="#i-search"/></svg><span data-t="search"></span></button>
+        <button id="locBtn" class="btn ghost" type="button"><svg class="ic"><use href="#i-locate"/></svg><span data-t="myLoc"></span></button>
+      </form>
+      <div id="searchResults" class="results"></div>
+    </div>
+    <div class="scale"><svg class="ic"><use href="#i-satellite"/></svg><span data-t="heroCaption"></span></div>
+  </section>
+
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="land" data-t="tabLand"></button>
-    <button class="tab" data-tab="advice" data-t="tabAdvice"></button>
-    <button class="tab" data-tab="soilcard" data-t="tabCard"></button>
-    <button class="tab" data-tab="techniques" data-t="tabTech"></button>
-    <button class="tab" data-tab="prices" data-t="tabPrices"></button>
-    <button class="tab" data-tab="weather" data-t="tabWeather"></button>
-    <button class="tab" data-tab="about" data-t="tabAbout"></button>
+    <button class="tab active" data-tab="land"><svg class="ic"><use href="#i-map-pin"/></svg><span data-t="tabLand"></span></button>
+    <button class="tab" data-tab="advice"><svg class="ic"><use href="#i-sprout"/></svg><span data-t="tabAdvice"></span></button>
+    <button class="tab" data-tab="soilcard"><svg class="ic"><use href="#i-flask-conical"/></svg><span data-t="tabCard"></span></button>
+    <button class="tab" data-tab="techniques"><svg class="ic"><use href="#i-book-open-text"/></svg><span data-t="tabTech"></span></button>
+    <button class="tab" data-tab="prices"><svg class="ic"><use href="#i-indian-rupee"/></svg><span data-t="tabPrices"></span></button>
+    <button class="tab" data-tab="weather"><svg class="ic"><use href="#i-cloud-sun"/></svg><span data-t="tabWeather"></span></button>
+    <button class="tab" data-tab="about"><svg class="ic"><use href="#i-info"/></svg><span data-t="tabAbout"></span></button>
   </nav>
 
   <main>
     <!-- LAND REPORT -->
     <section id="tab-land" class="panel active">
       <div class="grid2">
-        <div class="card controls">
-          <h2 data-t="step1"></h2>
-          <form id="searchForm" class="row">
-            <input id="q" type="search" data-tph="searchPh" autocomplete="off" />
-            <button type="submit" class="btn" data-t="search"></button>
-          </form>
-          <div id="searchResults" class="results"></div>
-          <button id="locBtn" class="btn ghost" type="button">📍 <span data-t="myLoc"></span></button>
+        <div class="card controls steps">
+          <div class="step-title" data-t="stepMark"></div>
           <p class="hint" data-t="drawHint"></p>
-          <div class="row">
-            <button id="drawBtn" class="btn ghost" type="button" data-t="draw"></button>
-            <button id="doneBtn" class="btn ghost" type="button" data-t="done" disabled></button>
-            <button id="clearBtn" class="btn ghost" type="button" data-t="clear"></button>
+          <div class="row wrap">
+            <button id="drawBtn" class="btn ghost" type="button"><svg class="ic"><use href="#i-pencil-line"/></svg><span data-t="draw"></span></button>
+            <button id="doneBtn" class="btn ghost" type="button" disabled><svg class="ic"><use href="#i-circle-check"/></svg><span data-t="done"></span></button>
+            <button id="clearBtn" class="btn line" type="button"><svg class="ic"><use href="#i-x"/></svg><span data-t="clear"></span></button>
           </div>
-          <label><span data-t="sizeIfPoint"></span>
+          <label class="f"><span data-t="sizeIfPoint"></span>
             <div class="row"><input id="acres" type="number" min="0.25" max="200" step="0.25" value="2" /> <span data-t="acres"></span></div>
           </label>
-          <label><span data-t="water"></span>
+          <div class="step-title" data-t="stepFarm"></div>
+          <label class="f"><span data-t="water"></span>
             <select id="water">
               <option value="good" data-t="waterGood"></option>
               <option value="limited" data-t="waterLimited"></option>
               <option value="rainfed" data-t="waterRainfed"></option>
             </select>
           </label>
-          <label><span data-t="risk"></span>
+          <label class="f"><span data-t="risk"></span>
             <select id="risk">
               <option value="low" data-t="riskLow"></option>
               <option value="medium" data-t="riskMed" selected></option>
               <option value="high" data-t="riskHigh"></option>
             </select>
           </label>
-          <button id="analyseBtn" class="btn big" type="button" data-t="analyse"></button>
+          <div class="step-title" data-t="stepRun"></div>
+          <button id="analyseBtn" class="btn big" type="button"><svg class="ic"><use href="#i-satellite"/></svg><span data-t="analyse"></span></button>
           <div id="progress" class="progress hidden"><div class="bar"></div><span class="ptext"></span></div>
           <p id="msg" class="msg"></p>
         </div>
         <div class="card mapcard">
           <div id="map"></div>
           <div class="layerbar">
-            <span data-t="overlay"></span>:
+            <svg class="ic"><use href="#i-layers"/></svg>
             <label><input type="radio" name="layer" value="none" checked /> <span data-t="layerNone"></span></label>
             <label><input type="radio" name="layer" value="ndvi" disabled /> <span data-t="layerNdvi"></span></label>
             <label><input type="radio" name="layer" value="true" disabled /> <span data-t="layerTrue"></span></label>
           </div>
-          <div class="legend hidden" id="ndviLegend"><span>0</span><div class="ramp"></div><span>0.9</span></div>
+          <div class="legend hidden" id="ndviLegend"><span data-t="bare"></span><div class="ramp"></div><span data-t="dense"></span></div>
         </div>
       </div>
       <div id="report" class="report hidden"></div>
@@ -93,16 +335,12 @@
     <section id="tab-advice" class="panel">
       <div class="card">
         <div class="row wrap">
-          <label><span data-t="season"></span>
-            <select id="seasonSel"></select>
-          </label>
-          <label><span data-t="chooseDistrict"></span>
-            <select id="districtSel"></select>
-          </label>
+          <label class="f"><span data-t="season"></span><select id="seasonSel"></select></label>
+          <label class="f"><span data-t="chooseDistrict"></span><select id="districtSel"></select></label>
         </div>
-        <p id="adviceNote" class="hint"></p>
+        <div id="adviceNote" class="notebar"></div>
         <fieldset class="opts">
-          <legend data-t="incentivesQ"></legend>
+          <legend><svg class="ic"><use href="#i-landmark"/></svg><span data-t="incentivesQ"></span></legend>
           <label><input type="checkbox" id="optPaddy" /> <span data-t="optPaddy"></span></label>
           <label><input type="checkbox" id="optDsr" /> <span data-t="optDsr"></span></label>
           <label><input type="checkbox" id="optStraw" /> <span data-t="optStraw"></span></label>
@@ -112,7 +350,7 @@
         <h2 data-t="compareTitle"></h2>
         <p class="hint" data-t="compareHint"></p>
         <canvas id="compareChart" height="120"></canvas>
-        <div id="riskSummary" class="hint"></div>
+        <div id="riskSummary" class="summary-line"></div>
       </div>
       <div class="card">
         <h2 data-t="calendarTitle"></h2>
@@ -130,20 +368,22 @@
           <p class="hint" data-t="cardIntro"></p>
           <label class="upload">
             <input type="file" id="cardFile" accept="image/*,application/pdf" capture="environment" />
-            <span>📷 <span data-t="cardUpload"></span></span>
+            <svg class="ic"><use href="#i-camera"/></svg>
+            <b data-t="cardUpload"></b>
+            <span class="hint" data-t="cardFormats"></span>
           </label>
           <div class="row wrap">
-            <button class="btn ghost" id="cardSample" type="button" data-t="cardSample"></button>
-            <button class="btn ghost" id="cardClear" type="button" data-t="clear"></button>
+            <button class="btn ghost" id="cardSample" type="button"><svg class="ic"><use href="#i-file-text"/></svg><span data-t="cardSample"></span></button>
+            <button class="btn line" id="cardClear" type="button"><svg class="ic"><use href="#i-rotate-ccw"/></svg><span data-t="clear"></span></button>
           </div>
           <div id="cardProgress" class="progress hidden"><div class="bar"></div><span class="ptext"></span></div>
-          <p class="hint" data-t="cardPrivacy"></p>
+          <p class="hint"><svg class="ic"><use href="#i-shield-check"/></svg> <span data-t="cardPrivacy"></span></p>
           <img id="cardPreview" class="cardpreview hidden" alt="" />
         </div>
         <div class="card">
           <h2 data-t="cardValues"></h2>
           <p class="hint" data-t="cardCheck"></p>
-          <table id="cardTable" class="cardtable"></table>
+          <div id="cardTable" class="params"></div>
         </div>
       </div>
       <div class="card" id="cardAdviceBox">
@@ -153,8 +393,8 @@
       <div class="card">
         <h2 data-t="fertTitle"></h2>
         <div class="row wrap">
-          <label><span data-t="filterCrop"></span> <select id="fertCrop"></select></label>
-          <label><span data-t="acres"></span> <input id="fertAcres" type="number" min="0.25" step="0.25" value="2" /></label>
+          <label class="f"><span data-t="filterCrop"></span> <select id="fertCrop"></select></label>
+          <label class="f"><span data-t="acres"></span> <input id="fertAcres" type="number" min="0.25" step="0.25" value="2" /></label>
         </div>
         <div id="fertPlan"></div>
         <p class="hint" data-t="fertNote"></p>
@@ -164,15 +404,12 @@
 
     <!-- TECHNIQUES -->
     <section id="tab-techniques" class="panel">
-      <div class="card">
-        <h2 data-t="techTitle"></h2>
-        <p class="hint" data-t="techIntro"></p>
-        <div class="row wrap">
-          <input id="techSearch" type="search" data-tph="techSearch" />
-        </div>
-        <div id="techChips" class="chips"></div>
+      <div class="section-head">
+        <div><h2 data-t="techTitle"></h2><p class="hint" data-t="techIntro"></p></div>
+        <input id="techSearch" type="search" data-tph="techSearch" style="max-width:320px" />
       </div>
-      <div id="techList" class="techgrid"></div>
+      <div id="techChips" class="chips"></div>
+      <div id="techList" class="techgrid" style="margin-top:1rem"></div>
     </section>
 
     <!-- PRICES -->
@@ -180,8 +417,8 @@
       <div class="card">
         <h2 data-t="pricesTitle"></h2>
         <div class="row wrap">
-          <label><span data-t="filterCrop"></span> <select id="priceCrop"></select></label>
-          <label><span data-t="district"></span> <select id="priceDistrict"></select></label>
+          <label class="f"><span data-t="filterCrop"></span> <select id="priceCrop"></select></label>
+          <label class="f"><span data-t="district"></span> <select id="priceDistrict"></select></label>
         </div>
         <p id="priceMeta" class="hint"></p>
         <div id="trendBox" class="hidden"><h3 data-t="trend"></h3><canvas id="trendChart" height="110"></canvas></div>
@@ -197,10 +434,12 @@
     <!-- WEATHER -->
     <section id="tab-weather" class="panel">
       <div class="card">
-        <div class="row wrap"><label><span data-t="district"></span> <select id="weatherDistrict"></select></label></div>
+        <div class="row wrap"><label class="f"><span data-t="district"></span> <select id="weatherDistrict"></select></label></div>
         <p id="weatherWhere" class="hint"></p>
         <h2 data-t="alerts"></h2>
         <div id="alerts"></div>
+      </div>
+      <div class="card">
         <h2 data-t="weatherTitle"></h2>
         <div id="forecast" class="forecast"></div>
       </div>
@@ -213,12 +452,12 @@
   </main>
 
   <footer>
-    Data: Copernicus Sentinel-2 via Microsoft Planetary Computer · ISRIC SoilGrids · Open-Meteo · NASA POWER · Agmarknet / data.gov.in · © OpenStreetMap, Esri.
-    <a href="https://github.com/sahiljangra12/haryana-krishi-mitra">Source code</a>
+    <span data-t="footerData"></span>
+    <a href="https://github.com/sahiljangra12/haryana-krishi-mitra" data-t="sourceCode"></a>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="js/app.js?v=202611200048"></script>
+  <script type="module" src="js/app.js?v=202611200059"></script>
 </body>
 </html>

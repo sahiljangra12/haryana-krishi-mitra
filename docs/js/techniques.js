@@ -6,11 +6,11 @@
 const yt = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 
 export const CATEGORIES = {
-  water: { en: "Save water", hi: "पानी बचाएं", icon: "💧" },
-  soil: { en: "Soil health", hi: "मिट्टी की सेहत", icon: "🟫" },
-  residue: { en: "No stubble burning", hi: "पराली प्रबंधन", icon: "🔥" },
-  pest: { en: "Pest & disease", hi: "कीट व रोग", icon: "🐛" },
-  income: { en: "More income", hi: "ज़्यादा आमदनी", icon: "💰" },
+  water: { en: "Save water", hi: "पानी बचाएं", icon: "droplets" },
+  soil: { en: "Soil health", hi: "मिट्टी की सेहत", icon: "sprout" },
+  residue: { en: "No stubble burning", hi: "पराली प्रबंधन", icon: "flame" },
+  pest: { en: "Pest & disease", hi: "कीट व रोग", icon: "bug" },
+  income: { en: "More income", hi: "ज़्यादा आमदनी", icon: "coins" },
 };
 
 export const TECHNIQUES = [
