@@ -1,11 +1,11 @@
 import { t, getLang, setLang, rupee } from "./i18n.js";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js";
-import * as src from "./sources.js";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js";
-import * as card from "./soilcard.js";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=202611200047";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=202611200047";
+import * as src from "./sources.js?v=202611200047";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=202611200047";
+import * as card from "./soilcard.js?v=202611200047";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=202611200047";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=202611200047";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];

@@ -53,6 +53,9 @@ data.gov.in only answers requests from inside India. So the site gets prices in 
 2. In this repo, go to **Settings → Secrets and variables → Actions → New repository secret**. Name it `DATA_GOV_IN_API_KEY` and paste the key. Without it, the public sample key is used, which returns far fewer records.
 3. Go to **Actions → Update mandi prices → Run workflow** to fill prices right away.
 
+## Deploying changes
+After editing any file in `docs/`, run `scripts/bump_version.sh` before committing. It stamps the script URLs so visitors get the new version immediately instead of a cached copy.
+
 ## Editing crop data
 Every number the advisor uses is in `docs/js/crops.js`. MSP values are official (Rabi Marketing Season 2027-28, Kharif Marketing Season 2026-27). Yield, cost and water figures are indicative Haryana ranges. Update them each season or replace them with district-level CACP data.
 
