@@ -261,6 +261,36 @@ async function liveMandiFromBrowser() {
 
 const HR_BBOX = "74.4,27.6,77.6,31.0";
 const inHaryana = (lat, lon) => lat > 27.6 && lat < 31.0 && lon > 74.4 && lon < 77.6;
+// Delhi, Chandigarh and parts of Punjab/UP/Rajasthan sit inside Haryana's bounding box, so also check the label
+const OTHER_STATE = /\b(delhi|new delhi|chandigarh|punjab|rajasthan|uttar pradesh|himachal)\b|दिल्ली|चंडीगढ़|पंजाब|राजस्थान|उत्तर प्रदेश|हिमाचल/i;
+
+// Simple Devanagari -> Latin transliteration, so Hindi village names can be matched against English-spelled gazetteers.
+const DV_CONS = { क: "k", ख: "kh", ग: "g", घ: "gh", ङ: "n", च: "ch", छ: "chh", ज: "j", झ: "jh", ञ: "n", ट: "t", ठ: "th", ड: "d", ढ: "dh", ण: "n", त: "t", थ: "th", द: "d", ध: "dh", न: "n", प: "p", फ: "ph", ब: "b", भ: "bh", म: "m", य: "y", र: "r", ल: "l", ळ: "l", व: "v", श: "sh", ष: "sh", स: "s", ह: "h" };
+const DV_VOW = { अ: "a", आ: "a", इ: "i", ई: "i", उ: "u", ऊ: "u", ऋ: "ri", ए: "e", ऐ: "ai", ओ: "o", औ: "au" };
+const DV_SIGN = { "ा": "a", "ि": "i", "ी": "i", "ु": "u", "ू": "u", "ृ": "ri", "े": "e", "ै": "ai", "ो": "o", "ौ": "au" };
+export function transliterate(text) {
+  return text.split(/(\s+|,)/).map((w) => {
+    const ch = [...w.replace(/़/g, "")]; // drop nukta
+    const syl = []; // {c, v, inherent}
+    for (let i = 0; i < ch.length; i++) {
+      const c = ch[i];
+      if (DV_CONS[c]) {
+        const nx = ch[i + 1];
+        if (nx === "्") { syl.push({ c: DV_CONS[c], v: "" }); i++; }
+        else if (DV_SIGN[nx]) { syl.push({ c: DV_CONS[c], v: DV_SIGN[nx] }); i++; }
+        else syl.push({ c: DV_CONS[c], v: "a", inh: true });
+      } else if (DV_VOW[c]) syl.push({ c: "", v: DV_VOW[c] });
+      else if (c === "ं" || c === "ँ") { if (syl.length) syl[syl.length - 1].v += "n"; }
+      else if (c === "ः") { if (syl.length) syl[syl.length - 1].v += "h"; }
+      else syl.push({ c, v: "" });
+    }
+    // schwa deletion: final inherent 'a', and a medial inherent 'a' between two vowelled syllables (कर-ना-ल -> karnal)
+    if (syl.length > 1 && syl[syl.length - 1].inh) syl[syl.length - 1].v = "";
+    for (let i = 1; i < syl.length - 1; i++) if (syl[i].inh && syl[i - 1].v && syl[i + 1].v && syl[i + 1].c) syl[i].v = "";
+    return syl.map((x) => x.c + x.v).join("");
+  }).join("");
+}
+const hasDevanagari = (t) => /[ऀ-ॿ]/.test(t);
 const ESRI_GEO = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer";
 
 // "29.7621, 76.8623", "29.7621 N 76.8623 E", Google Maps links (@lat,lon / q=lat,lon / !3dlat!4dlon)
@@ -296,7 +326,7 @@ async function osmFind(text) {
 function merge(lists) {
   const out = [];
   for (const r of lists.flat()) {
-    if (!r || !inHaryana(r.lat, r.lon)) continue;
+    if (!r || !inHaryana(r.lat, r.lon) || OTHER_STATE.test(r.label)) continue;
     const dup = out.find((o) => Math.abs(o.lat - r.lat) < 0.004 && Math.abs(o.lon - r.lon) < 0.004);
     if (dup) { dup.score = Math.max(dup.score, r.score) + 3; continue; }
     out.push({ ...r });
@@ -316,6 +346,10 @@ export async function geocode(q) {
     tries.push(parts[0]);
   }
   if (pin) tries.push(`${parts[0] || ""} ${pin}`.trim());
+  if (hasDevanagari(full)) {
+    const lat = parts.map(transliterate);
+    tries.splice(1, 0, lat.join(", "), lat.length > 1 ? `${lat[0]}, ${lat[lat.length - 1]}` : lat[0]);
+  }
   let results = [];
   for (const t of [...new Set(tries)].filter(Boolean)) {
     const got = await Promise.allSettled([esriFind(t), osmFind(t)]);
@@ -330,7 +364,8 @@ export async function geocode(q) {
 export async function suggest(text) {
   if (!text || text.trim().length < 3 || parseCoordinates(text)) return [];
   const { parts } = cleanAddress(text);
-  const u = `${ESRI_GEO}/suggest?f=json&text=${encodeURIComponent(parts.join(", ") || text)}&countryCode=IND&searchExtent=${HR_BBOX}&maxSuggestions=8`;
+  const qtext = parts.join(", ") || text;
+  const u = `${ESRI_GEO}/suggest?f=json&text=${encodeURIComponent(hasDevanagari(qtext) ? parts.map(transliterate).join(", ") : qtext)}&countryCode=IND&searchExtent=${HR_BBOX}&maxSuggestions=8`;
   const j = await getJSON(u, {}, 8000);
   return (j.suggestions || []).filter((s) => /haryana|हरियाणा/i.test(s.text)).slice(0, 6);
 }
