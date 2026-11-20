@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 RESOURCE = "9ef84268-d588-465a-a308-a864a43d0070"  # Current Daily Price of Various Commodities from Various Markets (Mandi)
 SAMPLE_KEY = "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA = os.path.join(ROOT, "data")
+DATA = os.path.join(ROOT, "docs", "data")
 
 
 def fetch_page(key, offset, limit, filter_field):

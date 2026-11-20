@@ -16,16 +16,16 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 ## How it's built
 
 ```
-index.html            single page, no build step
-css/style.css
-js/app.js             UI, map (Leaflet), charts (Chart.js)
-js/sources.js         every external API call lives here
-js/advisor.js         scoring, budgets, weather alerts, NDVI interpretation (transparent rules)
-js/crops.js           crop knowledge base: MSP, yield, cost, water, soils, varieties, precautions (EN + HI)
-js/districts.js       22 districts, zone, groundwater status
-js/i18n.js            Hindi / English strings
+docs/index.html       single page (GitHub Pages serves /docs), no build step
+docs/css/style.css
+docs/js/app.js             UI, map (Leaflet), charts (Chart.js)
+docs/js/sources.js         every external API call lives here
+docs/js/advisor.js         scoring, budgets, weather alerts, NDVI interpretation (transparent rules)
+docs/js/crops.js           crop knowledge base: MSP, yield, cost, water, soils, varieties, precautions (EN + HI)
+docs/js/districts.js       22 districts, zone, groundwater status
+docs/js/i18n.js            Hindi / English strings
 scripts/fetch_prices.py               daily Agmarknet fetch (standard library only)
-.github/workflows/update-prices.yml   runs it at 12:10 and 18:10 IST, commits data/*.json
+.github/workflows/update-prices.yml   runs it at 12:10 and 18:10 IST, commits docs/data/*.json
 ```
 
 ### Satellite method
@@ -44,7 +44,7 @@ Profit (40), water fit (25: irrigation access, crop water need, district groundw
 3. Go to **Actions → Update mandi prices → Run workflow** to fill prices right away.
 
 ## Editing crop data
-Every number the advisor uses is in `js/crops.js`. MSP values are official (Rabi Marketing Season 2027-28, Kharif Marketing Season 2026-27). Yield, cost and water figures are indicative Haryana ranges. Update them each season or replace them with district-level CACP data.
+Every number the advisor uses is in `docs/js/crops.js`. MSP values are official (Rabi Marketing Season 2027-28, Kharif Marketing Season 2026-27). Yield, cost and water figures are indicative Haryana ranges. Update them each season or replace them with district-level CACP data.
 
 ## Limitations
 - Yield and cost are state-average estimates, not field measurements.
