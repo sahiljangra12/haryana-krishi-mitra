@@ -1,11 +1,11 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=202611200047";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=202611200047";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=202611200047";
-import * as src from "./sources.js?v=202611200047";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=202611200047";
-import * as card from "./soilcard.js?v=202611200047";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=202611200047";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=202611200047";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=202611200048";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=202611200048";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=202611200048";
+import * as src from "./sources.js?v=202611200048";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=202611200048";
+import * as card from "./soilcard.js?v=202611200048";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=202611200048";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=202611200048";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -475,7 +475,8 @@ function renderCalendar(rows) {
   for (const x of rows) {
     const c = x.crop;
     const sow = SEASONS[c.season].sow;
-    const start = c.id === "wheat" ? 11 : c.id === "mustard" ? 10 : c.id === "paddy" ? 6 : c.id === "basmati" ? 7 : c.id === "cotton" ? 4 : sow[Math.floor(sow.length / 2)];
+    const SOW_MONTH = { wheat: 11, mustard: 10, gram: 10, barley: 11, potato: 10, onion_rabi: 11, paddy: 6, basmati: 7, cotton: 4, bajra: 7, maize: 7, moong: 7, guar: 7, sugarcane: 2, moong_summer: 4 };
+    const start = SOW_MONTH[c.id] ?? sow[Math.floor(sow.length / 2)];
     const months_ = Math.max(2, Math.round(c.duration / 30));
     const cells = Array(12).fill("");
     for (let k = 0; k <= months_; k++) {
