@@ -30,7 +30,8 @@ export function cycle(rows, season) {
   if (peak.ndvi - Math.min(...before.map((r) => r.ndvi)) < 0.15) return { obs, peak, grown: false, tail: true };
   let rise = null;
   for (let i = before.length - 1; i >= 0; i--) { if (before[i].ndvi < 0.3) break; rise = before[i]; }
-  const fall = after.find((r) => r.ndvi < 0.3) || null;
+  // the cover is "gone" at the first look below 0.3 that the next look does not contradict (one low reading can be noise)
+  const fall = after.find((r, i) => r.ndvi < 0.3 && (i === after.length - 1 || after[i + 1].ndvi < 0.33)) || null;
   return { obs, peak, rise, fall, grown: true, complete: !!fall, lastGreen: fall ? after[after.indexOf(fall) - 1] || peak : null };
 }
 
@@ -92,8 +93,8 @@ export function read(rows, today, zone = null, lulc = null) {
   const cur = out.season, last = prevSeason(cur), older = prevSeason(last);
   const cCur = cycle(obs, cur), cLast = cycle(obs, last), cOlder = cycle(obs, older);
   const push = (c, season) => {
-    if (!c || !c.grown) return;
-    if (c.rise) out.events.push({ date: c.rise.date, type: "rise", season: season.id });
+    if (!wellObserved(c)) return; // no story from a season the satellite barely saw
+    if (c.rise && c.rise.date !== c.peak.date) out.events.push({ date: c.rise.date, type: "rise", season: season.id });
     out.events.push({ date: c.peak.date, type: "peak", season: season.id, ndvi: c.peak.ndvi });
     if (c.fall) out.events.push({ date: c.fall.date, type: "fall", season: season.id });
   };
