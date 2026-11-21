@@ -1,17 +1,23 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="hi" data-theme="night">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Krishi Mitra Haryana | कृषि मित्र हरियाणा</title>
   <meta name="description" content="Free satellite land report, crop advice, budgets, soil card scanner, weather alerts and mandi prices for Haryana farmers." />
-  <meta name="theme-color" content="#2f6b3a" />
+  <meta name="theme-color" content="#0b1622" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="img/icon-192.png" />
+  <script>try{var t=localStorage.getItem("km-theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
   <link rel="icon" href="img/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600&family=Tiro+Devanagari+Hindi&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20261120204253" />
+  <link rel="stylesheet" href="css/style.css?v=20261120210040" />
 </head>
 <body>
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
@@ -245,21 +251,47 @@
   <path d="M13 6h8" />
   <path d="M13 12h8" />
   <path d="M13 18h8" /></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></symbol>
+<symbol id="i-share-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3" />
+  <circle cx="6" cy="12" r="3" />
+  <circle cx="18" cy="19" r="3" />
+  <line x1="8.59" x2="15.42" y1="13.51" y2="17.49" />
+  <line x1="15.41" x2="8.59" y1="6.51" y2="10.49" /></symbol>
+<symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <polyline points="7 10 12 15 17 10" />
+  <line x1="12" x2="12" y1="15" y2="3" /></symbol>
+<symbol id="i-wifi-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01" />
+  <path d="M8.5 16.429a5 5 0 0 1 7 0" />
+  <path d="M5 12.859a10 10 0 0 1 5.17-2.69" />
+  <path d="M19 12.859a10 10 0 0 0-2.007-1.523" />
+  <path d="M2 8.82a15 15 0 0 1 4.177-2.643" />
+  <path d="M22 8.82a15 15 0 0 0-11.288-3.764" />
+  <path d="m2 2 20 20" /></symbol>
+<symbol id="i-radio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+  <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" />
+  <circle cx="12" cy="12" r="2" />
+  <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
+  <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" /></symbol>
 </svg>
   <header class="top">
     <a class="brand" href="#land" aria-label="Krishi Mitra Haryana">
       <svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#2f6b3a"/><path d="M0 26 L40 14 L40 22 L0 34Z" fill="#f0be1e"/><path d="M0 34 L40 22 L40 30 L0 40Z" fill="#86b26a"/><path d="M0 18 L40 6 L40 14 L0 26Z" fill="#4c8a4f"/><path d="M14 0 L20 40" stroke="#1f4a28" stroke-width="1.5"/></svg>
       <div><h1 data-t="appName">कृषि मित्र हरियाणा</h1><small data-t="brandSub"></small></div>
     </a>
-    <div class="lang" role="group" aria-label="Language">
-      <button data-lang="hi">हिंदी</button>
-      <button data-lang="en">English</button>
+    <div class="top-actions">
+      <button id="themeBtn" class="iconbtn" type="button" aria-label="Sun mode / night mode"><svg class="ic"><use href="#i-sun"/></svg></button>
+      <button id="aboutBtn" class="iconbtn mobile-only" type="button" aria-label="About"><svg class="ic"><use href="#i-info"/></svg></button>
+      <div class="lang" role="group" aria-label="Language">
+        <button data-lang="hi">हिंदी</button>
+        <button data-lang="en">EN</button>
+      </div>
     </div>
   </header>
 
   <section class="hero" id="hero">
     <img class="sat" alt="" src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=76.842,29.747,76.878,29.765&bboxSR=4326&imageSR=3857&size=1800,800&format=jpg&f=image" />
     <div class="inner">
+      <div class="readout"><span><i class="dot"></i><span data-t="liveData"></span></span><span>Sentinel-2 L2A, 10 m</span><span>29.756° N, 76.860° E</span><span id="clockIST"></span></div>
       <h2 data-t="heroTitle"></h2>
       <p class="lead" data-t="heroLead"></p>
       <form id="searchForm" class="find">
@@ -269,7 +301,7 @@
       </form>
       <div id="searchResults" class="results"></div>
     </div>
-    <div class="scale"><svg class="ic"><use href="#i-satellite"/></svg><span data-t="heroCaption"></span></div>
+    <div class="credit"><svg class="ic"><use href="#i-satellite"/></svg><span data-t="heroCaption"></span></div>
   </section>
 
   <nav class="tabs" role="tablist">
@@ -285,6 +317,7 @@
   <main>
     <!-- LAND REPORT -->
     <section id="tab-land" class="panel active">
+      <div id="installBox" class="install hidden"></div>
       <div class="grid2">
         <div class="card controls steps">
           <div class="step-title" data-t="stepMark"></div>
@@ -314,12 +347,17 @@
             </select>
           </label>
           <div class="step-title" data-t="stepRun"></div>
-          <button id="analyseBtn" class="btn big" type="button"><svg class="ic"><use href="#i-satellite"/></svg><span data-t="analyse"></span></button>
+          <div class="sticky-go"><button id="analyseBtn" class="btn big mustard" type="button"><svg class="ic"><use href="#i-satellite"/></svg><span data-t="analyse"></span></button></div>
           <div id="progress" class="progress hidden"><div class="bar"></div><span class="ptext"></span></div>
           <p id="msg" class="msg"></p>
         </div>
         <div class="card mapcard">
           <div id="map"></div>
+          <div id="mapTip" class="maptip hidden"></div>
+          <div class="mapfab">
+            <button id="fabLocate" type="button" aria-label="My location"><svg class="ic"><use href="#i-locate"/></svg></button>
+            <button id="fabDraw" type="button" aria-label="Draw field boundary"><svg class="ic"><use href="#i-pencil-line"/></svg></button>
+          </div>
           <div class="layerbar">
             <svg class="ic"><use href="#i-layers"/></svg>
             <label><input type="radio" name="layer" value="none" checked /> <span data-t="layerNone"></span></label>
@@ -350,12 +388,12 @@
       <div class="card" id="compareCard">
         <h2 data-t="compareTitle"></h2>
         <p class="hint" data-t="compareHint"></p>
-        <canvas id="compareChart" height="120"></canvas>
+        <div class="chartbox"><canvas id="compareChart"></canvas></div>
         <div id="riskSummary" class="summary-line"></div>
       </div>
       <div class="card">
         <h2 data-t="calendarTitle"></h2>
-        <div id="calendar" class="calendar"></div>
+        <div class="calwrap"><div id="calendar" class="calendar"></div></div>
       </div>
       <div id="advice"></div>
       <p class="disclaimer" data-t="disclaimer"></p>
@@ -422,7 +460,7 @@
           <label class="f"><span data-t="district"></span> <select id="priceDistrict"></select></label>
         </div>
         <p id="priceMeta" class="hint"></p>
-        <div id="trendBox" class="hidden"><h3 data-t="trend"></h3><canvas id="trendChart" height="110"></canvas></div>
+        <div id="trendBox" class="hidden"><h3 data-t="trend"></h3><div class="chartbox"><canvas id="trendChart"></canvas></div></div>
         <div class="tablewrap"><table id="priceTable"></table></div>
       </div>
       <div class="card">
@@ -459,6 +497,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="js/app.js?v=20261120204253"></script>
+  <script type="module" src="js/app.js?v=20261120210040"></script>
 </body>
 </html>

@@ -1,17 +1,27 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120204253";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120204253";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120204253";
-import * as src from "./sources.js?v=20261120204253";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120204253";
-import * as card from "./soilcard.js?v=20261120204253";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120204253";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120204253";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120204253";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120210040";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120210040";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120210040";
+import * as src from "./sources.js?v=20261120210040";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120210040";
+import * as card from "./soilcard.js?v=20261120210040";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120210040";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120210040";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120210040";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const L_ = (o) => (getLang() === "hi" ? o.hi : o.en);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const alpha = (hex, a) => { const h = hex.replace("#", ""); if (h.length !== 6) return hex; return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`; };
+function chartTheme() {
+  if (!window.Chart) return;
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.color = css("--soil-2");
+  Chart.defaults.borderColor = css("--line");
+  Chart.defaults.font.family = "Hind, system-ui, sans-serif";
+}
+const C = () => ({ green: css("--green"), canal: css("--canal"), risk: css("--risk"), mustard: css("--mustard"), soil2: css("--soil-2") });
 const ic = (name, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 // circular match meter for crop cards
 const meter = (score) => {
@@ -141,12 +151,14 @@ $("#drawBtn").onclick = () => {
   clearShape();
   state.drawing = true;
   $("#drawBtn").classList.add("on");
+  syncDrawUi();
   map.getContainer().style.cursor = "crosshair";
 };
 $("#doneBtn").onclick = () => {
   state.drawing = false;
   $("#drawBtn").classList.remove("on");
   $("#doneBtn").disabled = true;
+  syncDrawUi();
   map.getContainer().style.cursor = "";
   if (state.vertices.length >= 3) {
     const c = poly.getBounds().getCenter();
@@ -157,7 +169,7 @@ $("#doneBtn").onclick = () => {
     showPlaceName(c.lat, c.lng);
   }
 };
-$("#clearBtn").onclick = () => { clearShape(); state.drawing = false; $("#drawBtn").classList.remove("on"); };
+$("#clearBtn").onclick = () => { clearShape(); state.drawing = false; $("#drawBtn").classList.remove("on"); syncDrawUi(); $("#locNote").classList.add("hidden"); try { localStorage.removeItem("km-field"); } catch {} };
 $("#acres").oninput = drawSquare;
 
 /* ---------- place search ---------- */
@@ -188,7 +200,7 @@ function goTo(p) {
 
 function showResults(list, note = "") {
   const box = $("#searchResults");
-  box.innerHTML = (note ? `<p class="hint" style="color:#eef3e8">${note}</p>` : "") + list.map((p, i) => `<button type="button" data-i="${i}">
+  box.innerHTML = (note ? `<p class="hint">${note}</p>` : "") + list.map((p, i) => `<button type="button" data-i="${i}">
       <span class="kind k-${p.fallback ? "pin" : p.kind}">${p.fallback ? t("townArea") : L_(KIND_LABEL[p.kind] || KIND_LABEL.place)}</span><span class="lbl">${esc(p.label)}</span><span class="src">${esc(p.src)}</span></button>`).join("");
   $$("button", box).forEach((b) => (b.onclick = () => goTo(list[+b.dataset.i])));
 }
@@ -198,18 +210,18 @@ $("#searchForm").onsubmit = async (e) => {
   const q = $("#q").value.trim();
   if (!q) return;
   const box = $("#searchResults");
-  if (src.isShortMapsLink(q)) { box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("shortLink")}</p>`; return; }
-  box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("searching")}</p>`;
+  if (src.isShortMapsLink(q)) { box.innerHTML = `<p class="hint">${t("shortLink")}</p>`; return; }
+  box.innerHTML = `<p class="hint">${t("searching")}</p>`;
   try {
     const r = await src.geocode(q);
-    if (!r.length) { box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("notFound")}</p>`; return; }
+    if (!r.length) { box.innerHTML = `<p class="hint">${t("notFound")}</p>`; return; }
     if (r.length === 1 && r[0].kind === "exact") return goTo(r[0]);
     let note = "";
     if (r.note === "notExact") note = t("notExact", { what: esc(r.missing), where: esc(r.anchorLabel) });
     else if (r.note === "approx") note = t("approx");
     else if (r.every((x) => x.kind === "pin" || x.kind === "road")) note = t("onlyArea");
     showResults(r, note);
-  } catch (err) { box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("error")}: ${esc(err.message)}</p>`; }
+  } catch (err) { box.innerHTML = `<p class="hint">${t("error")}: ${esc(err.message)}</p>`; }
 };
 
 // type-ahead suggestions
@@ -231,10 +243,7 @@ $("#q").addEventListener("input", () => {
   }, 300);
 });
 
-$("#locBtn").onclick = () => {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition((p) => setPoint(p.coords.latitude, p.coords.longitude), (e) => ($("#msg").textContent = e.message), { enableHighAccuracy: true, timeout: 15000 });
-};
+$("#locBtn").onclick = () => locateMe();
 
 function currentFeature() {
   if (state.vertices.length >= 3) {
@@ -289,6 +298,7 @@ $("#analyseBtn").onclick = async () => {
   $("#analyseBtn").disabled = true;
   state.feature = feature;
   state.areaAcres = areaAcres(feature);
+  saveField();
   const [lat, lon] = state.point;
   progress(0, 0, t("working"));
 
@@ -355,8 +365,15 @@ function renderReport() {
         <div><h2>${t("tabLand")}: ${esc(L_(state.district))}</h2><p class="hint">${r.lat.toFixed(4)}, ${r.lon.toFixed(4)}</p></div>
         <button class="btn line noprint" id="printBtn">${ic("printer")}${t("printReport")}</button>
       </div>
+      <div class="status">
+        <span><i class="${r.series.length ? "" : "bad"}"></i>Sentinel-2</span>
+        <span><i class="${s ? "" : "bad"}"></i>SoilGrids</span>
+        <span><i class="${r.climate ? "" : "bad"}"></i>NASA POWER</span>
+        <span><i class="${state.forecast ? "" : "bad"}"></i>Open-Meteo</span>
+        <span><i class="${state.prices?.latest?.records?.length ? "" : "bad"}"></i>${lang === "hi" ? "मंडी भाव" : "Mandi prices"}</span>
+      </div>
       <div class="report-head">
-        ${snap ? `<div class="snapwrap"><img class="snap" src="${snap}" alt="${esc(t("fieldFromSky"))}" title="${esc(t("fieldFromSky"))}">${outline}</div>` : ""}
+        ${snap ? `<div class="snapwrap"><img class="snap" src="${snap}" alt="${esc(t("fieldFromSky"))}">${outline}<span class="tag">${esc(t("fieldFromSky"))}</span></div>` : ""}
         <div class="kpis">
           <div class="kpi gold"><div class="l">${ic("scale")}${t("area")}</div><div class="v">${state.areaAcres.toFixed(2)}</div><div class="s">${t("acres")}, ${(state.areaAcres * 0.4047).toFixed(2)} ha</div></div>
           <div class="kpi"><div class="l">${ic("leaf")}${t("ndviNow")}</div><div class="v">${latest ? latest.ndvi.toFixed(2) : "-"}</div>
@@ -366,12 +383,13 @@ function renderReport() {
           <div class="kpi water"><div class="l">${ic("cloud-rain")}${t("annualRain")}</div><div class="v">${r.climate ? Math.round(r.climate.annualRain) : "-"}</div><div class="s">${lang === "hi" ? "मि.मी. प्रति वर्ष" : "mm per year"}</div></div>
         </div>
       </div>
+      ${latest ? passPanel(latest, lang) : ""}
     </div>
     <div class="card">
       <h2>${t("findings")}</h2>
       ${notes.length ? notes.map((n) => `<div class="finding">${ic("satellite")}<span>${esc(n)}</span></div>`).join("") : `<p class="hint">${t("cloudy")}</p>`}
       <h3 style="margin-top:1.2rem">${t("history")}</h3>
-      <canvas id="ndviChart" height="100"></canvas>
+      <div class="chartbox"><canvas id="ndviChart"></canvas></div>
       <p class="hint">${lang === "hi" ? `${r.series.length} साफ़ सैटेलाइट चित्र (Sentinel-2) पढ़े गए, कुल ${r.scenesFound ?? 0} उपलब्ध।` : `${r.series.length} clear Sentinel-2 images read out of ${r.scenesFound ?? 0} available.`}</p>
     </div>
     <div class="card">
@@ -385,28 +403,31 @@ function renderReport() {
         <div><div class="l">${t("cec")}</div><b>${s.cec != null ? s.cec.toFixed(1) + " cmol/kg" : "-"}</b></div>
       </div>` : `<p class="hint">${t("error")}: ${esc(r.soilError || "")}</p>`}
       <p class="hint" style="margin-top:0.8rem">${t("soilTip")}</p>
-      ${r.climate ? `<h3 style="margin-top:1.2rem">${t("climate")}</h3><canvas id="climChart" height="90"></canvas>` : ""}
+      ${r.climate ? `<h3 style="margin-top:1.2rem">${t("climate")}</h3><div class="chartbox"><canvas id="climChart"></canvas></div>` : ""}
     </div>
-    <div class="row wrap noprint" style="margin-bottom:1rem">
+    <div class="actionsrow noprint">
+      <button class="btn mustard" id="shareBtn">${ic("share-2")}${t("shareReport")}</button>
       <button class="btn" id="toAdvice">${ic("sprout")}${t("goAdvice")}</button>
       <button class="btn mustard" id="toCard">${ic("flask-conical")}${t("goCard")}</button>
       <button class="btn ghost" id="toTech">${ic("book-open-text")}${t("goTech")}</button>
     </div>`;
 
   $("#printBtn").onclick = () => window.print();
+  $("#shareBtn").onclick = () => shareReport();
   $("#toAdvice").onclick = () => showTab("advice");
   $("#toCard").onclick = () => showTab("soilcard");
   $("#toTech").onclick = () => { state.techCat = "star"; showTab("techniques"); };
 
   if (ndviChart) ndviChart.destroy();
   if (r.series.length) {
+    chartTheme();
     ndviChart = new Chart($("#ndviChart"), {
       type: "line",
       data: {
         labels: r.series.map((x) => x.date),
         datasets: [
-          { label: lang === "hi" ? "हरियाली (NDVI)" : "Greenness (NDVI)", data: r.series.map((x) => x.ndvi), borderColor: "#2f6b3a", backgroundColor: "rgba(47,107,58,0.14)", fill: true, tension: 0.3, pointRadius: 2 },
-          { label: lang === "hi" ? "नमी (NDMI)" : "Moisture (NDMI)", data: r.series.map((x) => x.ndmi), borderColor: "#2d6e8e", borderDash: [5, 4], tension: 0.3, pointRadius: 0 },
+          { label: lang === "hi" ? "हरियाली (NDVI)" : "Greenness (NDVI)", data: r.series.map((x) => x.ndvi), borderColor: C().green, backgroundColor: alpha(C().green, 0.16), fill: true, tension: 0.3, pointRadius: 2 },
+          { label: lang === "hi" ? "नमी (NDMI)" : "Moisture (NDMI)", data: r.series.map((x) => x.ndmi), borderColor: C().canal, borderDash: [5, 4], tension: 0.3, pointRadius: 0 },
         ],
       },
       options: { scales: { y: { min: -0.3, max: 1 } }, plugins: { legend: { position: "bottom" } } },
@@ -418,9 +439,9 @@ function renderReport() {
       data: {
         labels: months,
         datasets: [
-          { type: "bar", label: (lang === "hi" ? "बारिश" : "Rain") + " (mm)", data: r.climate.monthly.map((m) => m.rain), backgroundColor: "rgba(45,110,142,0.45)", yAxisID: "y" },
-          { type: "line", label: lang === "hi" ? "सबसे गर्म दिन °C" : "Hottest day °C", data: r.climate.monthly.map((m) => m.tmax), borderColor: "#b3412e", yAxisID: "y1" },
-          { type: "line", label: lang === "hi" ? "सबसे ठंडी रात °C" : "Coldest night °C", data: r.climate.monthly.map((m) => m.tmin), borderColor: "#2d6e8e", yAxisID: "y1" },
+          { type: "bar", label: (lang === "hi" ? "बारिश" : "Rain") + " (mm)", data: r.climate.monthly.map((m) => m.rain), backgroundColor: alpha(C().canal, 0.45), yAxisID: "y" },
+          { type: "line", label: lang === "hi" ? "सबसे गर्म दिन °C" : "Hottest day °C", data: r.climate.monthly.map((m) => m.tmax), borderColor: C().risk, yAxisID: "y1" },
+          { type: "line", label: lang === "hi" ? "सबसे ठंडी रात °C" : "Coldest night °C", data: r.climate.monthly.map((m) => m.tmin), borderColor: C().canal, yAxisID: "y1" },
         ],
       },
       options: { scales: { y: { position: "left", title: { display: true, text: "mm" } }, y1: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "°C" } } }, plugins: { legend: { position: "bottom" } } },
@@ -470,14 +491,15 @@ async function renderAdvice() {
 
   const top = recs.slice(0, 7);
   if (compareChart) compareChart.destroy();
+  chartTheme();
   compareChart = new Chart($("#compareChart"), {
     type: "bar",
     data: {
       labels: top.map((x) => L_(x.crop)),
       datasets: [
-        { label: t("bad"), data: top.map((x) => Math.round(x.sc.bad)), backgroundColor: "#e5a596", borderRadius: 4 },
-        { label: t("normal"), data: top.map((x) => Math.round(x.sc.normal)), backgroundColor: "#f0be1e", borderRadius: 4 },
-        { label: t("good"), data: top.map((x) => Math.round(x.sc.good)), backgroundColor: "#2f6b3a", borderRadius: 4 },
+        { label: t("bad"), data: top.map((x) => Math.round(x.sc.bad)), backgroundColor: alpha(C().risk, 0.75), borderRadius: 4 },
+        { label: t("normal"), data: top.map((x) => Math.round(x.sc.normal)), backgroundColor: C().mustard, borderRadius: 4 },
+        { label: t("good"), data: top.map((x) => Math.round(x.sc.good)), backgroundColor: C().green, borderRadius: 4 },
       ],
     },
     options: { plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${rupee(c.raw)}` } } }, scales: { y: { ticks: { callback: (v) => "₹" + (v / 1000).toFixed(0) + "k" } } } },
@@ -594,7 +616,7 @@ function renderCalendar(rows) {
   $("#calendar").innerHTML = html + `</div>`;
   $("#calendar").insertAdjacentHTML("afterend", "");
   const legend = $("#calLegend") || Object.assign(document.createElement("div"), { id: "calLegend", className: "legendrow" });
-  legend.innerHTML = `<span><i style="background:#c9a227"></i>${lang === "hi" ? "बुवाई" : "Sowing"}</span><span><i style="background:#8bc34a"></i>${lang === "hi" ? "बढ़वार" : "Growing"}</span><span><i style="background:#e65100"></i>${lang === "hi" ? "कटाई" : "Harvest"}</span>`;
+  legend.innerHTML = `<span><i style="background:var(--mustard)"></i>${lang === "hi" ? "बुवाई" : "Sowing"}</span><span><i style="background:var(--green)"></i>${lang === "hi" ? "बढ़वार" : "Growing"}</span><span><i style="background:#c98a4b"></i>${lang === "hi" ? "कटाई" : "Harvest"}</span>`;
   $("#calendar").after(legend);
 }
 $("#water").onchange = () => $("#tab-advice").classList.contains("active") && renderAdvice();
@@ -780,9 +802,10 @@ async function renderPrices() {
     if (pts?.length >= 2) {
       box.classList.remove("hidden");
       if (trendChart) trendChart.destroy();
+      chartTheme();
       trendChart = new Chart($("#trendChart"), {
         type: "line",
-        data: { labels: pts.map((p) => p.date), datasets: [{ label: `${L_(crop)} ₹/q`, data: pts.map((p) => p.modal), borderColor: "#c9a227", tension: 0.25 }, ...(crop.msp ? [{ label: "MSP", data: pts.map(() => crop.msp), borderColor: "#2e7d32", borderDash: [6, 4], pointRadius: 0 }] : [])] },
+        data: { labels: pts.map((p) => p.date), datasets: [{ label: `${L_(crop)} ₹/q`, data: pts.map((p) => p.modal), borderColor: C().mustard, tension: 0.25 }, ...(crop.msp ? [{ label: "MSP", data: pts.map(() => crop.msp), borderColor: "#2e7d32", borderDash: [6, 4], pointRadius: 0 }] : [])] },
         options: { plugins: { legend: { position: "bottom" } } },
       });
       return;
@@ -882,6 +905,133 @@ function renderAbout() {
     </ul>${credits}`;
 }
 
+/* ---------------- satellite pass panel ---------------- */
+function passPanel(row, lang) {
+  const p = row.item.properties;
+  const when = new Date(p.datetime);
+  const fmt = (d) => d.toLocaleString(lang === "hi" ? "hi-IN" : "en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const days = Math.max(0, Math.round((Date.now() - when) / 864e5));
+  const sat = p.platform ? p.platform.replace("sentinel", "Sentinel").replace("-2", "-2").toUpperCase().replace("SENTINEL", "Sentinel") : row.item.id.slice(0, 3);
+  return `<div class="pass">
+    <div><div class="l">${lang === "hi" ? "उपग्रह" : "Satellite"}</div><b>${esc(sat)}</b></div>
+    <div><div class="l">${lang === "hi" ? "आख़िरी साफ़ चित्र (IST)" : "Last clear pass (IST)"}</div><b>${fmt(when)}</b></div>
+    <div><div class="l">${lang === "hi" ? "कितने दिन पहले" : "Age"}</div><b>${days} ${lang === "hi" ? "दिन" : "days"}</b></div>
+    <div><div class="l">${lang === "hi" ? "खेत पर बादल" : "Cloud over field"}</div><b>${Math.round((row.cloud || 0) * 100)}%</b></div>
+    <div><div class="l">${lang === "hi" ? "रिज़ॉल्यूशन" : "Resolution"}</div><b>10 m</b></div>
+    <div><div class="l">${lang === "hi" ? "दोबारा चित्र" : "Revisit"}</div><b>${lang === "hi" ? "हर 2 से 5 दिन" : "every 2 to 5 days"}</b></div>
+  </div>`;
+}
+
+/* ---------------- share, remember field ---------------- */
+function fieldParam() {
+  if (state.vertices.length >= 3) return "poly=" + state.vertices.map(([a, b]) => `${a.toFixed(5)}:${b.toFixed(5)}`).join(";");
+  if (state.point) return `field=${state.point[0].toFixed(5)},${state.point[1].toFixed(5)},${(+$("#acres").value || 2)}`;
+  return "";
+}
+function saveField() { try { localStorage.setItem("km-field", fieldParam()); } catch {} }
+function restoreField(param) {
+  if (!param) return false;
+  const p = new URLSearchParams(param);
+  if (p.get("poly")) {
+    const pts = p.get("poly").split(";").map((x) => x.split(":").map(Number)).filter((x) => x.length === 2 && x.every(isFinite));
+    if (pts.length >= 3) {
+      clearShape();
+      state.vertices = pts;
+      poly = L.polygon(pts, { color: "#f2c230", weight: 3, fillOpacity: 0.12 }).addTo(map);
+      const c = poly.getBounds().getCenter();
+      state.point = [c.lat, c.lng];
+      state.district = nearestDistrict(c.lat, c.lng);
+      fillSelects();
+      map.fitBounds(poly.getBounds(), { maxZoom: 17, padding: [30, 30] });
+      showPlaceName(c.lat, c.lng);
+      return true;
+    }
+  }
+  if (p.get("field")) {
+    const [lat, lon, acres] = p.get("field").split(",").map(Number);
+    if (isFinite(lat) && isFinite(lon)) {
+      if (acres) $("#acres").value = acres;
+      setPoint(lat, lon, false);
+      map.setView([lat, lon], 16);
+      return true;
+    }
+  }
+  return false;
+}
+function toast(msg) {
+  const el = document.createElement("div");
+  el.className = "toast"; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+async function shareReport() {
+  const r = state.report;
+  const latest = r?.series?.[r.series.length - 1];
+  const url = `${location.origin}${location.pathname}#${fieldParam()}`;
+  const lang = getLang();
+  const text = lang === "hi"
+    ? `मेरे खेत की सैटेलाइट रिपोर्ट (${L_(state.district)}): हरियाली NDVI ${latest ? latest.ndvi.toFixed(2) : "-"}, मिट्टी ${r?.soil?.texture || "-"}, pH ${r?.soil?.phh2o?.toFixed(1) || "-"}। कृषि मित्र हरियाणा पर देखें:`
+    : `Satellite report for my field (${L_(state.district)}): greenness NDVI ${latest ? latest.ndvi.toFixed(2) : "-"}, soil ${r?.soil?.texture || "-"}, pH ${r?.soil?.phh2o?.toFixed(1) || "-"}. See it on Krishi Mitra Haryana:`;
+  if (navigator.share) {
+    try { await navigator.share({ title: t("appName"), text, url }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, "_blank", "noopener");
+}
+
+/* ---------------- phone map buttons ---------------- */
+function locateMe() {
+  if (!navigator.geolocation) { toast(t("noGps")); return; }
+  toast(t("findingYou"));
+  navigator.geolocation.getCurrentPosition((p) => { setPoint(p.coords.latitude, p.coords.longitude, false); map.setView([p.coords.latitude, p.coords.longitude], 17); },
+    (e) => toast(t("gpsDenied")), { enableHighAccuracy: true, timeout: 15000 });
+}
+$("#fabLocate").onclick = locateMe;
+$("#fabDraw").onclick = () => {
+  if (state.drawing) { $("#doneBtn").click(); return; }
+  $("#drawBtn").click();
+};
+function syncDrawUi() {
+  $("#fabDraw").classList.toggle("on", state.drawing);
+  $("#fabDraw").innerHTML = state.drawing ? ic("circle-check") : ic("pencil-line");
+  const tip = $("#mapTip");
+  tip.classList.toggle("hidden", !state.drawing);
+  tip.textContent = t("drawTip");
+}
+
+/* ---------------- theme ---------------- */
+function setTheme(th) {
+  document.documentElement.dataset.theme = th;
+  try { localStorage.setItem("km-theme", th); } catch {}
+  $("#themeBtn").innerHTML = th === "sun" ? ic("moon") : ic("sun");
+  $("#themeBtn").setAttribute("aria-label", th === "sun" ? t("nightMode") : t("sunMode"));
+  document.querySelector('meta[name="theme-color"]').content = th === "sun" ? "#f2f5ee" : "#0b1622";
+  chartTheme();
+  const active = $(".tab.active")?.dataset.tab;
+  if (state.report) renderReport();
+  if (active && active !== "land") showTab(active);
+}
+$("#themeBtn").onclick = () => setTheme(document.documentElement.dataset.theme === "sun" ? "night" : "sun");
+$("#aboutBtn").onclick = () => showTab("about");
+
+/* ---------------- live clock in the hero readout ---------------- */
+function tick() {
+  const el = $("#clockIST");
+  if (el) el.textContent = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) + " IST";
+}
+tick(); setInterval(tick, 30000);
+
+/* ---------------- install as app, offline notice ---------------- */
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  installEvt = e;
+  const box = $("#installBox");
+  box.innerHTML = `<span>${ic("download")} ${t("installApp")}</span><button class="btn mustard" type="button" id="installBtn">${t("install")}</button>`;
+  box.classList.remove("hidden");
+  $("#installBtn").onclick = async () => { box.classList.add("hidden"); installEvt.prompt(); installEvt = null; };
+});
+window.addEventListener("offline", () => toast(t("offline")));
+
 /* ---------------- boot ---------------- */
 $$(".tab").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 $$(".lang button").forEach((b) => (b.onclick = () => {
@@ -892,6 +1042,9 @@ $$(".lang button").forEach((b) => (b.onclick = () => {
   if (active && active !== "land") showTab(active);
 }));
 paintStatic();
+setTheme(document.documentElement.dataset.theme || "night");
+if (!restoreField(location.hash.slice(1))) { try { restoreField(localStorage.getItem("km-field")); } catch {} }
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 const initial = location.hash.slice(1);
 if (["advice", "soilcard", "techniques", "prices", "weather", "about"].includes(initial)) showTab(initial);
 window.__km = { state, map }; // handy for debugging in the console
