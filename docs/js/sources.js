@@ -1,4 +1,4 @@
-import { DISTRICTS } from "./districts.js?v=20261120214610";
+import { DISTRICTS } from "./districts.js?v=20261120220712";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
@@ -115,10 +115,11 @@ async function indices(item, feature) {
 }
 
 // One scene search per field, shared by the quick "newest passes" read and the slower history read
-let sceneCache = { key: "", p: null };
+let sceneCache = { key: "", p: null, at: 0 };
+export function forgetScenes() { sceneCache = { key: "", p: null, at: 0 }; }
 function scenesFor(feature) {
   const key = JSON.stringify(feature.geometry.coordinates);
-  if (sceneCache.key !== key) { sceneCache = { key, p: searchScenes(feature.geometry) }; sceneCache.p.catch(() => (sceneCache.key = "")); }
+  if (sceneCache.key !== key || Date.now() - sceneCache.at > 10 * 60e3) { sceneCache = { key, p: searchScenes(feature.geometry), at: Date.now() }; sceneCache.p.catch(() => (sceneCache.key = "")); }
   return sceneCache.p;
 }
 async function readScenes(items, feature, onProgress) {
@@ -552,4 +553,82 @@ export async function reverseGeocode(lat, lon) {
     return [a.village || a.hamlet || a.town || a.suburb || a.city, a.county || a.state_district].filter(Boolean).join(", ");
   } catch {}
   return "";
+}
+
+/* ---------------- when was the sharp photo taken? ---------------- */
+// Esri publishes the capture date, sensor and resolution of the photo at any point.
+const photoCache = new Map();
+export async function photoDate(lat, lon) {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  if (photoCache.has(key)) return photoCache.get(key);
+  const p = (async () => {
+    const u = `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify?geometry=${lon},${lat}&geometryType=esriGeometryPoint&sr=4326&layers=all&tolerance=2&mapExtent=${lon - 0.01},${lat - 0.01},${lon + 0.01},${lat + 0.01}&imageDisplay=400,400,96&returnGeometry=false&f=json`;
+    const j = await getJSON(u, {}, 10000);
+    const hit = (j.results || []).map((r) => r.attributes || {}).find((a) => /^\d{8}$/.test(a["DATE (YYYYMMDD)"] || ""));
+    if (!hit) return null;
+    const d = hit["DATE (YYYYMMDD)"];
+    return { date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`, res: parseFloat(hit["RESOLUTION (M)"]) || null, sensor: hit.DESCRIPTION || "", source: hit.SOURCE || "" };
+  })().catch(() => null);
+  photoCache.set(key, p);
+  return p;
+}
+
+/* ---------------- villages (post offices) inside a PIN code: India Post ---------------- */
+export async function pinVillages(pin) {
+  const j = await getJSON(`https://api.postalpincode.in/pincode/${pin}`, {}, 9000);
+  const list = j?.[0]?.PostOffice || [];
+  const seen = new Set();
+  return list.filter((p) => !seen.has(p.Name) && seen.add(p.Name)).map((p) => ({ name: p.Name, block: p.Block || "", district: p.District || "", state: p.State || "" }));
+}
+
+/* ---------------- newest pass over a field (cheap check used for automatic refresh) ---------------- */
+export async function newestPass(feature) {
+  const end = new Date(), start = new Date(end.getTime() - 20 * 864e5);
+  const body = { collections: ["sentinel-2-l2a"], intersects: feature.geometry, datetime: `${start.toISOString().slice(0, 10)}T00:00:00Z/${end.toISOString().slice(0, 10)}T23:59:59Z`, query: { "eo:cloud_cover": { lt: 35 } }, sortby: [{ field: "datetime", direction: "desc" }], limit: 1 };
+  const j = await getJSON(STAC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, 15000);
+  return j.features?.[0]?.properties.datetime.slice(0, 10) || null;
+}
+
+/* ---------------- second satellite: Landsat 8/9 (30 m), used when it has a clear view newer than Sentinel-2 ---------------- */
+export async function landsatNewer(feature, afterDate) {
+  const end = new Date(), start = afterDate ? new Date(Date.parse(afterDate) + 864e5) : new Date(end.getTime() - 16 * 864e5);
+  if (start > end) return null;
+  const body = { collections: ["landsat-c2-l2"], intersects: feature.geometry, datetime: `${start.toISOString().slice(0, 10)}T00:00:00Z/${end.toISOString().slice(0, 10)}T23:59:59Z`, query: { "eo:cloud_cover": { lt: 40 }, platform: { in: ["landsat-8", "landsat-9"] } }, sortby: [{ field: "datetime", direction: "desc" }], limit: 3 };
+  const j = await getJSON(STAC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, 15000);
+  const post = (item, q) => getJSON(`${PCDATA}/item/statistics?collection=landsat-c2-l2&item=${encodeURIComponent(item.id)}&${q}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(feature) }, 25000);
+  for (const item of j.features || []) {
+    try {
+      // QA_PIXEL bits 1-4: dilated cloud, cirrus, cloud, cloud shadow
+      const qa = Object.values((await post(item, "assets=qa_pixel&categorical=true")).properties.statistics)[0];
+      const [counts, values] = qa.histogram;
+      let bad = 0, tot = 0;
+      values.forEach((v, i) => { tot += counts[i]; if (Math.round(v) & 0b11110) bad += counts[i]; });
+      if (!tot || bad / tot > 0.1) continue;
+      // surface reflectance = DN * 0.0000275 - 0.2, so the offset in a ratio is 2 * 0.2 / 0.0000275
+      const st = Object.values((await post(item, `expression=${encodeURIComponent("(nir08-red)/(nir08+red-14545.45);(nir08-swir16)/(nir08+swir16-14545.45)")}&asset_as_band=true`)).properties.statistics);
+      return { date: item.properties.datetime.slice(0, 10), item, cloud: bad / tot, sceneCloud: item.properties["eo:cloud_cover"], ndvi: st[0].mean, ndviStd: st[0].std, ndmi: st[1]?.mean, pixels: st[0].count, sensor: "landsat" };
+    } catch { /* try the next pass */ }
+  }
+  return null;
+}
+
+/* ---------------- one index for every 10 m cell of a field (for the field picture and change detection) ---------------- */
+// The server renders the index as a grey PNG (-1..1 mapped to 0..255) on a plain lat/lon grid; the browser reads the pixels back.
+export function gridUrl(item, bbox, W, H, expr) {
+  return `${PCDATA}/item/bbox/${bbox.map((v) => v.toFixed(6)).join(",")}/${W}x${H}.png?collection=sentinel-2-l2a&item=${encodeURIComponent(item.id)}&expression=${encodeURIComponent(expr)}&asset_as_band=true&rescale=-1,1&resampling=nearest&nodata=0`;
+}
+export async function ndviGrid(item, bbox, W, H) {
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000);
+  try {
+    const r = await fetch(gridUrl(item, bbox, W, H, ndviExpr(item)), { signal: ctl.signal });
+    if (!r.ok) throw new Error(`${r.status}`);
+    const blob = await r.blob();
+    const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("image")); im.src = URL.createObjectURL(blob); });
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const cx = cv.getContext("2d"); cx.imageSmoothingEnabled = false; cx.drawImage(img, 0, 0, W, H);
+    URL.revokeObjectURL(img.src);
+    const px = cx.getImageData(0, 0, W, H).data, out = new Float32Array(W * H);
+    for (let i = 0; i < W * H; i++) out[i] = px[i * 4 + 3] < 128 ? NaN : (px[i * 4] / 255) * 2 - 1;
+    return out;
+  } finally { clearTimeout(timer); }
 }

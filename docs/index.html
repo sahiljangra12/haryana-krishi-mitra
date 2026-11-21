@@ -8,6 +8,8 @@
   <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="preconnect" href="https://planetarycomputer.microsoft.com" crossorigin>
+  <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="img/icon-192.png" />
   <link rel="icon" href="img/logo.svg" type="image/svg+xml" />
@@ -16,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20261120214610" />
+  <link rel="stylesheet" href="css/style.css?v=20261120220712" />
 </head>
 <body>
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
@@ -217,6 +219,11 @@
   <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
   <line x1="10" x2="10" y1="11" y2="17" />
   <line x1="14" x2="14" y1="11" y2="17" /></symbol>
+<symbol id="i-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></symbol>
+<symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></symbol>
+<symbol id="i-refresh-cw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></symbol>
+<symbol id="i-scissors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3" /><path d="M8.12 8.12 12 12" /><path d="M20 4 8.12 15.88" /><circle cx="6" cy="18" r="3" /><path d="M14.8 14.8 20 20" /></symbol>
+<symbol id="i-square" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="5" y="5" rx="2" /></symbol>
 <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" />
   <path d="m6 6 12 12" /></symbol>
 <symbol id="i-languages" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6" />
@@ -318,7 +325,7 @@
             <form id="searchForm" class="searchbar" role="search">
               <svg class="ic"><use href="#i-search"/></svg>
               <input id="q" type="search" data-tph="searchPh" autocomplete="off" enterkeyhint="search" aria-label="PIN code or village" />
-              <button type="button" id="micBtn" class="sb-mic hidden" aria-label="Speak"><svg class="ic"><use href="#i-mic"/></svg></button>
+              <button type="button" id="micBtn" class="sb-mic" aria-label="Speak"><svg class="ic"><use href="#i-mic"/></svg></button>
               <button type="submit" class="sb-go" data-t="search"></button>
             </form>
             <div id="viewChips" class="viewchips"></div>
@@ -343,7 +350,7 @@
     </section>
 
     <section id="tab-advice" class="panel">
-      <div class="tabhead"><h2 data-t="tabAdvice"></h2><button class="say big" type="button" data-say="tab" data-tab="advice" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
+      <div class="tabhead"><button class="backbtn" type="button" data-back aria-label="Back"><svg class="ic"><use href="#i-arrow-left"/></svg></button><h2 data-t="tabAdvice"></h2><button class="say big" type="button" data-say="tab" data-tab="advice" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <div class="card">
         <div class="filters">
           <label class="f"><span data-t="water"></span><select id="water"><option value="good" data-t="waterGood"></option><option value="limited" data-t="waterLimited"></option><option value="rainfed" data-t="waterRainfed"></option></select></label>
@@ -374,7 +381,7 @@
     </section>
 
     <section id="tab-soilcard" class="panel">
-      <div class="tabhead"><h2 data-t="tabCard"></h2><button class="say big" type="button" data-say="tab" data-tab="soilcard" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
+      <div class="tabhead"><button class="backbtn" type="button" data-back aria-label="Back"><svg class="ic"><use href="#i-arrow-left"/></svg></button><h2 data-t="tabCard"></h2><button class="say big" type="button" data-say="tab" data-tab="soilcard" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <div class="grid2">
         <div class="card">
           <h2 data-t="cardTitle"></h2>
@@ -416,7 +423,7 @@
     </section>
 
     <section id="tab-techniques" class="panel">
-      <div class="tabhead"><h2 data-t="techTitle"></h2><button class="say big" type="button" data-say="tab" data-tab="techniques" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
+      <div class="tabhead"><button class="backbtn" type="button" data-back aria-label="Back"><svg class="ic"><use href="#i-arrow-left"/></svg></button><h2 data-t="techTitle"></h2><button class="say big" type="button" data-say="tab" data-tab="techniques" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <p class="hint" data-t="techIntro"></p>
       <input id="techSearch" type="search" data-tph="techSearch" />
       <div id="techChips" class="chips"></div>
@@ -424,7 +431,7 @@
     </section>
 
     <section id="tab-prices" class="panel">
-      <div class="tabhead"><h2 data-t="tabPrices"></h2><button class="say big" type="button" data-say="tab" data-tab="prices" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
+      <div class="tabhead"><button class="backbtn" type="button" data-back aria-label="Back"><svg class="ic"><use href="#i-arrow-left"/></svg></button><h2 data-t="tabPrices"></h2><button class="say big" type="button" data-say="tab" data-tab="prices" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <div class="card">
         <h2 data-t="pricesTitle"></h2>
         <div class="row wrap">
@@ -443,7 +450,7 @@
     </section>
 
     <section id="tab-weather" class="panel">
-      <div class="tabhead"><h2 data-t="tabWeather"></h2><button class="say big" type="button" data-say="tab" data-tab="weather" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
+      <div class="tabhead"><button class="backbtn" type="button" data-back aria-label="Back"><svg class="ic"><use href="#i-arrow-left"/></svg></button><h2 data-t="tabWeather"></h2><button class="say big" type="button" data-say="tab" data-tab="weather" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <div class="card">
         <div class="row wrap"><label class="f"><span data-t="district"></span> <select id="weatherDistrict"></select></label></div>
         <p id="weatherWhere" class="hint"></p>
@@ -457,9 +464,15 @@
     </section>
 
     <section id="tab-about" class="panel">
+      <div class="tabhead"><button class="backbtn" type="button" data-back aria-label="Back"><svg class="ic"><use href="#i-arrow-left"/></svg></button><h2 data-t="tabAbout"></h2><span></span></div>
       <div class="card prose" id="aboutBox"></div>
     </section>
   </main>
+  <div id="sayBar" class="saybar hidden" role="status" aria-live="polite">
+    <span class="sayic"><svg class="ic"><use href="#i-volume-2"/></svg></span>
+    <div class="saybody"><p id="sayNote" class="saynote hidden"></p><p id="sayNow"></p></div>
+    <button type="button" id="sayStop" class="iconbtn" aria-label="Stop"><svg class="ic"><use href="#i-x"/></svg></button>
+  </div>
 
   <footer>
     <span data-t="footerData"></span>
@@ -468,6 +481,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="js/app.js?v=20261120214610"></script>
+  <script type="module" src="js/app.js?v=20261120220712"></script>
 </body>
 </html>

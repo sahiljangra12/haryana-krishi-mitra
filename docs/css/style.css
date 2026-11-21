@@ -560,3 +560,59 @@ details.opts label { display: flex; gap: 0.6rem; align-items: flex-start; paddin
 details.opts input { margin-top: 0.25rem; flex: none; width: 1.2rem; height: 1.2rem; accent-color: var(--green); }
 .leaflet-control-attribution { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100vw; font-size: 10px !important; }
 @media (max-width: 760px) { .imgbadge { bottom: 44px; } .legend { bottom: 80px; } .mapfab { bottom: 44px; } }
+
+/* ---- back button, reading bar, field picture, simple rows ---- */
+.stage { height: calc(100vh - 56px - var(--nav-h) - var(--safe-b)); height: calc(100dvh - 56px - var(--nav-h) - var(--safe-b)); }
+@media (min-width: 761px) { .stage { height: calc(100vh - 106px); height: calc(100dvh - 106px); } }
+.tabhead { justify-content: flex-start; gap: 0.7rem; }
+.tabhead h2 { flex: 1; min-width: 0; }
+.backbtn { flex: none; width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--chip); color: var(--soil); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.backbtn .ic { width: 1.4rem; height: 1.4rem; }
+.saybar { position: fixed; left: 10px; right: 10px; bottom: calc(var(--nav-h) + var(--safe-b) + 10px); z-index: 1500; display: flex; align-items: flex-start; gap: 0.7rem; background: var(--soil); color: var(--paper); border-radius: 18px; padding: 0.7rem 0.7rem 0.7rem 0.9rem; box-shadow: var(--float); max-width: 640px; margin: 0 auto; }
+@media (min-width: 761px) { .saybar { bottom: 18px; } }
+.saybar .sayic { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--mustard); color: #1a1300; display: grid; place-items: center; }
+.saybar .saybody { flex: 1; min-width: 0; max-height: 40vh; overflow-y: auto; }
+.saybar p { margin: 0; font-size: 1rem; line-height: 1.45; }
+.saybar .saynote { font-size: 0.86rem; color: var(--mustard); margin-bottom: 0.35rem; }
+.saybar .iconbtn { flex: none; background: rgba(255, 255, 255, 0.16); color: inherit; }
+.saybar.failed p#sayNow { font-size: 1.05rem; }
+.toast { max-width: min(92vw, 520px); text-align: center; line-height: 1.4; }
+
+.viewchips button { height: 44px; text-align: left; }
+.viewchips button span { display: flex; flex-direction: column; line-height: 1.15; }
+.viewchips button small { font-size: 0.7rem; opacity: 0.72; font-weight: 400; }
+.viewchips #moreLayers { width: 44px; padding: 0; justify-content: center; }
+.results .res-close { display: flex; justify-content: center; gap: 0.4rem; align-items: center; grid-template-columns: none; font-weight: 600; color: var(--soil-2); }
+.results .lbl small { color: var(--soil-2); }
+
+.result-head { margin: 1.1rem 0 0.7rem; align-items: center; }
+.fieldcard { padding: 0.6rem; margin-bottom: 0.9rem; }
+.fieldpic { position: relative; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden; background: #1b2a22; }
+.fieldpic img, .fieldpic canvas, .fieldpic svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.fieldpic img { object-fit: fill; }
+.fieldpic canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+.fieldpic #fpSat { image-rendering: pixelated; }
+.fp-label { position: absolute; left: 8px; top: 8px; background: rgba(16, 35, 26, 0.84); color: #fff; font-size: 0.82rem; font-weight: 600; padding: 0.25rem 0.65rem; border-radius: 999px; max-width: calc(100% - 16px); }
+.fp-modes { display: flex; gap: 6px; margin: 0.6rem 0 0; overflow-x: auto; scrollbar-width: none; }
+.fp-modes::-webkit-scrollbar { display: none; }
+.fp-modes button { flex: 1 0 auto; min-height: 46px; padding: 0 0.9rem; border-radius: 12px; border: 1.5px solid var(--line-2); background: var(--paper); color: var(--soil); font: inherit; font-weight: 600; font-size: 0.95rem; cursor: pointer; }
+.fp-modes button.on { background: var(--soil); border-color: var(--soil); color: var(--paper); }
+.fp-legend { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; padding: 0.6rem 0.3rem 0; font-size: 0.88rem; color: var(--soil-2); }
+.fp-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.fp-legend i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+.fp-meta { list-style: none; margin: 0.6rem 0 0; padding: 0.2rem 0.3rem 0.3rem; display: grid; gap: 0.45rem; font-size: 0.95rem; }
+.fp-meta li { display: flex; gap: 0.55rem; align-items: flex-start; }
+.fp-meta .ic { flex: none; color: var(--green); margin-top: 0.2rem; }
+.fp-meta #lastCheck { color: var(--soil-2); white-space: nowrap; }
+.rowlist { padding: 0.2rem 0.4rem; margin-bottom: 1rem; }
+.rowlink { display: flex; align-items: center; gap: 0.8rem; width: 100%; border: 0; background: none; color: var(--soil); font: inherit; text-align: left; padding: 0.7rem 0.5rem; cursor: pointer; border-bottom: 1px solid var(--line); --tone: var(--green); --tone-l: var(--green-l); }
+.rowlink:last-child { border-bottom: 0; }
+.rowlink.warn { --tone: var(--mustard-d); --tone-l: var(--mustard-l); } .rowlink.bad { --tone: var(--risk); --tone-l: var(--risk-l); } .rowlink.info { --tone: var(--canal); --tone-l: var(--canal-l); }
+.rowlink .vicon { width: 42px; height: 42px; border-radius: 12px; }
+.rowlink .rl-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rowlink small { color: var(--soil-2); font-size: 0.82rem; }
+.rowlink b { font-size: 1.05rem; line-height: 1.25; }
+.rowlink > .ic:last-child { color: var(--soil-2); flex: none; }
+#toMap { width: 100%; margin: 1rem 0 0; }
+@media (min-width: 900px) { .fieldcard { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 1rem; align-items: start; } .fieldcard .fieldpic { grid-row: span 3; } .fp-modes { margin-top: 0; flex-wrap: wrap; } }
+@media print { .saybar, .backbtn, .fp-modes { display: none !important; } }
