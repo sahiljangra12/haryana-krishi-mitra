@@ -1,4 +1,4 @@
-import { DISTRICTS } from "./districts.js?v=20261120213846";
+import { DISTRICTS } from "./districts.js?v=20261120214327";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
@@ -114,21 +114,37 @@ async function indices(item, feature) {
   return { ndvi: nd.mean, ndviStd: nd.std, ndviHist: nd.histogram, pixels: nd.count, ndmi: nm?.mean, ndre: nr?.mean, bsi: bs?.mean };
 }
 
-export async function fieldTimeSeries(feature, onProgress) {
-  const scenes = await searchScenes(feature.geometry);
-  // always read the 3 newest passes (so the result is as fresh as the satellite allows), then one every ~12 days for history
-  const newest = scenes.slice(-3);
-  const picked = [...new Set([...thin(scenes.slice(0, -3), 12), ...newest])];
+// One scene search per field, shared by the quick "newest passes" read and the slower history read
+let sceneCache = { key: "", p: null };
+function scenesFor(feature) {
+  const key = JSON.stringify(feature.geometry.coordinates);
+  if (sceneCache.key !== key) { sceneCache = { key, p: searchScenes(feature.geometry) }; sceneCache.p.catch(() => (sceneCache.key = "")); }
+  return sceneCache.p;
+}
+async function readScenes(items, feature, onProgress) {
   let done = 0;
-  const rows = await pool(picked, 4, async (item) => {
+  const rows = await pool(items, 6, async (item) => {
     const cs = await cloudShare(item, feature);
     let row = { date: item.properties.datetime.slice(0, 10), item, cloud: cs, sceneCloud: item.properties["eo:cloud_cover"] };
     if (cs < 0.3) row = { ...row, ...(await indices(item, feature)) };
-    onProgress && onProgress(++done, picked.length);
+    onProgress && onProgress(++done, items.length);
     return row;
   });
-  const newestSeen = newest.length ? newest[newest.length - 1].properties.datetime.slice(0, 10) : null;
-  return { scenesFound: scenes.length, newestPass: newestSeen, series: rows.filter((r) => r && r.ndvi != null).sort((a, b) => a.date.localeCompare(b.date)) };
+  return rows.filter((r) => r && r.ndvi != null).sort((a, b) => a.date.localeCompare(b.date));
+}
+// Quick: the 4 newest passes, so the first answer is as fresh as the satellite allows and arrives in a few seconds
+export async function fieldLatest(feature) {
+  const scenes = await scenesFor(feature), newest = scenes.slice(-4);
+  return { scenesFound: scenes.length, newestPass: newest.length ? newest[newest.length - 1].properties.datetime.slice(0, 10) : null, series: await readScenes(newest, feature) };
+}
+// Slow: one pass every ~15 days over the last 13 months, for the season chart
+export async function fieldHistory(feature, onProgress) {
+  const scenes = await scenesFor(feature);
+  return readScenes(thin(scenes.slice(0, -4), 15), feature, onProgress);
+}
+export async function fieldTimeSeries(feature, onProgress) {
+  const [l, h] = await Promise.all([fieldLatest(feature), fieldHistory(feature, onProgress)]);
+  return { ...l, series: [...h, ...l.series] };
 }
 
 export async function neighbourhoodNdvi(item, lat, lon, radiusM = 1000) {
@@ -161,9 +177,9 @@ export async function soilProfile(lat, lon) {
   // SoilGrids is a free research service that often answers "503 busy": retry, then fall back to a lighter query
   const light = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(5)}&lat=${lat.toFixed(5)}&property=clay&property=sand&property=silt&property=phh2o&property=soc&depth=0-5cm&depth=5-15cm&value=mean`;
   let j = null, lastErr = null;
-  for (const [u, wait] of [[url, 0], [url, 1500], [light, 3000], [light, 5000]]) {
+  for (const [u, wait] of [[url, 0], [light, 800], [light, 2500]]) {
     if (wait) await new Promise((r) => setTimeout(r, wait));
-    try { j = await getJSON(u, {}, 25000); break; } catch (e) { lastErr = e; }
+    try { j = await getJSON(u, {}, 12000); break; } catch (e) { lastErr = e; }
   }
   if (!j) throw lastErr || new Error("SoilGrids unavailable");
   const out = {};

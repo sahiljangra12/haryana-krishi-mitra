@@ -1,14 +1,14 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120213846";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120213846";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120213846";
-import * as Voice from "./voice.js?v=20261120213846";
-import * as RS from "./rs.js?v=20261120213846";
-import * as src from "./sources.js?v=20261120213846";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120213846";
-import * as card from "./soilcard.js?v=20261120213846";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120213846";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120213846";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120213846";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120214327";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120214327";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120214327";
+import * as Voice from "./voice.js?v=20261120214327";
+import * as RS from "./rs.js?v=20261120214327";
+import * as src from "./sources.js?v=20261120214327";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120214327";
+import * as card from "./soilcard.js?v=20261120214327";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120214327";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120214327";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120214327";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -384,21 +384,33 @@ function renderLayerPanel() {
 applyLayers();
 
 /* ---------------- analysis ---------------- */
+let analyseRun = 0;
+const within = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("slow")), ms))]);
+// Redraw the result when late data lands, without closing what the farmer has open
+function refreshReport() {
+  const open = $("#moreBox")?.open;
+  renderReport();
+  if (open && $("#moreBox")) $("#moreBox").open = true;
+}
 async function analyse() {
   const feature = currentFeature();
   if (!feature || state.busy) return;
-  const [lat, lon] = state.point;
+  const [lat, lon] = state.point, run = ++analyseRun;
   if (outsideHaryana(lat, lon)) toast(t("outside"));
   state.busy = true; state.feature = feature; state.areaAcres = areaAcres(feature);
   saveField(); renderGuide(); progress(0, 0);
-  const tasks = { sat: src.fieldTimeSeries(feature, (d, n) => progress(d, n)), soil: src.soilProfile(lat, lon), climate: src.climateHistory(lat, lon), fc: src.forecast(lat, lon), prices: src.mandiPrices(), wet: src.soilWetness(lat, lon), lulc: src.landUse(lat, lon) };
+  // Quick answer first: newest satellite passes, soil wetness, land use and forecast. History, soil map and climate fill in after.
+  const soilP = src.soilProfile(lat, lon), climP = src.climateHistory(lat, lon), histP = src.fieldHistory(feature, (d, n) => { const h = $("#histNote"); if (h && run === analyseRun) h.textContent = `${T2("Reading older images", "पुरानी तस्वीरें पढ़ रहे हैं")} ${d}/${n}`; });
+  [soilP, climP, histP].forEach((p) => p.catch(() => {}));
+  const tasks = { sat: src.fieldLatest(feature), soil: within(soilP, 6000), fc: src.forecast(lat, lon), prices: src.mandiPrices(), wet: src.soilWetness(lat, lon), lulc: src.landUse(lat, lon) };
+  let n = 0; const total = Object.keys(tasks).length;
+  Object.values(tasks).forEach((p) => p.catch(() => {}).finally(() => run === analyseRun && state.busy && progress(++n, total)));
   const keys = Object.keys(tasks), settled = await Promise.allSettled(Object.values(tasks)), R = {};
+  if (run !== analyseRun) return;
   settled.forEach((s, i) => (R[keys[i]] = s.status === "fulfilled" ? s.value : { error: s.reason?.message || String(s.reason) }));
   const ok = (k) => (R[k] && !R[k].error ? R[k] : null);
   const series = R.sat?.series || [], latest = series[series.length - 1];
-  let neighbour = null;
-  if (latest) neighbour = await src.neighbourhoodNdvi(latest.item, lat, lon, 1000).catch(() => null);
-  state.report = { lat, lon, series, scenesFound: R.sat?.scenesFound, newestPass: R.sat?.newestPass, satError: R.sat?.error, soil: ok("soil"), soilError: R.soil?.error, climate: ok("climate"), wet: ok("wet"), lulc: ok("lulc"), latestItem: latest?.item, neighbour, at: new Date() };
+  const r = (state.report = { lat, lon, series, scenesFound: R.sat?.scenesFound, newestPass: R.sat?.newestPass, satError: R.sat?.error, soil: ok("soil"), soilPending: !ok("soil"), historyPending: true, climate: null, wet: ok("wet"), lulc: ok("lulc"), latestItem: latest?.item, neighbour: null, at: new Date() });
   state.reportFor = fieldParam();
   if (ok("fc")) { state.forecast = R.fc; state.forecastFor = { lat, lon, label: L_(state.district) }; }
   if (ok("prices")) { state.prices = R.prices; watchLivePrices(); }
@@ -407,6 +419,11 @@ async function analyse() {
   renderGuide(false); renderReport();
   $("#report").scrollIntoView({ behavior: "smooth" });
   if (state.voiceOn) Voice.speak(sayText("all"), getLang(), $("#sayAll"));
+  const mine = () => run === analyseRun && state.report === r;
+  if (latest) src.neighbourhoodNdvi(latest.item, lat, lon, 1000).then((v) => { if (mine() && v != null) { r.neighbour = v; refreshReport(); } }).catch(() => {});
+  if (r.soilPending) soilP.then((s) => { if (mine()) { r.soil = s; r.soilPending = false; refreshReport(); } }).catch((e) => { if (mine()) { r.soilPending = false; r.soilError = e?.message || String(e); refreshReport(); } });
+  climP.then((cl) => { if (mine()) { r.climate = cl; refreshReport(); } }).catch(() => {});
+  histP.then((h) => { if (mine()) { const seen = new Set(r.series.map((x) => x.date)); r.series = [...h.filter((x) => !seen.has(x.date)), ...r.series].sort((x, y) => x.date.localeCompare(y.date)); r.historyPending = false; refreshReport(); } }).catch(() => { if (mine()) { r.historyPending = false; refreshReport(); } });
 }
 
 /* ---------------- plain-language verdicts ---------------- */
@@ -442,8 +459,9 @@ function verdicts(r) {
     let level = "good", text = "";
     if (ph != null) { if (ph > 8.5) { level = "warn"; text += T2("Soil is alkaline (usar). Gypsum can help.", "मिट्टी क्षारीय (ऊसर) है। जिप्सम डालने से फ़ायदा होगा।"); } else if (ph > 7.8) text += T2("Soil is slightly alkaline, normal for Haryana.", "मिट्टी हल्की क्षारीय है, जो हरियाणा में आम है।"); else text += T2("Soil reaction is normal.", "मिट्टी सामान्य है।"); }
     if (oc != null && oc < 0.5) { level = "warn"; text += " " + T2("Organic matter is low: add farmyard manure or green manure.", "मिट्टी में जीवांश कम है: गोबर की खाद या हरी खाद डालें।"); }
-    V.push({ key: "soil", icon: "mountain", level, title: T2("Soil", "मिट्टी"), big: L_(TEXTURE_WORD[s.texture] || TEXTURE_WORD.loam), text: text.trim(), foot: s.fromCard ? T2("From your Soil Health Card", "आपके मृदा स्वास्थ्य कार्ड से") : T2("Estimate from soil map. Scan your Soil Health Card for exact values.", "मिट्टी के नक्शे से अनुमान। सही मान के लिए मृदा कार्ड स्कैन करें।") });
+    V.push({ key: "soil", icon: "mountain", level, title: T2("Soil", "मिट्टी"), big: s.texture ? L_(TEXTURE_WORD[s.texture] || TEXTURE_WORD.loam) : level === "warn" ? T2("Soil needs care", "मिट्टी को सुधार चाहिए") : T2("Soil is fine", "मिट्टी ठीक है"), text: text.trim(), foot: s.fromCard ? T2("From your Soil Health Card", "आपके मृदा स्वास्थ्य कार्ड से") : T2("Estimate from soil map. Scan your Soil Health Card for exact values.", "मिट्टी के नक्शे से अनुमान। सही मान के लिए मृदा कार्ड स्कैन करें।") });
   }
+  if (!s) V.push({ key: "soil", icon: "mountain", level: "info", title: T2("Soil", "मिट्टी"), big: r.soilPending ? T2("Reading the soil map", "मिट्टी का नक्शा पढ़ रहे हैं") : T2("Soil map did not answer", "मिट्टी का नक्शा नहीं खुला"), text: r.soilPending ? T2("This takes a few more seconds.", "इसमें कुछ सेकंड और लगेंगे।") : T2("For the most exact advice, take a photo of your Soil Health Card in the Soil tab.", "सबसे सही सलाह के लिए मिट्टी वाले पन्ने पर अपने मृदा स्वास्थ्य कार्ड की फोटो डालें।"), foot: "" });
   // weather
   if (state.forecast) {
     const al = weatherAlerts(state.forecast, getLang()), top = al.find((a) => a.level === "high") || al.find((a) => a.level === "medium") || al[0];
@@ -512,7 +530,7 @@ function renderReport() {
       </div></div>
       ${idx.length ? `<h3>${T2("What the satellite measured", "सैटेलाइट ने क्या नापा")}</h3><div class="idx">${idx.map(([k, v, d]) => `<div><b>${v.toFixed(2)}</b><span>${k}</span><small>${d}</small></div>`).join("")}</div>` : ""}
       ${notes.length ? notes.map((n) => `<div class="finding">${ic("satellite")}<span>${esc(n)}</span></div>`).join("") : ""}
-      ${r.series.length ? `<h3>${t("history")}</h3><div class="chartbox"><canvas id="ndviChart"></canvas></div><p class="hint">${hi ? `${r.series.length} साफ़ सैटेलाइट तस्वीरें पढ़ी गईं (कुल ${r.scenesFound ?? 0} में से)।` : `${r.series.length} clear satellite images read (of ${r.scenesFound ?? 0}).`}</p>` : ""}
+      ${r.series.length ? `<h3>${t("history")}</h3><div class="chartbox"><canvas id="ndviChart"></canvas></div>${r.historyPending ? `<p class="hint" id="histNote">${T2("Reading older images", "पुरानी तस्वीरें पढ़ रहे हैं")}</p>` : ""}<p class="hint">${hi ? `${r.series.length} साफ़ सैटेलाइट तस्वीरें पढ़ी गईं (कुल ${r.scenesFound ?? 0} में से)।` : `${r.series.length} clear satellite images read (of ${r.scenesFound ?? 0}).`}</p>` : ""}
       <h3>${t("soil")}</h3>
       ${s ? `<div class="soilgrid">
         <div><div class="l">${t("texture")}</div><b>${esc(s.texture)}</b></div>
