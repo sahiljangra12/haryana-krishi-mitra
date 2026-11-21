@@ -1,15 +1,15 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120220712";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120220712";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120220712";
-import * as Voice from "./voice.js?v=20261120220712";
-import * as Field from "./field.js?v=20261120220712";
-import * as RS from "./rs.js?v=20261120220712";
-import * as src from "./sources.js?v=20261120220712";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120220712";
-import * as card from "./soilcard.js?v=20261120220712";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120220712";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120220712";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120220712";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120220922";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120220922";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120220922";
+import * as Voice from "./voice.js?v=20261120220922";
+import * as Field from "./field.js?v=20261120220922";
+import * as RS from "./rs.js?v=20261120220922";
+import * as src from "./sources.js?v=20261120220922";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120220922";
+import * as card from "./soilcard.js?v=20261120220922";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120220922";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120220922";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120220922";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -587,7 +587,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
 const TEXTURE_WORD = { clay: { en: "Heavy clay soil", hi: "चिकनी मिट्टी" }, "silty clay": { en: "Heavy clay soil", hi: "चिकनी मिट्टी" }, "sandy clay": { en: "Clay soil with sand", hi: "रेत वाली चिकनी मिट्टी" }, "clay loam": { en: "Clay loam (good, holds water)", hi: "चिकनी दोमट (अच्छी, पानी रोकती है)" }, "silty clay loam": { en: "Clay loam (good, holds water)", hi: "चिकनी दोमट (अच्छी, पानी रोकती है)" }, "sandy clay loam": { en: "Loam soil", hi: "दोमट मिट्टी" }, loam: { en: "Loam (best for most crops)", hi: "दोमट (ज़्यादातर फसलों के लिए सबसे अच्छी)" }, "silty loam": { en: "Silty loam (fertile)", hi: "गाद वाली दोमट (उपजाऊ)" }, silt: { en: "Silty soil", hi: "गाद वाली मिट्टी" }, "sandy loam": { en: "Sandy loam (light, drains fast)", hi: "रेतीली दोमट (हल्की, पानी जल्दी सोखती है)" }, "loamy sand": { en: "Sandy soil", hi: "रेतीली मिट्टी" }, sand: { en: "Sandy soil", hi: "रेतीली मिट्टी" } };
 const LULC_WORD = { Agriculture: { en: "farm land", hi: "खेती की ज़मीन" }, Builtup: { en: "built-up area", hi: "आबादी / मकान" }, Forest: { en: "forest", hi: "जंगल" }, Wastelands: { en: "waste land", hi: "बंजर ज़मीन" }, Waterbodies: { en: "water", hi: "पानी" }, "Grass/Grazing": { en: "grazing land", hi: "चरागाह" } };
 const SIDE_WORD = { n: { en: "north", hi: "उत्तर" }, s: { en: "south", hi: "दक्षिण" }, e: { en: "east", hi: "पूरब" }, w: { en: "west", hi: "पश्चिम" }, ne: { en: "north-east", hi: "उत्तर-पूरब" }, nw: { en: "north-west", hi: "उत्तर-पश्चिम" }, se: { en: "south-east", hi: "दक्षिण-पूरब" }, sw: { en: "south-west", hi: "दक्षिण-पश्चिम" } };
-const sideText = (s) => (s && SIDE_WORD[s] ? T2(`, on the ${SIDE_WORD[s].en} side`, `, ${SIDE_WORD[s].hi} की तरफ़`) : "");
+const sideText = (s) => (s && SIDE_WORD[s] ? T2(` (${SIDE_WORD[s].en} side)`, ` (${SIDE_WORD[s].hi} की तरफ़)`) : "");
+const partIn = (f) => (f >= 0.85 ? T2("in almost the whole field", "लगभग पूरे खेत में") : f >= 0.6 ? T2("in most of the field", "खेत के ज़्यादातर हिस्से में") : f >= 0.38 ? T2("in about half of the field", "लगभग आधे खेत में") : f >= 0.2 ? T2("in about a quarter of the field", "खेत के लगभग चौथाई हिस्से में") : T2("in a small part of the field", "खेत के छोटे हिस्से में"));
 const partWord = (f) => (f >= 0.85 ? T2("almost the whole field", "लगभग पूरा खेत") : f >= 0.6 ? T2("most of the field", "खेत का ज़्यादातर हिस्सा") : f >= 0.38 ? T2("about half of the field", "लगभग आधा खेत") : f >= 0.2 ? T2("about a quarter of the field", "खेत का लगभग चौथाई हिस्सा") : T2("a small part of the field", "खेत का छोटा हिस्सा"));
 const satName = (row) => { const p = (row.item.properties.platform || "").toLowerCase(); return p.startsWith("landsat") ? `Landsat ${p.slice(-1)} (30 m)` : `Sentinel-2${p.slice(-1) ? p.slice(-1).toUpperCase() : ""} (10 m)`; };
 // What changed in the field between two clear satellite passes: cut (harvested), less green, greener, or the same
@@ -599,10 +600,10 @@ function changeVerdict(r) {
     if (ch.cut >= 0.1) {
       const whole = ch.cut >= 0.85, standing = px.health[2] + px.health[3] >= 0.2;
       return { ...base, level: "info", foot, big: whole ? T2("Field looks harvested", "फसल कट गई लगती है") : T2(`${partWord(ch.cut)} looks cut`, `${partWord(ch.cut)} कटा लगता है`).replace(/^./, (m) => m.toUpperCase()),
-        text: T2(`Between ${a} and ${b} the green cover went from ${partWord(ch.cut)}${sideText(ch.cutSide)}. It looks harvested or cut.`, `${a} से ${b} के बीच ${partWord(ch.cut)}${sideText(ch.cutSide)} की हरियाली खत्म हुई है। वहाँ कटाई हुई लगती है।`) + (!whole && standing ? " " + T2("The rest of the crop is still standing.", "बाकी खेत में फसल अभी खड़ी है।") : "") };
+        text: T2(`Between ${a} and ${b} the green cover went ${partIn(ch.cut)}${sideText(ch.cutSide)}. It looks harvested or cut.`, `${a} से ${b} के बीच ${partIn(ch.cut)}${sideText(ch.cutSide)} हरियाली खत्म हुई है। वहाँ कटाई हुई लगती है।`) + (!whole && standing ? " " + T2("The rest of the crop is still standing.", "बाकी खेत में फसल अभी खड़ी है।") : "") };
     }
-    if (ch.down >= 0.3) return { ...base, level: "warn", foot, big: T2("Greenness has gone down", "हरियाली घटी है"), text: T2(`Between ${a} and ${b} ${partWord(ch.down)}${sideText(ch.downSide)} became less green. If the crop is ripening this is normal. If not, check water, fertiliser and disease in the field.`, `${a} से ${b} के बीच ${partWord(ch.down)}${sideText(ch.downSide)} में हरियाली घटी है। फसल पक रही है तो यह ठीक है। नहीं तो खेत में जाकर पानी, खाद और बीमारी देखें।`) };
-    if (ch.up >= 0.3) return { ...base, level: "good", foot, big: T2("Crop is growing", "फसल बढ़ रही है"), text: T2(`Between ${a} and ${b} ${partWord(ch.up)} became greener.`, `${a} से ${b} के बीच ${partWord(ch.up)} में हरियाली बढ़ी है।`) };
+    if (ch.down >= 0.3) return { ...base, level: "warn", foot, big: T2("Greenness has gone down", "हरियाली घटी है"), text: T2(`Between ${a} and ${b} the crop became less green ${partIn(ch.down)}${sideText(ch.downSide)}. If the crop is ripening this is normal. If not, check water, fertiliser and disease in the field.`, `${a} से ${b} के बीच ${partIn(ch.down)}${sideText(ch.downSide)} हरियाली घटी है। फसल पक रही है तो यह ठीक है। नहीं तो खेत में जाकर पानी, खाद और बीमारी देखें।`) };
+    if (ch.up >= 0.3) return { ...base, level: "good", foot, big: T2("Crop is growing", "फसल बढ़ रही है"), text: T2(`Between ${a} and ${b} the crop became greener ${partIn(ch.up)}.`, `${a} से ${b} के बीच ${partIn(ch.up)} हरियाली बढ़ी है।`) };
     return { ...base, level: "info", foot, big: T2("No big change", "कोई बड़ा बदलाव नहीं"), text: T2(`Between ${a} and ${b} the field stayed about the same.`, `${a} से ${b} के बीच खेत लगभग वैसा ही है।`) };
   }
   // no cell-by-cell picture: compare the field's average between two clear passes
@@ -611,8 +612,8 @@ function changeVerdict(r) {
   if (!now || !before) return { ...base, level: "info", foot: "", big: T2("Nothing to compare yet", "अभी तुलना नहीं हो सकती"), text: T2("There is no earlier clear image to compare with. Look again after the next satellite pass.", "तुलना के लिए पहले की साफ़ तस्वीर नहीं है। अगली सैटेलाइट तस्वीर के बाद दोबारा देखें।") };
   const d = now.ndvi - before.ndvi, a = dayMonth(before.date), b = dayMonth(now.date), foot = `${fmtDate(before.date)} → ${fmtDate(now.date)}`;
   if (before.ndvi >= 0.35 && d <= -0.15 && now.ndvi < 0.3) return { ...base, level: "info", foot, big: T2("Field looks harvested", "फसल कट गई लगती है"), text: T2(`Between ${a} and ${b} the green cover of the field went. It looks harvested or cut.`, `${a} से ${b} के बीच खेत की हरियाली खत्म हुई है। कटाई हुई लगती है।`) };
-  if (d <= -0.1) return { ...base, level: "warn", foot, big: T2("Greenness has gone down", "हरियाली घटी है"), text: T2(`Between ${a} and ${b} the field became less green. If the crop is ripening this is normal. If not, check water, fertiliser and disease.`, `${a} से ${b} के बीच खेत की हरियाली घटी है। फसल पक रही है तो यह ठीक है। नहीं तो पानी, खाद और बीमारी देखें।`) };
-  if (d >= 0.1) return { ...base, level: "good", foot, big: T2("Crop is growing", "फसल बढ़ रही है"), text: T2(`Between ${a} and ${b} the field became greener.`, `${a} से ${b} के बीच खेत में हरियाली बढ़ी है।`) };
+  if (before.ndvi >= 0.3 && d <= -0.1) return { ...base, level: "warn", foot, big: T2("Greenness has gone down", "हरियाली घटी है"), text: T2(`Between ${a} and ${b} the field became less green. If the crop is ripening this is normal. If not, check water, fertiliser and disease.`, `${a} से ${b} के बीच खेत की हरियाली घटी है। फसल पक रही है तो यह ठीक है। नहीं तो पानी, खाद और बीमारी देखें।`) };
+  if (now.ndvi >= 0.3 && d >= 0.1) return { ...base, level: "good", foot, big: T2("Crop is growing", "फसल बढ़ रही है"), text: T2(`Between ${a} and ${b} the field became greener.`, `${a} से ${b} के बीच खेत में हरियाली बढ़ी है।`) };
   return { ...base, level: "info", foot, big: T2("No big change", "कोई बड़ा बदलाव नहीं"), text: T2(`Between ${a} and ${b} the field stayed about the same.`, `${a} से ${b} के बीच खेत लगभग वैसा ही है।`) };
 }
 function verdicts(r) {
@@ -701,7 +702,9 @@ function fieldPicHTML(r) {
   if (!state.feature) return "";
   const box = r.px ? r.px.box : Field.fieldBox(state.feature), [w, s, e, n] = box.bbox, s2 = latestS2(r), clear = [...r.series].reverse().find((x) => x.cloud <= 0.05) || r.series[r.series.length - 1];
   const pts = state.feature.geometry.coordinates[0].map(([x, y]) => `${(((x - w) / (e - w)) * 800).toFixed(1)},${(((n - y) / (n - s)) * 600).toFixed(1)}`).join(" ");
-  const photo = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${w},${s},${e},${n}&bboxSR=4326&imageSR=4326&size=800,600&format=jpg&f=image`;
+  // Ask for the photo no finer than it exists (zoom 18) and in the frame's own lat/lon shape, so the cells sit exactly on it
+  const pw = Math.max(120, Math.min(800, Math.floor(((e - w) / 5.364e-6) * 0.97))), ph = Math.max(60, Math.round((pw * (n - s)) / (e - w)));
+  const photo = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${w},${s},${e},${n}&bboxSR=4326&imageSR=4326&size=${pw},${ph}&format=jpg&f=image`;
   const cloudy = clear && r.newestPass && r.newestPass > clear.date ? T2(` The pass of ${dayMonth(r.newestPass)} had cloud over the field.`, ` ${dayMonth(r.newestPass)} की तस्वीर में खेत पर बादल थे।`) : "";
   return `<div class="card fieldcard">
       <div class="fieldpic" id="fieldPic">

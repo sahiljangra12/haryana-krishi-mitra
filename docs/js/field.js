@@ -2,7 +2,7 @@
 // Sentinel-2 sees the ground in 10 m x 10 m cells. For the newest clear pass and an earlier clear pass this module
 // reads the greenness (NDVI) of every cell inside the field boundary, grades each cell, and compares the two dates
 // to find parts that were cut (harvested), parts that lost greenness and parts that grew.
-import * as src from "./sources.js?v=20261120220712";
+import * as src from "./sources.js?v=20261120220922";
 
 const M = 111320;
 
@@ -44,8 +44,9 @@ export const healthClass = (v) => (v < 0.2 ? 0 : v < 0.4 ? 1 : v < 0.6 ? 2 : 3);
 export function changeClass(before, now) {
   const d = now - before;
   if (before >= 0.35 && d <= -0.15 && now < 0.3) return "cut";
-  if (d <= -0.1) return "down";
-  if (d >= 0.1) return "up";
+  // bare soil also changes a little from pass to pass (ploughing, wet soil): only count change where there is a crop
+  if (before >= 0.3 && d <= -0.1) return "down";
+  if (now >= 0.3 && d >= 0.1) return "up";
   return "same";
 }
 
@@ -109,7 +110,7 @@ export function draw(canvas, A, mode) {
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const q = j * W + i, v = A.now.grid[q];
     if (!A.mask[q] || Number.isNaN(v)) continue;
-    if (mode === "health") { cx.globalAlpha = 0.72; cx.fillStyle = HEALTH_COLOURS[healthClass(v)]; }
+    if (mode === "health") { cx.globalAlpha = 0.62; cx.fillStyle = HEALTH_COLOURS[healthClass(v)]; }
     else {
       const b = A.ref ? A.ref.grid[q] : NaN;
       if (Number.isNaN(b)) continue;
