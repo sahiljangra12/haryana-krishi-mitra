@@ -1,6 +1,6 @@
 // Recommendation engine: transparent, rule-based scoring. No black box —
 // every score component is shown to the farmer in the UI.
-import { CROPS, SEASONS } from "./crops.js?v=20261120230624";
+import { CROPS, SEASONS } from "./crops.js?v=20261120230818";
 
 // Which season is the farmer planning for, given today's month?
 export function upcomingSeason(month = new Date().getMonth() + 1) {
@@ -66,6 +66,18 @@ const textureGroup = (t = "") => (t.includes("sand") && !t.includes("clay") ? "s
  * ctx: { season, district, soil, water: 'good'|'limited'|'rainfed', acres, prices, ndmi, annualRain, risk: 'low'|'medium'|'high' }
  */
 const PULSES = ["gram", "moong", "moong_summer", "guar"];
+// Last practical sowing date [month, day] for each crop: the end of its sowing window in crops.js.
+// Paddy and sugarcane have no single closing date there, so they are left out.
+export const SOW_BY = { wheat: [12, 15], mustard: [11, 15], gram: [11, 5], barley: [11, 25], potato: [10, 25], onion_rabi: [1, 15], basmati: [7, 20], cotton: [5, 15], bajra: [7, 20], maize: [7, 15], moong: [7, 15], guar: [7, 20], moong_summer: [4, 15] };
+// Days since the crop's sowing window closed, if it closed within the last four months (so we are in that season now); else null.
+export function daysPastSowing(cropId, today = new Date()) {
+  const by = SOW_BY[cropId];
+  if (!by) return null;
+  let d = new Date(Date.UTC(today.getUTCFullYear(), by[0] - 1, by[1]));
+  if (d > today) d = new Date(Date.UTC(today.getUTCFullYear() - 1, by[0] - 1, by[1]));
+  const days = Math.floor((today - d) / 864e5);
+  return days > 0 && days <= 120 ? days : null;
+}
 export function recommend(ctx) {
   const crops = CROPS.filter((c) => c.season === ctx.season);
   const rows = crops.map((crop) => {
@@ -115,6 +127,10 @@ export function recommend(ctx) {
       else if (PULSES.includes(ctx.prevCrop) && !PULSES.includes(crop.id)) { s += 3; reasons.push({ k: "afterPulse" }); }
     }
 
+    // sowing time: a crop whose sowing window has just closed should not be the advice for this season
+    const late = daysPastSowing(crop.id, ctx.today || new Date());
+    if (late) { s -= 25; reasons.push({ k: "sowLate", v: late }); }
+
     // 4) zone fit (0–10)
     const zone = crop.zones.includes(ctx.district?.zone) ? 10 : 3;
     s += zone;
@@ -125,7 +141,7 @@ export function recommend(ctx) {
     if (!crop.msp) reasons.push({ k: "noMsp" });
     if (pp.basis === "reference") reasons.push({ k: "refPrice" });
 
-    return { crop, live, pp, budget: b, score: Math.max(0, Math.round(s)), parts: { prof, soilFit, w, zone, risk: 5 - riskPenalty }, reasons };
+    return { crop, live, pp, budget: b, late, score: Math.max(0, Math.round(s)), parts: { prof, soilFit, w, zone, risk: 5 - riskPenalty }, reasons };
   });
   return rows.sort((a, b) => b.score - a.score);
 }

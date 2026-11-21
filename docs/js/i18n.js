@@ -216,6 +216,7 @@ export const STR = {
   r_sameCrop: { en: "Same crop as last time: more pests and disease", hi: "पिछली बार भी यही फसल थी: कीट और बीमारी बढ़ती है" },
   r_afterPulse: { en: "After a pulse crop: the soil has extra nitrogen", hi: "दलहन के बाद: मिट्टी में नाइट्रोजन बची है" },
   r_efficient: { en: "Drip or sprinkler stretches your water", hi: "ड्रिप या फव्वारे से पानी ज़्यादा चलता है" },
+  r_sowLate: { en: "Sowing time ended {v} days ago", hi: "बुवाई का समय {v} दिन पहले निकल गया" },
   r_noMsp: { en: "No MSP — market price risk", hi: "MSP नहीं — बाज़ार भाव जोखिम" },
   r_refPrice: { en: "No live price today — using a reference price", hi: "आज लाइव भाव नहीं — संदर्भ भाव" },
   needReport: { en: "Run the land report first for advice tuned to your soil and field. Showing advice using your district only.", hi: "मिट्टी और खेत के अनुसार सलाह के लिए पहले ज़मीन रिपोर्ट चलाएं। अभी केवल जिले के आधार पर सलाह।" },

@@ -1,17 +1,17 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120230624";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120230624";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120230624";
-import * as Voice from "./voice.js?v=20261120230624";
-import { ARCGIS_KEY } from "./config.js?v=20261120230624";
-import * as Pheno from "./phenology.js?v=20261120230624";
-import * as Field from "./field.js?v=20261120230624";
-import * as RS from "./rs.js?v=20261120230624";
-import * as src from "./sources.js?v=20261120230624";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120230624";
-import * as card from "./soilcard.js?v=20261120230624";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120230624";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120230624";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120230624";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120230818";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120230818";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120230818";
+import * as Voice from "./voice.js?v=20261120230818";
+import { ARCGIS_KEY } from "./config.js?v=20261120230818";
+import * as Pheno from "./phenology.js?v=20261120230818";
+import * as Field from "./field.js?v=20261120230818";
+import * as RS from "./rs.js?v=20261120230818";
+import * as src from "./sources.js?v=20261120230818";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120230818";
+import * as card from "./soilcard.js?v=20261120230818";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120230818";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120230818";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120230818";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -1252,6 +1252,7 @@ function paintAdviceQuestions() {
 function whyLines(x) {
   const p = x.parts, c = x.crop, L = [];
   const yes = (en, hi) => L.push([true, T2(en, hi)]), no = (en, hi) => L.push([false, T2(en, hi)]);
+  if (x.late) no(`Its sowing time ended ${x.late} days ago. Sown now, the yield will be lower.`, `इसकी बुवाई का समय ${x.late} दिन पहले निकल चुका है। अब बोने पर उपज कम होगी।`);
   if (p.w >= 20) yes("Fits the water you have.", "आपके पास जितना पानी है, उसमें हो जाएगी।"); else if (p.w <= 8) no("Needs more water than you have.", "इसे जितना पानी चाहिए, उतना आपके पास नहीं है।"); else no("Water will be tight.", "पानी थोड़ा कम पड़ सकता है।");
   if (p.soilFit >= 16) yes("Your soil suits it.", "आपकी मिट्टी इसके लिए ठीक है।"); else if (p.soilFit <= 8) no("Your soil is not a good match.", "आपकी मिट्टी इसके लिए कम ठीक है।");
   if (p.zone >= 10) yes("Commonly grown in your area.", "आपके इलाके में आम तौर पर उगाई जाती है।"); else no("Not common in your area.", "आपके इलाके में कम उगाई जाती है।");

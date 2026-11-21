@@ -70,3 +70,17 @@ test("recommendation: drip stretches limited water for a crop that needs a fair 
   const score = (extra) => recommend({ ...ctx, water: "limited", ...extra }).find((x) => x.crop.id === "wheat").score;
   assert.ok(score({ irrigation: "drip" }) > score({}));
 });
+
+import { daysPastSowing } from "../docs/js/advisor.js";
+test("sowing window: late only in the months just after it closes", () => {
+  assert.equal(daysPastSowing("mustard", new Date("2026-11-21T00:00:00Z")), 6);
+  assert.equal(daysPastSowing("wheat", new Date("2026-11-21T00:00:00Z")), null);
+  assert.equal(daysPastSowing("mustard", new Date("2026-06-01T00:00:00Z")), null); // next October is ahead
+  assert.equal(daysPastSowing("paddy", new Date("2026-08-01T00:00:00Z")), null);
+});
+test("recommendation on 21 November: wheat ranks above mustard, whose sowing has closed", () => {
+  const r = recommend({ ...ctx, today: new Date("2026-11-21T00:00:00Z") });
+  const pos = (id) => r.findIndex((x) => x.crop.id === id);
+  assert.ok(pos("wheat") < pos("mustard"));
+  assert.ok(r.find((x) => x.crop.id === "mustard").late > 0);
+});
