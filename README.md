@@ -15,6 +15,22 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 | **Techniques & videos** (तकनीकें) | 17 techniques: DSR, crop diversification, laser levelling, Happy/Super Seeder, zero-till, drip/sprinkler, AWD, raised beds, IPM, seed treatment, soil testing, green manure, gypsum, summer moong, leaf colour chart, e-NAM/FPO, crop insurance. Each has steps, benefits, verified Haryana incentives and YouTube video links. Techniques that suit your field are starred. | `docs/js/techniques.js` |
 | **Weather** (मौसम) | 10-day forecast with farm alerts for frost, heavy rain, heat during grain filling, wind (don't spray) and rust/blight-favourable humidity. | **Open-Meteo** |
 
+## Live remote sensing (map layers)
+The map does **not** rely on an old basemap photo. Layers, from the layer button on the map:
+- **Latest Sentinel-2 (10 m):** a mosaic of every clear Sentinel-2A/2B/2C pass over Haryana in the last 30 days, **newest first**, so each place shows its most recent clear view. It's registered on the fly with the Microsoft Planetary Computer mosaic API.
+- **Sentinel-2 on a chosen date:** every clear pass over the area in the last 4 months (typically every 2 to 5 days).
+- **Show as** true colour, crop health (NDVI), false colour (vegetation shows red) or water stress (NDMI). These are computed from the raw bands on the server.
+- **NASA daily image** (MODIS Terra true colour), which is also used automatically when zoomed out past Sentinel-2's range.
+- **NASA layers** with a date control (like NASA Worldview):
+  - **VIIRS fire detections**, which show stubble burning. These are decoded from GIBS vector tiles in the browser, and tapping a dot shows its time and fire power.
+  - **VIIRS 8-day crop greenness**
+  - **MODIS land surface temperature**
+  - **SMAP root-zone soil moisture**
+  - **GPM IMERG rainfall**
+- The **sharp Esri photo** is kept only as an optional reference, labelled as possibly years old.
+
+The opening image and the field snapshot in each report also use the newest clear Sentinel-2 pass, with its date shown.
+
 ## Finding a field
 Village-level addresses in India are patchy in every free database, so the search:
 1. Reads exact coordinates (`29.7621, 76.8623`) or a full Google Maps link and pins that spot.
