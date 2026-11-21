@@ -1,4 +1,4 @@
-import { DISTRICTS } from "./districts.js?v=20261120210209";
+import { DISTRICTS } from "./districts.js?v=20261120210410";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
@@ -142,7 +142,14 @@ export function squareFeature(lat, lon, halfSideM) {
 export async function soilProfile(lat, lon) {
   const props = ["clay", "sand", "silt", "phh2o", "soc", "nitrogen", "cec", "bdod"];
   const url = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(5)}&lat=${lat.toFixed(5)}&${props.map((p) => "property=" + p).join("&")}&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean`;
-  const j = await getJSON(url, {}, 30000);
+  // SoilGrids is a free research service that often answers "503 busy": retry, then fall back to a lighter query
+  const light = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(5)}&lat=${lat.toFixed(5)}&property=clay&property=sand&property=silt&property=phh2o&property=soc&depth=0-5cm&depth=5-15cm&value=mean`;
+  let j = null, lastErr = null;
+  for (const [u, wait] of [[url, 0], [url, 1500], [light, 3000], [light, 5000]]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    try { j = await getJSON(u, {}, 25000); break; } catch (e) { lastErr = e; }
+  }
+  if (!j) throw lastErr || new Error("SoilGrids unavailable");
   const out = {};
   for (const layer of j.properties.layers) {
     const f = layer.unit_measure.d_factor || 1;
