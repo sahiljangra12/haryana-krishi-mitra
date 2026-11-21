@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600&family=Tiro+Devanagari+Hindi&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20261120210424" />
+  <link rel="stylesheet" href="css/style.css?v=20261120211132" />
 </head>
 <body>
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
@@ -289,9 +289,9 @@
   </header>
 
   <section class="hero" id="hero">
-    <img class="sat" alt="" src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=76.842,29.747,76.878,29.765&bboxSR=4326&imageSR=3857&size=1800,800&format=jpg&f=image" />
+    <img class="sat" alt="" data-fallback="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=76.842,29.747,76.878,29.765&bboxSR=4326&imageSR=3857&size=1800,800&format=jpg&f=image" />
     <div class="inner">
-      <div class="readout"><span><i class="dot"></i><span data-t="liveData"></span></span><span>Sentinel-2 L2A, 10 m</span><span>29.756° N, 76.860° E</span><span id="clockIST"></span></div>
+      <div class="readout"><span><i class="dot"></i><span data-t="liveData"></span></span><span id="heroSat">Sentinel-2 L2A, 10 m</span><span>29.756° N, 76.860° E</span><span id="clockIST"></span></div>
       <h2 data-t="heroTitle"></h2>
       <p class="lead" data-t="heroLead"></p>
       <form id="searchForm" class="find">
@@ -355,16 +355,13 @@
           <div id="map"></div>
           <div id="mapTip" class="maptip hidden"></div>
           <div class="mapfab">
+            <button id="fabLayers" type="button" aria-label="Satellite layers"><svg class="ic"><use href="#i-layers"/></svg></button>
             <button id="fabLocate" type="button" aria-label="My location"><svg class="ic"><use href="#i-locate"/></svg></button>
             <button id="fabDraw" type="button" aria-label="Draw field boundary"><svg class="ic"><use href="#i-pencil-line"/></svg></button>
           </div>
-          <div class="layerbar">
-            <svg class="ic"><use href="#i-layers"/></svg>
-            <label><input type="radio" name="layer" value="none" checked /> <span data-t="layerNone"></span></label>
-            <label><input type="radio" name="layer" value="ndvi" disabled /> <span data-t="layerNdvi"></span></label>
-            <label><input type="radio" name="layer" value="true" disabled /> <span data-t="layerTrue"></span></label>
-          </div>
-          <div class="legend hidden" id="ndviLegend"><span data-t="bare"></span><div class="ramp"></div><span data-t="dense"></span></div>
+          <div id="imgBadge" class="imgbadge"></div>
+          <div id="legendBox" class="legend hidden"></div>
+          <div id="layerPanel" class="layerpanel hidden"></div><span data-t="dense"></span></div>
         </div>
       </div>
       <div id="report" class="report hidden"></div>
@@ -497,6 +494,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="js/app.js?v=20261120210424"></script>
+  <script type="module" src="js/app.js?v=20261120211132"></script>
 </body>
 </html>
