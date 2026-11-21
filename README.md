@@ -5,13 +5,24 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 **Live site:** https://sahiljangra12.github.io/haryana-krishi-mitra/
 
 ## How a farmer uses it (three steps)
-1. **Type the PIN code** (or village name, or say it with the mic, or press "My location").
-2. **Tap the field** on the sharp map and pick its size: 1, 2, 3, 5 or 10 acres, or draw the boundary.
-3. **Press "See result".** The first answer appears in about 6 seconds from the newest satellite passes; the season history, soil map and climate fill in over the next 20 seconds or so.
+1. **Type the PIN code** (or the village name, or say it with the mic, or press "My location"). A PIN code lists its villages; picking one opens the map at field level, where single fields and their boundaries are clear.
+2. **Tap the field** and pick its size: 1, 2, 3, 5 or 10 acres, or draw the boundary.
+3. **Press "See result".** The first answer comes in about 6 seconds; history, soil map and climate fill in over the next 20 seconds.
 
-The result is written in plain words on five cards: crop health, water, soil, weather and best crop. Each card has a traffic-light colour, and the measurements behind it sit under "Full satellite details".
+The next time the app is opened, the saved field is checked again by itself. While the app is open it looks for a new satellite pass every few minutes and updates the field when one arrives.
 
-**Voice guide.** Every step, every result card, every tab and every crop and technique has a speaker button that reads it aloud in everyday Hindi or English (the browser's own text-to-speech, nothing recorded or uploaded). Turn on the speaker in the header and each step is read out automatically. The mic in the search box takes a spoken village name or PIN.
+**What the farmer sees**
+- **A picture of the field.** The sharp photo, to recognise the land, with the satellite's 10 m cells coloured inside the boundary. Four views: Health, What changed, Latest image, Sharp photo. Every view carries its real capture date.
+- **Crop health**: bare, weak, fair or strong, and which side of the field is weaker.
+- **What changed** between two clear passes: a part that looks cut (harvested), a part that lost greenness, or a part that grew, with the share of the field and the side.
+- **Water**: whether the crop looks thirsty, and soil wetness.
+- Soil, weather and best crop as three one-line rows that open their own pages.
+
+Nothing is presented as live. The sharp photo shows the month it was taken, and satellite results show the date of the pass and how many days ago it was.
+
+**Voice.** Every step, result card, page, crop and technique has a speaker button (everyday Hindi or English, the device's own text-to-speech). A bar shows the sentence being read, with a stop button. If the device stays silent (no Hindi voice, speech blocked, or an in-app browser without speech), the same bar shows the full text and says what to change. The mic in the search box takes a village name or PIN and a few commands ("मौसम", "नतीजा देखो", "2 एकड़"). Where the browser cannot listen, the mic explains why and opens the keyboard so its own dictation key can be used.
+
+**Navigation.** Every page has a back arrow. The phone's back button and the browser's back button move between pages and close the layer panel.
 
 ## What it does
 
@@ -25,23 +36,31 @@ The result is written in plain words on five cards: crop health, water, soil, we
 | **Weather** (मौसम) | 10-day forecast with farm alerts for frost, heavy rain, heat during grain filling, wind (don't spray) and rust/blight-favourable humidity. | **Open-Meteo** |
 
 ## Remote sensing
-**Base map.** A sharp aerial photo (Esri World Imagery) that zooms all the way in. Real tiles stop at zoom 18 in rural Haryana, so the map enlarges those instead of asking for deeper ones, and no blank boxes appear. The photo can be a few years old, so it's used only to find the field. Everything measured comes from the live layers below.
 
-**Field analysis (Sentinel-2, 10 m, a new pass every 2 to 5 days).** For the field boundary, one server call per pass returns four indices computed from the raw bands, after masking cloud:
-- **NDVI** crop greenness, plus how even it is across the field
-- **NDMI** moisture in the crop and soil
-- **NDRE** red-edge leaf colour, a hint of nitrogen shortage
-- **BSI** how much bare soil is showing
+### Which satellite for what (Haryana)
+| Need | Source used | Detail | Freshness | Why |
+|---|---|---|---|---|
+| Recognise the field | Esri World Imagery (Vantor/Maxar WorldView) | 0.3 to 0.5 m | Usually 1 to 2 years old; the app reads and shows the capture month for each place | Sharpest imagery that is free to use without a key |
+| Condition of the crop | **Sentinel-2** A/B/C (ESA) | 10 m | A pass every 2 to 5 days | Best free mix of detail and revisit; red-edge and SWIR bands |
+| Fill gaps | **Landsat 8/9** (NASA/USGS) | 30 m | Every 8 days | Used when it has a clear view newer than the newest clear Sentinel-2 view |
+| Land use | **ISRO Bhuvan** (NRSC) LULC 1:50,000 | Survey of 2015-16 | Static | Indian national map: crop land, built-up, water, forest |
+| Soil wetness, rain | NASA POWER | About 50 km | Daily, 3 days behind | Independent of cloud |
+| Regional view | NASA GIBS (MODIS, VIIRS fires, SMAP, IMERG) | 250 m to 10 km | Daily | Stubble fires, heat, rain |
 
-The four newest passes are read first, then one every 15 days over 13 months for the season chart, and the field is compared with the fields within 1 km.
+Not used, and why: **Google Maps/Earth imagery** needs a Google Cloud key with billing and is licensed for display inside Google's own map components, so it cannot be the base of this free site without the owner's key. **ISRO Resourcesat (LISS-IV 5.8 m, LISS-III 23.5 m, AWiFS 56 m)** has no open tile or statistics service; scenes are ordered or downloaded from Bhuvan/NRSC with a login. **Sentinel-1 radar** sees through monsoon cloud and is the next source worth adding. Commercial daily imagery (Planet, 3 m) is paid.
 
-**Other live sources in the result**
-- **NASA POWER** root-zone and surface soil wetness and 7-day rain (daily, about 3 days behind).
-- **ISRO Bhuvan (NRSC)** land-use map of Haryana, 1:50,000, survey of 2015-16: says whether the spot is crop land, built-up, forest or waste land. It can also be switched on as a map layer.
-- **ISRIC SoilGrids** (250 m model): texture class from sand, silt and clay, pH, organic carbon and nitrogen. A scanned Soil Health Card overrides it.
-- **Open-Meteo** 10-day forecast and **NASA POWER** 5-year monthly climate.
+### Field analysis
+For the field boundary, one server call per Sentinel-2 pass returns four indices from the raw bands, after masking cloud with the scene classification: **NDVI** (greenness), **NDMI** (moisture), **NDRE** (leaf colour, a nitrogen hint) and **BSI** (bare soil). The four newest passes are read first, then one every 15 days over 13 months.
 
-**Map layers** (chips on the map): Photo, Crop health, Water, Latest image, and under More: false colour, any Sentinel-2 date from the last 4 months, the NASA daily image (MODIS), VIIRS fire detections (stubble burning), VIIRS 8-day greenness, MODIS land temperature, SMAP root-zone soil moisture, GPM IMERG rainfall and the ISRO land-use map.
+**Cell by cell** (`docs/js/field.js`). For the newest clear pass and a clear pass 5 to 30 days older, the NDVI of every 10 m cell inside the boundary is read. Each cell is graded bare (< 0.2), weak, fair or strong (> 0.6). Comparing the two dates, a cell is:
+- **cut** when it was a crop (NDVI >= 0.35), dropped by 0.15 or more and is now bare (< 0.3)
+- **less green** when it was a crop and dropped by 0.1 or more
+- **greener** when it rose by 0.1 or more and is now a crop
+- otherwise unchanged; bare soil changing a little between passes is ignored
+
+The shares and the side of the field (north, south-east ...) become the sentences on the cards. Limits: a 1-acre field is only about 40 cells; ripening also lowers greenness, so "less green" is worded as a prompt to look; smoke or thin haze that the cloud mask misses can lower NDVI on one date. The app says "looks cut", and the next pass re-checks it.
+
+**Map layers** (three chips on the map): Sharp photo, Latest image, Crop health, each with its date. The layers button adds water stress, false colour, any Sentinel-2 date of the last 4 months, the NASA daily layers and the ISRO land-use map.
 
 ## Finding a field
 Village-level addresses in India are patchy in every free database, so the search:
@@ -61,6 +80,13 @@ Suggestions appear as you type. A village or PIN is an area, not a field, so the
 - It **remembers the last field**. **Share on WhatsApp** sends a link (`#poly=…` or `#field=lat,lon,acres`) that reopens the same field.
 - Photos come from Wikimedia Commons (credited on the About page, listed in `docs/js/images.js`). Icons are from [Lucide](https://lucide.dev) (ISC licence). The site uses no emojis.
 
+## Where the work happens
+There is no server and no database. The site is static files on GitHub Pages. The phone's browser asks the public data services directly, and the heavy work is done by their servers: Microsoft Planetary Computer finds the Sentinel-2 and Landsat passes, masks cloud and computes the indices and cell grids for the field; Esri, NASA, ISRO Bhuvan, ISRIC and Open-Meteo serve the rest. The only stored data is the last field, kept on the phone.
+- The quick answer (newest passes, wetness, forecast, land use) runs in parallel and shows first; slower sources fill in.
+- A service worker keeps the app shell, the sharp photo tiles and the tiles of each dated satellite pass on the phone (up to 900 tiles), so a field opens fast the second time on a weak network.
+- A new pass is detected with one small search every 15 minutes while the app is open, and on every opening.
+- What a server would add: a message to the farmer when a new pass shows a change, the same fields on several phones, and Sentinel-1 radar processing for the monsoon.
+
 ## How it's built
 
 ```
@@ -69,7 +95,8 @@ docs/css/style.css
 docs/js/app.js             UI, map (Leaflet), charts (Chart.js)
 docs/js/sources.js         every external API call lives here
 docs/js/rs.js              map layers: Sentinel-2 tiles and mosaics, NASA GIBS, legends
-docs/js/voice.js           read-aloud and voice search (Web Speech API)
+docs/js/field.js           cell-by-cell field health and change (harvest) detection
+docs/js/voice.js           read-aloud and voice search (Web Speech API), with on-screen fallback
 docs/js/advisor.js         scoring, budgets, weather alerts, NDVI interpretation (transparent rules)
 docs/js/soilcard.js        Soil Health Card OCR, parsing, rating, fertilizer plan
 docs/js/risk.js            climate/market risk, incentives, scenarios
