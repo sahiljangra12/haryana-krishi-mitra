@@ -1,4 +1,4 @@
-import { DISTRICTS } from "./districts.js?v=20261120203954";
+import { DISTRICTS } from "./districts.js?v=20261120204253";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
@@ -350,7 +350,9 @@ async function esriFind(text, extent = HR_BBOX, near = null) {
     const at = c.attributes || {};
     // POIs come back as just "Bus Stand": add town and district so the farmer can tell them apart
     const ctx = [at.City, at.Subregion].filter((x) => x && !norm(c.address).includes(norm(x))).join(", ");
-    return { label: ctx ? `${c.address}, ${ctx}` : c.address, name: at.PlaceName || c.address.split(",")[0], region: at.Region || "", lat: c.location.y, lon: c.location.x, score: c.score, kind: KIND[at.Addr_type] || "place", src: "Esri" };
+    let label = ctx ? `${c.address}, ${ctx}` : c.address;
+    if (at.PlaceName && !norm(label).includes(norm(at.PlaceName))) label = `${at.PlaceName}, ${label}`;
+    return { label, name: at.PlaceName || c.address.split(",")[0], region: at.Region || "", lat: c.location.y, lon: c.location.x, score: c.score, kind: KIND[at.Addr_type] || "place", src: "Esri" };
   });
 }
 async function osmFind(text, extent = HR_BBOX) {
@@ -431,7 +433,7 @@ export async function geocode(q) {
     let res = rankAll(await search(q1, dExtent), specific, dOpts);
     if (!res.length && pin) res = rankAll(await search(`${specific} ${pin}`), specific, {});
     if (!res.length && district) res = rankAll(await search(district.name), district.name, {});
-    return Object.assign(res.slice(0, 8), { note: res.length && res[0].sim < 0.5 ? "approx" : "" });
+    return Object.assign(res.slice(0, 8), { note: res.length && res[0].sim < 0.75 ? "approx" : "" });
   }
 
   // anchor = town/village, then the specific landmark/colony near it
@@ -441,7 +443,11 @@ export async function geocode(q) {
     const res = rankAll(await search(places.join(", ") + (district ? ", " + district.name : ""), dExtent), specific, dOpts);
     return Object.assign(res.slice(0, 8), { note: res.length ? "approx" : "" });
   }
-  const nearRes = rankAll(await search(`${specific}, ${anchor.name || anchorName}`, extentAround(anchor, 10), anchor), specific, { near: anchor, maxKm: 10 }).filter((r) => r.sim >= 0.4);
+  // a city spreads ~10 km, a village ~3 km: look for the landmark only that close to the anchor
+  const bigTown = DISTRICTS.some((d) => similar(d.name, anchorName) > 0.8) || /city|nagar$/i.test(anchorName);
+  const radius = bigTown ? 10 : 4;
+  const nearRes = rankAll(await search(`${specific}, ${anchor.name || anchorName}`, extentAround(anchor, radius), anchor), specific, { near: anchor, maxKm: radius })
+    .filter((r) => r.sim >= 0.5 && kmBetween(r, anchor) > 0.05);
   if (nearRes.length) return Object.assign([...nearRes.slice(0, 6), { ...anchor, fallback: true }], { note: "" });
   // the landmark/colony is in no database: show the town and let the farmer tap the field
   return Object.assign([{ ...anchor, fallback: true }, ...anchors.slice(1, 3)], { note: "notExact", missing: specific, anchorLabel: anchor.label });
