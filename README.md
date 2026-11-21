@@ -47,7 +47,7 @@ Nothing is presented as live. The sharp photo shows the month it was taken, and 
 | Soil wetness, rain | NASA POWER | About 50 km | Daily, 3 days behind | Independent of cloud |
 | Regional view | NASA GIBS (MODIS, VIIRS fires, SMAP, IMERG) | 250 m to 10 km | Daily | Stubble fires, heat, rain |
 
-Not used, and why: **Google Maps/Earth imagery** needs a Google Cloud key with billing and is licensed for display inside Google's own map components, so it cannot be the base of this free site without the owner's key. **ISRO Resourcesat (LISS-IV 5.8 m, LISS-III 23.5 m, AWiFS 56 m)** has no open tile or statistics service; scenes are ordered or downloaded from Bhuvan/NRSC with a login. **Sentinel-1 radar** sees through monsoon cloud and is the next source worth adding. Commercial daily imagery (Planet, 3 m) is paid.
+Not used, and why: **Google Maps/Earth imagery** needs a Google Cloud key with a billing account, which only the site owner can create, and its use is governed by Google's Maps Platform terms; it can be added as the base photo once a key exists. **ISRO Resourcesat (LISS-IV 5.8 m, LISS-III 23.5 m, AWiFS 56 m)** has no open tile or statistics service; scenes are ordered or downloaded from Bhuvan/NRSC with a login. **Sentinel-1 radar** sees through monsoon cloud and is the next source worth adding. Commercial daily imagery (Planet, 3 m) is paid.
 
 ### Field analysis
 For the field boundary, one server call per Sentinel-2 pass returns four indices from the raw bands, after masking cloud with the scene classification: **NDVI** (greenness), **NDMI** (moisture), **NDRE** (leaf colour, a nitrogen hint) and **BSI** (bare soil). The four newest passes are read first, then one every 15 days over 13 months.
