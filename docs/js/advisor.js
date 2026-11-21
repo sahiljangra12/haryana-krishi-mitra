@@ -1,6 +1,6 @@
 // Recommendation engine: transparent, rule-based scoring. No black box —
 // every score component is shown to the farmer in the UI.
-import { CROPS, SEASONS } from "./crops.js?v=20261120230818";
+import { CROPS, SEASONS } from "./crops.js?v=20261120231002";
 
 // Which season is the farmer planning for, given today's month?
 export function upcomingSeason(month = new Date().getMonth() + 1) {
@@ -139,6 +139,9 @@ export function recommend(ctx) {
     const riskPenalty = crop.msp ? 0 : ctx.risk === "high" ? 1 : ctx.risk === "medium" ? 3 : 5;
     s += 5 - riskPenalty;
     if (!crop.msp) reasons.push({ k: "noMsp" });
+    // a costly crop with no MSP can lose real money in a bad year: unless the farmer chose high risk, it should not top the list
+    const costMid = (crop.cost[0] + crop.cost[1]) / 2;
+    if (!crop.msp && costMid > 40000 && ctx.risk !== "high") { s -= ctx.risk === "low" ? 14 : 8; reasons.push({ k: "highStake" }); }
     if (pp.basis === "reference") reasons.push({ k: "refPrice" });
 
     return { crop, live, pp, budget: b, late, score: Math.max(0, Math.round(s)), parts: { prof, soilFit, w, zone, risk: 5 - riskPenalty }, reasons };

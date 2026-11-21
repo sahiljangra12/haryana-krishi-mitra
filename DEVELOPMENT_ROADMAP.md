@@ -11,9 +11,9 @@ Written 21 November 2026, after the audit in `PROJECT_AUDIT.md`. Nothing here is
 | 3 Health and harvest timeline | **Partly built**: field story from well-seen seasons, possible-harvest with confirmation, standing-water check. |
 | 4 Soil, water, weather | **Partly built**: source labels, elevation. Block-level groundwater and IMD not started. |
 | 12/13 Tests and checks | **Started**: 17 unit tests and a compatibility check on every push. `app.js` not yet split. |
-| 5 Recommendation engine | Not started (crop cards already hold duration, sowing window and varieties in the data) |
+| 5 Recommendation engine | **Built and verified**: plain reasons, last crop and irrigation method, sowing calendar (a crop whose sowing has closed is marked late), costly no-MSP crops ranked down unless the farmer picks high risk, duration, water, yield, general fertiliser dose, assumptions, label check before any spray. **Missing: seed rate per crop** (no verified CCS HAU figures found yet) and Hindi wording of the sowing dates. |
 | 8 Mandi | Text corrected. Waiting for the India phone test. |
-| 10 Farm history | Fields, crop per season and harvest answers are saved. Records form not started. |
+| 10 Farm history | **Built and verified**: saved fields, crop per season, harvest answers, a diary per field (sowing, irrigation, fertiliser, spray, harvest, sale) and a backup file. Kept on the phone only. |
 | 6 Assistant, 7 Crop doctor, 9 Schemes, 11 Six-item navigation | Not started |
 
 ## Ground rules for every phase

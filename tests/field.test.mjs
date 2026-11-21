@@ -84,3 +84,9 @@ test("recommendation on 21 November: wheat ranks above mustard, whose sowing has
   assert.ok(pos("wheat") < pos("mustard"));
   assert.ok(r.find((x) => x.crop.id === "mustard").late > 0);
 });
+test("a costly crop without MSP does not top the list for a medium-risk farmer", () => {
+  const r = recommend({ ...ctx, today: new Date("2026-11-21T00:00:00Z") });
+  assert.equal(r[0].crop.id, "wheat");
+  const bold = recommend({ ...ctx, risk: "high", today: new Date("2026-11-21T00:00:00Z") });
+  assert.ok(bold.find((x) => x.crop.id === "onion_rabi").score > r.find((x) => x.crop.id === "onion_rabi").score);
+});

@@ -81,6 +81,20 @@ There are no automated tests, lint rules or type checks in the repository. `node
 | Elevation | Pass | 256 m at the test field. |
 | Standing-water check | Written, not observed | No waterlogged field was found to test on. |
 
+## Phase 5 and Phase 10: run 21 November 2026 (IST), live site
+
+| Check | Result | Detail |
+|---|---|---|
+| Reasons on each crop card | Pass | Four plain lines for or against (water, soil, area, MSP), plus a sowing line when late. |
+| Sowing calendar | Pass | On 21 November mustard, gram and potato are marked "sowing time ended N days ago" and ranked below wheat and barley. Before this, mustard was the top advice five weeks after its window. |
+| Costly crop without MSP | Pass | Onion (about ₹62,500 an acre, bad-year loss shown) no longer tops the list at medium risk; wheat does. At high risk the penalty is not applied. |
+| Last crop and irrigation method | Pass | Choosing moong as the last crop adds the "after a pulse" reason and 3 points to non-pulse crops (unit test and live). |
+| Facts per crop | Pass | Sowing window, duration, water need, usual yield, general N-P-K dose per acre, varieties. Seed rate is not shown: no verified figure yet. Sowing window text is in English only. |
+| Assumptions and no-guarantee note | Pass | Shown above the list. |
+| Label check before spraying | Pass | Shown under every precautions list. |
+| Field diary | Pass | Added and removed an entry; it survives a reload; a confirmed harvest is written to the diary. |
+| Backup file | Written, download not observed | The button creates a JSON file in the browser. The test browser cannot show the download. Loading a backup adds only fields that are not already on the phone. |
+
 ## Automated tests
-`npm test` runs 17 unit tests (change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `6e76ad0`.
+`npm test` runs 23 unit tests (change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `6e76ad0`.
 
