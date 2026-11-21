@@ -1,4 +1,4 @@
-import { DISTRICTS } from "./districts.js?v=20261120212034";
+import { DISTRICTS } from "./districts.js?v=20261120213846";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
@@ -98,21 +98,37 @@ function thin(scenes, stepDays = 12) {
   return out;
 }
 
+// Four indices in ONE request per scene (checked: the statistics endpoint accepts ";"-separated expressions):
+//  NDVI  crop greenness            (B08-B04)/(B08+B04)
+//  NDMI  canopy / soil moisture    (B8A-B11)/(B8A+B11)
+//  NDRE  leaf chlorophyll (red edge), a hint of nitrogen status   (B8A-B05)/(B8A+B05)
+//  BSI   bare soil index           ((B11+B04)-(B08+B02))/((B11+B04)+(B08+B02))
+function indexExpr(item) {
+  const o = off(item), o2 = o * 2;
+  return [`(B08-B04)/(B08+B04-${o})`, `(B8A-B11)/(B8A+B11-${o})`, `(B8A-B05)/(B8A+B05-${o})`, `((B11+B04)-(B08+B02))/((B11+B04)+(B08+B02)-${o2})`].join(";");
+}
+async function indices(item, feature) {
+  const url = `${PCDATA}/item/statistics?collection=sentinel-2-l2a&item=${encodeURIComponent(item.id)}&${exprQuery(indexExpr(item))}`;
+  const j = await getJSON(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(feature) }, 40000);
+  const [nd, nm, nr, bs] = Object.values(j.properties.statistics);
+  return { ndvi: nd.mean, ndviStd: nd.std, ndviHist: nd.histogram, pixels: nd.count, ndmi: nm?.mean, ndre: nr?.mean, bsi: bs?.mean };
+}
+
 export async function fieldTimeSeries(feature, onProgress) {
   const scenes = await searchScenes(feature.geometry);
-  const picked = thin(scenes, 12);
+  // always read the 3 newest passes (so the result is as fresh as the satellite allows), then one every ~12 days for history
+  const newest = scenes.slice(-3);
+  const picked = [...new Set([...thin(scenes.slice(0, -3), 12), ...newest])];
   let done = 0;
   const rows = await pool(picked, 4, async (item) => {
     const cs = await cloudShare(item, feature);
     let row = { date: item.properties.datetime.slice(0, 10), item, cloud: cs, sceneCloud: item.properties["eo:cloud_cover"] };
-    if (cs < 0.3) {
-      const [nd, nm] = await Promise.all([stats(item, feature, exprQuery(ndviExpr(item))), stats(item, feature, exprQuery(ndmiExpr(item)))]);
-      row = { ...row, ndvi: nd.mean, ndviStd: nd.std, ndviHist: nd.histogram, ndmi: nm.mean, pixels: nd.count };
-    }
+    if (cs < 0.3) row = { ...row, ...(await indices(item, feature)) };
     onProgress && onProgress(++done, picked.length);
     return row;
   });
-  return { scenesFound: scenes.length, series: rows.filter((r) => r && r.ndvi != null) };
+  const newestSeen = newest.length ? newest[newest.length - 1].properties.datetime.slice(0, 10) : null;
+  return { scenesFound: scenes.length, newestPass: newestSeen, series: rows.filter((r) => r && r.ndvi != null).sort((a, b) => a.date.localeCompare(b.date)) };
 }
 
 export async function neighbourhoodNdvi(item, lat, lon, radiusM = 1000) {
@@ -207,6 +223,38 @@ export async function climateHistory(lat, lon) {
   });
   const annual = Object.values(years);
   return { annualRain: annual.reduce((a, b) => a + b, 0) / annual.length, years, monthly };
+}
+
+/* ---------------- NASA POWER daily soil wetness (agro-climatology community) ----------------
+   Root-zone and surface soil wetness, 0 = bone dry, 1 = saturated. Grid is coarse (about 50 km): it describes the area, not one field. */
+export async function soilWetness(lat, lon) {
+  const f = (d) => d.toISOString().slice(0, 10).replace(/-/g, "");
+  const url = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=GWETROOT,GWETTOP,PRECTOTCORR&community=AG&longitude=${lon}&latitude=${lat}&start=${f(new Date(Date.now() - 14 * 864e5))}&end=${f(new Date(Date.now() - 864e5))}&format=JSON`;
+  const p = (await getJSON(url, {}, 30000)).properties.parameter;
+  const days = Object.keys(p.GWETROOT).filter((d) => p.GWETROOT[d] >= 0).sort();
+  if (!days.length) throw new Error("No recent NASA soil wetness");
+  const d = days[days.length - 1];
+  const rain7 = days.slice(-7).reduce((a, k) => a + Math.max(0, p.PRECTOTCORR[k] || 0), 0);
+  return { root: p.GWETROOT[d], top: p.GWETTOP[d], rain7, date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}` };
+}
+
+/* ---------------- ISRO Bhuvan land use (NRSC LULC 1:50,000, 2015-16) at a point ---------------- */
+export const BHUVAN_WMS = "https://bhuvan-vec2.nrsc.gov.in/bhuvan/wms";
+export const BHUVAN_LULC = "lulc:HR_LULC50K_1516";
+export async function landUse(lat, lon) {
+  const d = 0.0005;
+  const url = `${BHUVAN_WMS}?service=WMS&version=1.1.1&request=GetFeatureInfo&layers=${BHUVAN_LULC}&query_layers=${BHUVAN_LULC}&styles=&bbox=${lon - d},${lat - d},${lon + d},${lat + d}&width=3&height=3&srs=EPSG:4326&x=1&y=1&info_format=application/json`;
+  const p = (await getJSON(url, {}, 15000)).features?.[0]?.properties;
+  return p ? { group: p.DESCR_1, cls: p.DESCR_2, district: p.DIST_OFF } : null;
+}
+
+/* ---------------- PIN code -> area ---------------- */
+export async function pinLookup(pin) {
+  const u = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${pin}&countryCode=IND&category=Postal&maxLocations=1&outFields=City,Subregion,Region&forStorage=false`;
+  const c = (await getJSON(u, {}, 12000)).candidates?.[0];
+  if (!c) return null;
+  const a = c.attributes || {};
+  return { pin, label: [a.City, a.Subregion].filter(Boolean).join(", ") || c.address, region: a.Region || "", lat: c.location.y, lon: c.location.x, extent: c.extent };
 }
 
 /* ---------------- Mandi prices ---------------- */

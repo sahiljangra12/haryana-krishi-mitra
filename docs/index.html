@@ -1,23 +1,22 @@
 <!DOCTYPE html>
-<html lang="hi" data-theme="night">
+<html lang="hi" data-theme="sun">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Krishi Mitra Haryana | कृषि मित्र हरियाणा</title>
-  <meta name="description" content="Free satellite land report, crop advice, budgets, soil card scanner, weather alerts and mandi prices for Haryana farmers." />
-  <meta name="theme-color" content="#0b1622" />
+  <meta name="description" content="See your field from a satellite: crop health, water, soil, weather and the best crop, explained in simple Hindi with voice. Free for Haryana farmers." />
+  <meta name="theme-color" content="#ffffff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="img/icon-192.png" />
-  <script>try{var t=localStorage.getItem("km-theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
   <link rel="icon" href="img/logo.svg" type="image/svg+xml" />
+  <script>try{var t=localStorage.getItem("km-theme2");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600&family=Tiro+Devanagari+Hindi&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20261120212034" />
+  <link href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css?v=20261120213846" />
 </head>
 <body>
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
@@ -272,38 +271,35 @@
   <circle cx="12" cy="12" r="2" />
   <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" />
   <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" /></symbol>
+
+<symbol id="i-volume-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+  <path d="M16 9a5 5 0 0 1 0 6" />
+  <path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></symbol>
+<symbol id="i-volume-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+  <line x1="22" x2="16" y1="9" y2="15" />
+  <line x1="16" x2="22" y1="9" y2="15" /></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+  <line x1="12" x2="12" y1="19" y2="22" /></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" />
+  <path d="M12 5v14" /></symbol>
+<symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /></symbol>
+<symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+  <circle cx="9" cy="9" r="2" />
+  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></symbol>
 </svg>
   <header class="top">
     <a class="brand" href="#land" aria-label="Krishi Mitra Haryana">
-      <svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="10" fill="#2f6b3a"/><path d="M0 26 L40 14 L40 22 L0 34Z" fill="#f0be1e"/><path d="M0 34 L40 22 L40 30 L0 40Z" fill="#86b26a"/><path d="M0 18 L40 6 L40 14 L0 26Z" fill="#4c8a4f"/><path d="M14 0 L20 40" stroke="#1f4a28" stroke-width="1.5"/></svg>
-      <div><h1 data-t="appName">कृषि मित्र हरियाणा</h1><small data-t="brandSub"></small></div>
+      <svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="11" fill="#0c6b3c"/><path d="M8 27c7-1 13-6 15-15" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M12 31c9-1 17-8 19-19" stroke="#f5a300" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="27" cy="11" r="3" fill="#fff"/></svg>
+      <div><h1 data-t="appName">कृषि मित्र</h1></div>
     </a>
     <div class="top-actions">
-      <button id="themeBtn" class="iconbtn" type="button" aria-label="Sun mode / night mode"><svg class="ic"><use href="#i-sun"/></svg></button>
+      <button id="voiceBtn" class="iconbtn" type="button" aria-label="Voice guide"><svg class="ic"><use href="#i-volume-x"/></svg></button>
+      <button id="themeBtn" class="iconbtn" type="button" aria-label="Theme"><svg class="ic"><use href="#i-moon"/></svg></button>
       <button id="aboutBtn" class="iconbtn mobile-only" type="button" aria-label="About"><svg class="ic"><use href="#i-info"/></svg></button>
-      <div class="lang" role="group" aria-label="Language">
-        <button data-lang="hi">हिंदी</button>
-        <button data-lang="en">EN</button>
-      </div>
+      <div class="lang" role="group" aria-label="Language"><button data-lang="hi">हिंदी</button><button data-lang="en">EN</button></div>
     </div>
   </header>
-
-  <section class="hero" id="hero">
-    <img class="sat" alt="" data-fallback="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=76.842,29.747,76.878,29.765&bboxSR=4326&imageSR=3857&size=1800,800&format=jpg&f=image" />
-    <div class="inner">
-      <div class="readout"><span><i class="dot"></i><span data-t="liveData"></span></span><span id="heroSat">Sentinel-2 L2A, 10 m</span><span>29.756° N, 76.860° E</span><span id="clockIST"></span></div>
-      <h2 data-t="heroTitle"></h2>
-      <p class="lead" data-t="heroLead"></p>
-      <form id="searchForm" class="find">
-        <input id="q" type="search" data-tph="searchPh" autocomplete="off" aria-label="Village" />
-        <button type="submit" class="btn mustard"><svg class="ic"><use href="#i-search"/></svg><span data-t="search"></span></button>
-        <button id="locBtn" class="btn ghost" type="button"><svg class="ic"><use href="#i-locate"/></svg><span data-t="myLoc"></span></button>
-      </form>
-      <div id="searchResults" class="results"></div>
-    </div>
-    <div class="credit"><svg class="ic"><use href="#i-satellite"/></svg><span data-t="heroCaption"></span></div>
-  </section>
-
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="land"><svg class="ic"><use href="#i-map-pin"/></svg><span class="long" data-t="tabLand"></span><span class="short" data-t="navLand"></span></button>
     <button class="tab" data-tab="advice"><svg class="ic"><use href="#i-sprout"/></svg><span class="long" data-t="tabAdvice"></span><span class="short" data-t="navAdvice"></span></button>
@@ -313,64 +309,45 @@
     <button class="tab" data-tab="weather"><svg class="ic"><use href="#i-cloud-sun"/></svg><span class="long" data-t="tabWeather"></span><span class="short" data-t="navWeather"></span></button>
     <button class="tab" data-tab="about"><svg class="ic"><use href="#i-info"/></svg><span class="long" data-t="tabAbout"></span><span class="short" data-t="navAbout"></span></button>
   </nav>
-
   <main>
-    <!-- LAND REPORT -->
     <section id="tab-land" class="panel active">
-      <div id="installBox" class="install hidden"></div>
-      <div class="grid2">
-        <div class="card controls steps">
-          <div class="step-title" data-t="stepMark"></div>
-          <p class="hint" data-t="drawHint"></p>
-          <div id="locNote" class="locnote hidden"></div>
-          <div class="row wrap">
-            <button id="drawBtn" class="btn ghost" type="button"><svg class="ic"><use href="#i-pencil-line"/></svg><span data-t="draw"></span></button>
-            <button id="doneBtn" class="btn ghost" type="button" disabled><svg class="ic"><use href="#i-circle-check"/></svg><span data-t="done"></span></button>
-            <button id="clearBtn" class="btn line" type="button"><svg class="ic"><use href="#i-x"/></svg><span data-t="clear"></span></button>
-          </div>
-          <label class="f"><span data-t="sizeIfPoint"></span>
-            <div class="row"><input id="acres" type="number" min="0.25" max="200" step="0.25" value="2" /> <span data-t="acres"></span></div>
-          </label>
-          <div class="step-title" data-t="stepFarm"></div>
-          <label class="f"><span data-t="water"></span>
-            <select id="water">
-              <option value="good" data-t="waterGood"></option>
-              <option value="limited" data-t="waterLimited"></option>
-              <option value="rainfed" data-t="waterRainfed"></option>
-            </select>
-          </label>
-          <label class="f"><span data-t="risk"></span>
-            <select id="risk">
-              <option value="low" data-t="riskLow"></option>
-              <option value="medium" data-t="riskMed" selected></option>
-              <option value="high" data-t="riskHigh"></option>
-            </select>
-          </label>
-          <div class="step-title" data-t="stepRun"></div>
-          <div class="sticky-go"><button id="analyseBtn" class="btn big mustard" type="button"><svg class="ic"><use href="#i-satellite"/></svg><span data-t="analyse"></span></button></div>
-          <div id="progress" class="progress hidden"><div class="bar"></div><span class="ptext"></span></div>
-          <p id="msg" class="msg"></p>
-        </div>
-        <div class="card mapcard">
+      <div class="stage">
+        <div class="mapwrap">
           <div id="map"></div>
-          <div id="mapTip" class="maptip hidden"></div>
-          <div class="mapfab">
-            <button id="fabLayers" type="button" aria-label="Satellite layers"><svg class="ic"><use href="#i-layers"/></svg></button>
-            <button id="fabLocate" type="button" aria-label="My location"><svg class="ic"><use href="#i-locate"/></svg></button>
-            <button id="fabDraw" type="button" aria-label="Draw field boundary"><svg class="ic"><use href="#i-pencil-line"/></svg></button>
+          <div class="maptop">
+            <form id="searchForm" class="searchbar" role="search">
+              <svg class="ic"><use href="#i-search"/></svg>
+              <input id="q" type="search" data-tph="searchPh" autocomplete="off" enterkeyhint="search" aria-label="PIN code or village" />
+              <button type="button" id="micBtn" class="sb-mic hidden" aria-label="Speak"><svg class="ic"><use href="#i-mic"/></svg></button>
+              <button type="submit" class="sb-go" data-t="search"></button>
+            </form>
+            <div id="viewChips" class="viewchips"></div>
+            <div id="searchResults" class="results"></div>
           </div>
-          <div id="imgBadge" class="imgbadge"></div>
+          <div class="mapfab">
+            <button id="fabIn" type="button" aria-label="Zoom in"><svg class="ic"><use href="#i-plus"/></svg></button>
+            <button id="fabOut" type="button" aria-label="Zoom out"><svg class="ic"><use href="#i-minus"/></svg></button>
+            <button id="fabLocate" type="button" aria-label="My location"><svg class="ic"><use href="#i-locate"/></svg></button>
+          </div>
           <div id="legendBox" class="legend hidden"></div>
+          <div id="imgBadge" class="imgbadge"></div>
           <div id="layerPanel" class="layerpanel hidden"></div>
         </div>
+        <div id="guide" class="guide" aria-live="polite"></div>
       </div>
-      <div id="report" class="report hidden"></div>
+      <input id="acres" type="hidden" value="2" />
+      <div class="below">
+        <div id="installBox" class="install hidden"></div>
+        <div id="report" class="report hidden"></div>
+      </div>
     </section>
 
-    <!-- ADVICE -->
     <section id="tab-advice" class="panel">
+      <div class="tabhead"><h2 data-t="tabAdvice"></h2><button class="say big" type="button" data-say="tab" data-tab="advice" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <div class="card">
         <div class="row wrap">
+          <label class="f"><span data-t="water"></span><select id="water"><option value="good" data-t="waterGood"></option><option value="limited" data-t="waterLimited"></option><option value="rainfed" data-t="waterRainfed"></option></select></label>
+          <label class="f"><span data-t="risk"></span><select id="risk"><option value="low" data-t="riskLow"></option><option value="medium" data-t="riskMed" selected></option><option value="high" data-t="riskHigh"></option></select></label>
           <label class="f"><span data-t="season"></span><select id="seasonSel"></select></label>
           <label class="f"><span data-t="chooseDistrict"></span><select id="districtSel"></select></label>
         </div>
@@ -396,8 +373,8 @@
       <p class="disclaimer" data-t="disclaimer"></p>
     </section>
 
-    <!-- SOIL HEALTH CARD -->
     <section id="tab-soilcard" class="panel">
+      <div class="tabhead"><h2 data-t="tabCard"></h2><button class="say big" type="button" data-say="tab" data-tab="soilcard" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <div class="grid2">
         <div class="card">
           <h2 data-t="cardTitle"></h2>
@@ -438,18 +415,16 @@
       <details class="card"><summary data-t="ocrRaw"></summary><pre id="ocrText" class="ocrtext"></pre></details>
     </section>
 
-    <!-- TECHNIQUES -->
     <section id="tab-techniques" class="panel">
-      <div class="section-head">
-        <div><h2 data-t="techTitle"></h2><p class="hint" data-t="techIntro"></p></div>
-        <input id="techSearch" type="search" data-tph="techSearch" style="max-width:320px" />
-      </div>
+      <div class="tabhead"><h2 data-t="techTitle"></h2><button class="say big" type="button" data-say="tab" data-tab="techniques" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
+      <p class="hint" data-t="techIntro"></p>
+      <input id="techSearch" type="search" data-tph="techSearch" />
       <div id="techChips" class="chips"></div>
       <div id="techList" class="techgrid" style="margin-top:1rem"></div>
     </section>
 
-    <!-- PRICES -->
     <section id="tab-prices" class="panel">
+      <div class="tabhead"><h2 data-t="tabPrices"></h2><button class="say big" type="button" data-say="tab" data-tab="prices" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <div class="card">
         <h2 data-t="pricesTitle"></h2>
         <div class="row wrap">
@@ -467,8 +442,8 @@
       </div>
     </section>
 
-    <!-- WEATHER -->
     <section id="tab-weather" class="panel">
+      <div class="tabhead"><h2 data-t="tabWeather"></h2><button class="say big" type="button" data-say="tab" data-tab="weather" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <div class="card">
         <div class="row wrap"><label class="f"><span data-t="district"></span> <select id="weatherDistrict"></select></label></div>
         <p id="weatherWhere" class="hint"></p>
@@ -481,7 +456,6 @@
       </div>
     </section>
 
-    <!-- ABOUT -->
     <section id="tab-about" class="panel">
       <div class="card prose" id="aboutBox"></div>
     </section>
@@ -494,6 +468,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="js/app.js?v=20261120212034"></script>
+  <script type="module" src="js/app.js?v=20261120213846"></script>
 </body>
 </html>

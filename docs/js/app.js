@@ -1,13 +1,14 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120212034";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120212034";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120212034";
-import * as RS from "./rs.js?v=20261120212034";
-import * as src from "./sources.js?v=20261120212034";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120212034";
-import * as card from "./soilcard.js?v=20261120212034";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120212034";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120212034";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120212034";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120213846";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120213846";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120213846";
+import * as Voice from "./voice.js?v=20261120213846";
+import * as RS from "./rs.js?v=20261120213846";
+import * as src from "./sources.js?v=20261120213846";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120213846";
+import * as card from "./soilcard.js?v=20261120213846";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120213846";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120213846";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120213846";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -37,7 +38,8 @@ const state = {
   season: upcomingSeason(),
   card: (() => { try { return JSON.parse(localStorage.getItem("km-card") || "{}"); } catch { return {}; } })(),
   opts: { leavingPaddy: false, dsr: false, straw: false },
-  techFocus: null,
+  techFocus: null, techCat: "",
+  searched: false, busy: false, placeName: "", areaLabel: "", verdicts: null, reportFor: null, voiceOn: false,
 };
 
 /* ---------------- i18n paint ---------------- */
@@ -78,7 +80,8 @@ function watchLivePrices() {
 function showTab(name) {
   $$(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $$(".panel").forEach((p) => p.classList.toggle("active", p.id === "tab-" + name));
-  $("#hero").classList.toggle("hidden", name !== "land");
+  Voice.stop();
+  window.scrollTo(0, 0);
   if (name === "land") setTimeout(() => map.invalidateSize(), 50);
   if (name === "advice") renderAdvice();
   if (name === "prices") renderPrices();
@@ -89,35 +92,35 @@ function showTab(name) {
   try { history.replaceState(null, "", "#" + name); } catch {}
 }
 
-/* ---------------- map ---------------- */
-const map = L.map("map", { zoomControl: true, attributionControl: true }).setView([29.1, 76.4], 8);
+/* ---------------- map: sharp photo base that never shows blank tiles ----------------
+   Esri World Imagery has real tiles to zoom 18 in rural Haryana (checked); beyond that it returns a grey
+   "no data" tile, so deeper zooms enlarge level 18 instead. Live satellite layers are drawn on top. */
+const map = L.map("map", { zoomControl: false, maxZoom: 21 }).setView([29.2, 76.3], 8);
 map.attributionControl.setPrefix("");
-/* ---------------- remote-sensing layer stack ----------------
-   bottom: NASA daily image (any zoom) -> Sentinel-2 10 m (zoom 9+) or Esri sharp photo -> NASA overlays -> place names */
+map.createPane("names"); map.getPane("names").style.zIndex = 450; map.getPane("names").style.pointerEvents = "none";
 const yesterday = () => new Date(Date.now() + 5.5 * 3600e3 - 864e5).toISOString().slice(0, 10);
-const rs = {
-  mode: "latest", view: "true", sceneId: null, scenes: [], mosaic: null,
-  nasa: { fires: false, ndvi8: false, lst: false, soil: false, rain: false }, date: yesterday(), opacity: 0.7, names: true,
-};
-const ATTR_S2 = "Copernicus Sentinel-2, Microsoft Planetary Computer";
-const ATTR_NASA = "NASA GIBS / Worldview";
-let nasaBase = L.tileLayer(RS.gibsTiles("modis", rs.date), { maxNativeZoom: 9, maxZoom: 19, attribution: ATTR_NASA }).addTo(map);
-let s2Layer = null, s2Under = null;
-const esriPhoto = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri, Maxar, Earthstar Geographics" });
-const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, pane: "overlayPane", zIndex: 650 }).addTo(map);
+const rs = { overlay: "none", scene: null, scenes: [], mosaic: null, nasa: { fires: false, ndvi8: false, lst: false, soil: false, rain: false }, isro: false, date: yesterday(), opacity: 0.6, names: true, fireCount: null };
+const ATTR_S2 = "Copernicus Sentinel-2, Microsoft Planetary Computer", ATTR_NASA = "NASA GIBS";
+const photo = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 18, maxZoom: 21, zIndex: 1, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(map);
+const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 17, maxZoom: 21, pane: "names" }).addTo(map);
+let s2Layer = null, modisLayer = null, isroLayer = null;
 const nasaOverlays = {};
-let marker = null, poly = null, square = null;
+let marker = null, poly = null, square = null, searchPin = null;
 const vertexLayer = L.layerGroup().addTo(map);
+const fmtDate = (iso) => new Date(iso).toLocaleDateString(getLang() === "hi" ? "hi-IN" : "en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+const T2 = (en, hi) => (getLang() === "hi" ? hi : en);
 
 map.on("click", (e) => {
   if (state.drawing) {
     state.vertices.push([e.latlng.lat, e.latlng.lng]);
-    L.circleMarker(e.latlng, { radius: 5, color: "#ffd54f", weight: 2, fillOpacity: 1 }).addTo(vertexLayer);
+    L.circleMarker(e.latlng, { radius: 6, color: "#fff", weight: 2, fillColor: "#f5a300", fillOpacity: 1 }).addTo(vertexLayer);
     if (poly) map.removeLayer(poly);
-    poly = L.polygon(state.vertices, { color: "#ffd54f", weight: 3, fillOpacity: 0.1 }).addTo(map);
-    $("#doneBtn").disabled = state.vertices.length < 3;
+    poly = L.polygon(state.vertices, { color: "#f5a300", weight: 3, fillOpacity: 0.12 }).addTo(map);
+    renderGuide(false);
     return;
   }
+  // a tap from far away is too rough to mean one field: come closer first
+  if (map.getZoom() < 14) { map.setView(e.latlng, Math.min(16, map.getZoom() + 3)); toast(t("zoomMore")); return; }
   setPoint(e.latlng.lat, e.latlng.lng, false);
 });
 
@@ -129,472 +132,482 @@ function setPoint(lat, lon, fly = true) {
   if (fly) map.setView([lat, lon], 16);
   state.district = nearestDistrict(lat, lon);
   fillSelects();
-  checkInside(lat, lon);
-  if (searchPin) { map.removeLayer(searchPin); searchPin = null; }
   showPlaceName(lat, lon);
+  renderGuide();
 }
 async function showPlaceName(lat, lon) {
-  const el = $("#locNote");
-  el.classList.remove("hidden");
-  el.innerHTML = `${ic("map-pin")}<span>${lat.toFixed(5)}, ${lon.toFixed(5)}</span>`;
+  state.placeName = "";
   const name = await src.reverseGeocode(lat, lon);
-  if (state.point && state.point[0] === lat && state.point[1] === lon) el.innerHTML = `${ic("map-pin")}<span>${t("selected")}: <b>${esc(name || L_(state.district))}</b><br><span class="hint">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></span>`;
+  if (state.point && Math.abs(state.point[0] - lat) < 1e-9) { state.placeName = name || L_(state.district); const el = $("#placeName"); if (el) el.textContent = state.placeName; }
 }
 function drawSquare() {
   if (square) map.removeLayer(square);
   if (!state.point || state.vertices.length >= 3) return;
-  const acres = +$("#acres").value || 2;
-  const half = Math.sqrt(acres * 4046.86) / 2;
-  const f = src.squareFeature(state.point[0], state.point[1], half);
-  square = L.geoJSON(f, { style: { color: "#ffd54f", weight: 2, dashArray: "6 4", fillOpacity: 0.08 } }).addTo(map);
+  const half = Math.sqrt((+$("#acres").value || 2) * 4046.86) / 2;
+  square = L.geoJSON(src.squareFeature(state.point[0], state.point[1], half), { style: { color: "#f5a300", weight: 3, fillOpacity: 0.1 } }).addTo(map);
 }
 function clearShape() {
-  [marker, poly, square].forEach((l) => l && map.removeLayer(l));
-  marker = poly = square = null;
+  [marker, poly, square, searchPin].forEach((l) => l && map.removeLayer(l));
+  marker = poly = square = searchPin = null;
   vertexLayer.clearLayers();
   state.vertices = []; state.point = null; state.feature = null;
 }
-function checkInside(lat, lon) {
-  const b = HARYANA_BBOX;
-  $("#msg").textContent = lat < b.minLat || lat > b.maxLat || lon < b.minLon || lon > b.maxLon ? t("outside") : "";
-}
-
-$("#drawBtn").onclick = () => {
-  clearShape();
-  state.drawing = true;
-  $("#drawBtn").classList.add("on");
-  syncDrawUi();
-  map.getContainer().style.cursor = "crosshair";
-};
-$("#doneBtn").onclick = () => {
-  state.drawing = false;
-  $("#drawBtn").classList.remove("on");
-  $("#doneBtn").disabled = true;
-  syncDrawUi();
-  map.getContainer().style.cursor = "";
-  if (state.vertices.length >= 3) {
-    const c = poly.getBounds().getCenter();
-    state.point = [c.lat, c.lng];
-    state.district = nearestDistrict(c.lat, c.lng);
-    fillSelects();
-    checkInside(c.lat, c.lng);
-    showPlaceName(c.lat, c.lng);
-  }
-};
-$("#clearBtn").onclick = () => { clearShape(); state.drawing = false; $("#drawBtn").classList.remove("on"); syncDrawUi(); $("#locNote").classList.add("hidden"); try { localStorage.removeItem("km-field"); } catch {} };
-$("#acres").oninput = drawSquare;
-
-/* ---------- place search ---------- */
-let searchPin = null;
-const KIND_LABEL = {
-  exact: { en: "Exact point", hi: "सटीक जगह" }, address: { en: "Address", hi: "पता" }, place: { en: "Village / town", hi: "गाँव / कस्बा" },
-  road: { en: "Road", hi: "सड़क" }, pin: { en: "PIN code area", hi: "पिन कोड क्षेत्र" },
-};
-const ZOOM = { exact: 18, address: 17, place: 15, road: 15, pin: 13 };
-
-function goTo(p) {
-  $("#searchResults").innerHTML = "";
-  $("#q").value = p.label;
-  if (searchPin) map.removeLayer(searchPin);
-  if (p.kind === "exact") {
-    setPoint(p.lat, p.lon, false);
-    map.setView([p.lat, p.lon], ZOOM.exact);
-    $("#locNote").innerHTML = `${ic("circle-check")}<span>${t("pinnedExact")}</span>`;
-  } else {
-    // a village or PIN is an area, not a field: show where it is and ask the farmer to tap the field
-    searchPin = L.circleMarker([p.lat, p.lon], { radius: 9, color: "#fff", weight: 3, fillColor: "#2d6e8e", fillOpacity: 1 }).addTo(map).bindTooltip(p.label);
-    map.setView([p.lat, p.lon], ZOOM[p.kind] || 15);
-    $("#locNote").innerHTML = `${ic("map-pin")}<span>${t("tapYourField")}</span>`;
-  }
-  $("#locNote").classList.remove("hidden");
-  $(".mapcard").scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
-function showResults(list, note = "") {
-  const box = $("#searchResults");
-  box.innerHTML = (note ? `<p class="hint">${note}</p>` : "") + list.map((p, i) => `<button type="button" data-i="${i}">
-      <span class="kind k-${p.fallback ? "pin" : p.kind}">${p.fallback ? t("townArea") : L_(KIND_LABEL[p.kind] || KIND_LABEL.place)}</span><span class="lbl">${esc(p.label)}</span><span class="src">${esc(p.src)}</span></button>`).join("");
-  $$("button", box).forEach((b) => (b.onclick = () => goTo(list[+b.dataset.i])));
-}
-
-$("#searchForm").onsubmit = async (e) => {
-  e.preventDefault();
-  const q = $("#q").value.trim();
-  if (!q) return;
-  const box = $("#searchResults");
-  if (src.isShortMapsLink(q)) { box.innerHTML = `<p class="hint">${t("shortLink")}</p>`; return; }
-  box.innerHTML = `<p class="hint">${t("searching")}</p>`;
-  try {
-    const r = await src.geocode(q);
-    if (!r.length) { box.innerHTML = `<p class="hint">${t("notFound")}</p>`; return; }
-    if (r.length === 1 && r[0].kind === "exact") return goTo(r[0]);
-    let note = "";
-    if (r.note === "notExact") note = t("notExact", { what: esc(r.missing), where: esc(r.anchorLabel) });
-    else if (r.note === "approx") note = t("approx");
-    else if (r.every((x) => x.kind === "pin" || x.kind === "road")) note = t("onlyArea");
-    showResults(r, note);
-  } catch (err) { box.innerHTML = `<p class="hint">${t("error")}: ${esc(err.message)}</p>`; }
-};
-
-// type-ahead suggestions
-let sugTimer = null, sugSeq = 0;
-$("#q").addEventListener("input", () => {
-  clearTimeout(sugTimer);
-  const text = $("#q").value;
-  sugTimer = setTimeout(async () => {
-    const seq = ++sugSeq;
-    let list = [];
-    try { list = await src.suggest(text); } catch {}
-    if (seq !== sugSeq || !list.length) return;
-    const box = $("#searchResults");
-    box.innerHTML = list.map((s, i) => `<button type="button" data-i="${i}"><span class="kind k-place">${ic("search")}</span><span class="lbl">${esc(s.text.replace(/, IND$/, ""))}</span></button>`).join("");
-    $$("button", box).forEach((b) => (b.onclick = async () => {
-      const p = await src.resolveSuggestion(list[+b.dataset.i]).catch(() => null);
-      if (p) goTo(p);
-    }));
-  }, 300);
-});
-
-$("#locBtn").onclick = () => locateMe();
-
+const outsideHaryana = (lat, lon) => { const b = HARYANA_BBOX; return lat < b.minLat || lat > b.maxLat || lon < b.minLon || lon > b.maxLon; };
 function currentFeature() {
   if (state.vertices.length >= 3) {
-    const ring = state.vertices.map(([a, b]) => [b, a]);
-    ring.push(ring[0]);
+    const ring = state.vertices.map(([a, b]) => [b, a]); ring.push(ring[0]);
     return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring] } };
   }
   if (!state.point) return null;
-  const acres = +$("#acres").value || 2;
-  return src.squareFeature(state.point[0], state.point[1], Math.sqrt(acres * 4046.86) / 2);
+  return src.squareFeature(state.point[0], state.point[1], Math.sqrt((+$("#acres").value || 2) * 4046.86) / 2);
 }
 function areaAcres(feature) {
-  const ring = feature.geometry.coordinates[0];
-  const lat0 = ring[0][1] * Math.PI / 180;
-  const R = 6378137;
+  const ring = feature.geometry.coordinates[0], lat0 = (ring[0][1] * Math.PI) / 180, R = 6378137;
   let a = 0;
   for (let i = 0; i < ring.length - 1; i++) {
-    const [x1, y1] = [ring[i][0] * Math.PI / 180 * R * Math.cos(lat0), ring[i][1] * Math.PI / 180 * R];
-    const [x2, y2] = [ring[i + 1][0] * Math.PI / 180 * R * Math.cos(lat0), ring[i + 1][1] * Math.PI / 180 * R];
+    const x1 = (ring[i][0] * Math.PI) / 180 * R * Math.cos(lat0), y1 = (ring[i][1] * Math.PI) / 180 * R;
+    const x2 = (ring[i + 1][0] * Math.PI) / 180 * R * Math.cos(lat0), y2 = (ring[i + 1][1] * Math.PI) / 180 * R;
     a += x1 * y2 - x2 * y1;
   }
   return Math.abs(a / 2) / 4046.86;
 }
+function startDraw() { const c = state.point; clearShape(); state.drawing = true; if (c) map.setView(c, Math.max(map.getZoom(), 17)); renderGuide(); }
+function finishDraw(keep) {
+  state.drawing = false;
+  if (keep && state.vertices.length >= 3) {
+    const c = poly.getBounds().getCenter();
+    state.point = [c.lat, c.lng];
+    state.district = nearestDistrict(c.lat, c.lng); fillSelects(); showPlaceName(c.lat, c.lng);
+  } else clearShape();
+  renderGuide();
+}
+function resetField() { clearShape(); state.drawing = false; state.report = null; state.reportFor = null; $("#report").classList.add("hidden"); try { localStorage.removeItem("km-field"); } catch {} renderGuide(); }
 
-/* ---------------- remote-sensing layer panel ---------------- */
-function fmtDate(iso) { return new Date(iso).toLocaleDateString(getLang() === "hi" ? "hi-IN" : "en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }); }
+/* ---------------- search: PIN code, village, coordinates, voice ---------------- */
+const KIND_LABEL = { exact: { en: "Exact point", hi: "सटीक जगह" }, address: { en: "Address", hi: "पता" }, place: { en: "Village / town", hi: "गाँव / कस्बा" }, road: { en: "Road", hi: "सड़क" }, pin: { en: "PIN area", hi: "पिन क्षेत्र" } };
+function goTo(p) {
+  $("#searchResults").innerHTML = "";
+  if (p.kind === "exact") { setPoint(p.lat, p.lon, false); map.setView([p.lat, p.lon], 18); return; }
+  clearShape();
+  searchPin = L.circleMarker([p.lat, p.lon], { radius: 8, color: "#fff", weight: 3, fillColor: "#1466a8", fillOpacity: 1 }).addTo(map);
+  if (p.extent) map.fitBounds([[p.extent.ymin, p.extent.xmin], [p.extent.ymax, p.extent.xmax]], { maxZoom: 15 });
+  else map.setView([p.lat, p.lon], p.kind === "pin" ? 14 : 15);
+  state.searched = true; state.areaLabel = p.label;
+  renderGuide();
+}
+function showResults(list, note = "") {
+  const box = $("#searchResults");
+  box.innerHTML = (note ? `<p class="note">${note}</p>` : "") + list.map((p, i) => `<button type="button" data-i="${i}"><span class="kind k-${p.fallback ? "pin" : p.kind}">${p.fallback ? t("townArea") : L_(KIND_LABEL[p.kind] || KIND_LABEL.place)}</span><span class="lbl">${esc(p.label)}</span></button>`).join("");
+  $$("button", box).forEach((b) => (b.onclick = () => goTo(list[+b.dataset.i])));
+}
+async function runSearch(q) {
+  const box = $("#searchResults");
+  q = q.trim().replace(/[०-९]/g, (d) => "०१२३४५६७८९".indexOf(d));
+  if (!q) return;
+  $("#q").blur();
+  if (src.isShortMapsLink(q)) { box.innerHTML = `<p class="note">${t("shortLink")}</p>`; return; }
+  box.innerHTML = `<p class="note">${t("searching")}</p>`;
+  try {
+    const pin = q.replace(/\s/g, "");
+    if (/^\d{6}$/.test(pin)) {
+      const p = await src.pinLookup(pin);
+      if (!p) { box.innerHTML = `<p class="note">${t("pinNotFound")}</p>`; return; }
+      if (p.region && !/haryana/i.test(p.region)) toast(t("outside"));
+      return goTo({ ...p, kind: "pin", label: `${pin}, ${p.label}` });
+    }
+    const r = await src.geocode(q);
+    if (!r.length) { box.innerHTML = `<p class="note">${t("notFound")}</p>`; return; }
+    if (r.length === 1 || r[0].kind === "exact") return goTo(r[0]);
+    showResults(r, r.note === "notExact" ? t("notExact", { what: esc(r.missing), where: esc(r.anchorLabel) }) : r.note === "approx" ? t("approx") : "");
+  } catch (err) { box.innerHTML = `<p class="note">${t("error")}: ${esc(err.message)}</p>`; }
+}
+$("#searchForm").onsubmit = (e) => { e.preventDefault(); runSearch($("#q").value); };
+let sugTimer = null, sugSeq = 0;
+$("#q").addEventListener("input", () => {
+  clearTimeout(sugTimer);
+  const text = $("#q").value;
+  if (/^[\d\s०-९]*$/.test(text)) { $("#searchResults").innerHTML = ""; return; }
+  sugTimer = setTimeout(async () => {
+    const seq = ++sugSeq;
+    const list = await src.suggest(text).catch(() => []);
+    if (seq !== sugSeq || !list.length) return;
+    const box = $("#searchResults");
+    box.innerHTML = list.map((s, i) => `<button type="button" data-i="${i}"><span class="kind">${ic("search")}</span><span class="lbl">${esc(s.text.replace(/, IND$/, ""))}</span></button>`).join("");
+    $$("button", box).forEach((b) => (b.onclick = async () => { const p = await src.resolveSuggestion(list[+b.dataset.i]).catch(() => null); if (p) goTo(p); }));
+  }, 300);
+});
+if (Voice.canListen) {
+  $("#micBtn").classList.remove("hidden");
+  $("#micBtn").onclick = () => Voice.listen(getLang(), (text) => { $("#q").value = text; runSearch(text); }, (on) => { $("#micBtn").classList.toggle("on", on); if (on) toast(t("speakNow")); });
+}
+function locateMe() {
+  if (!navigator.geolocation) { toast(t("noGps")); return; }
+  toast(t("findingYou"));
+  navigator.geolocation.getCurrentPosition((p) => { map.setView([p.coords.latitude, p.coords.longitude], 17); setPoint(p.coords.latitude, p.coords.longitude, false); }, () => toast(t("gpsDenied")), { enableHighAccuracy: true, timeout: 15000 });
+}
+$("#fabLocate").onclick = locateMe;
+$("#fabIn").onclick = () => map.zoomIn();
+$("#fabOut").onclick = () => map.zoomOut();
 
-async function applyImagery() {
-  if (s2Layer) { map.removeLayer(s2Layer); s2Layer = null; }
-  if (s2Under) { map.removeLayer(s2Under); s2Under = null; }
-  map.removeLayer(esriPhoto);
-  nasaBase.setUrl(RS.gibsTiles("modis", rs.date));
-  if (rs.mode === "photo") esriPhoto.addTo(map);
-  if (rs.mode === "latest") {
-    try { rs.mosaic = rs.mosaic || (await RS.latestMosaic(30, 5)); } catch { rs.mosaic = null; }
-    if (rs.mosaic && rs.mode === "latest") s2Layer = L.tileLayer(RS.mosaicTiles(rs.mosaic.sid, rs.view), { minZoom: 9, maxNativeZoom: 15, maxZoom: 19, attribution: ATTR_S2 }).addTo(map);
-  }
-  if (rs.mode === "scene" && rs.sceneId) {
-    // recent true-colour mosaic underneath, so the area outside this one pass is not blank
-    try { rs.mosaic = rs.mosaic || (await RS.latestMosaic(30, 5)); } catch {}
-    if (rs.mosaic) { s2Under = L.tileLayer(RS.mosaicTiles(rs.mosaic.sid, "true"), { minZoom: 9, maxNativeZoom: 15, maxZoom: 19, opacity: 0.55 }).addTo(map); }
-    s2Layer = L.tileLayer(RS.sceneTiles(rs.sceneId, rs.view), { minZoom: 8, maxNativeZoom: 15, maxZoom: 19, attribution: ATTR_S2 }).addTo(map);
-  }
-  if (s2Layer) s2Layer.on("load", () => $("#imgBadge").classList.remove("loading")).on("loading", () => $("#imgBadge").classList.add("loading"));
-  await applyNasa();
-  labels[rs.names ? "addTo" : "remove"](map);
-  if (rs.names) labels.bringToFront();
-  [poly, square].forEach((l) => l && l.bringToFront());
-  updateBadge();
-  renderLegend();
+/* ---------------- the three-step guide ---------------- */
+const G = {
+  start: { hi: ["अपना पिन कोड लिखें", "ऊपर के डिब्बे में पिन कोड या गाँव का नाम लिखें। या लोकेशन बटन दबाएं।"], en: ["Enter your PIN code", "Type your PIN code or village name in the box above. Or press the location button."] },
+  tap: { hi: ["अपने खेत पर उंगली रखें", "नक्शे को दो उंगलियों से बड़ा करें, फिर अपने खेत के बीच में एक बार उंगली रखें।"], en: ["Tap on your field", "Pinch to make the map bigger, then tap once in the middle of your field."] },
+  size: { hi: ["खेत कितना बड़ा है?", "एकड़ चुनें, फिर हरा बटन दबाएं।"], en: ["How big is the field?", "Choose the acres, then press the green button."] },
+  draw: { hi: ["खेत के कोनों पर उंगली रखें", "एक-एक करके हर कोने पर उंगली रखें। पूरा होने पर 'हो गया' दबाएं।"], en: ["Tap the corners of the field", "Tap each corner one by one. Press Done when finished."] },
+  load: { hi: ["सैटेलाइट आपका खेत देख रहा है", "थोड़ा रुकें, आधा मिनट लगेगा।"], en: ["The satellite is reading your field", "Please wait, it takes about half a minute."] },
+  done: { hi: ["नतीजा तैयार है", "नीचे अपने खेत का पूरा हाल देखें।"], en: ["Your result is ready", "See the full picture of your field below."] },
+};
+const SAY_GUIDE = {
+  start: { hi: "नमस्ते। यह ऐप सैटेलाइट से आपके खेत की जांच करता है। सबसे पहले, ऊपर के सफ़ेद डिब्बे में अपना पिन कोड या गाँव का नाम लिखें, और खोजें दबाएं। आप माइक दबाकर बोल भी सकते हैं। या फिर, मेरी लोकेशन वाला हरा बटन दबाएं।", en: "Hello. This app checks your field from a satellite. First, type your PIN code or village name in the white box at the top and press search. You can also press the microphone and speak. Or press the green My location button." },
+  tap: { hi: "नक्शा आपके इलाके पर आ गया है। अब दो उंगलियों से नक्शे को बड़ा करें और अपना खेत ढूंढें। फिर अपने खेत के बीच में एक बार उंगली रखें।", en: "The map has moved to your area. Now pinch with two fingers to make it bigger and find your field. Then tap once in the middle of your field." },
+  size: { hi: "खेत चुन लिया गया है। पीला डिब्बा आपका खेत दिखा रहा है। अब बताएं कि खेत कितने एकड़ का है। एक, दो, तीन, पांच या दस में से चुनें। अगर खेत का आकार अलग है, तो सीमा बनाएं दबाएं। फिर हरा बटन, नतीजा देखें, दबाएं।", en: "Your field is selected. The yellow box shows it. Now choose how many acres it is. If the shape is different, press Draw boundary. Then press the green See result button." },
+  draw: { hi: "अब अपने खेत के हर कोने पर एक-एक करके उंगली रखें। जब सारे कोने हो जाएं, तो हो गया दबाएं।", en: "Now tap each corner of your field, one by one. When all corners are done, press Done." },
+  load: { hi: "सैटेलाइट की तस्वीरों से आपके खेत की जांच हो रही है। आधा मिनट रुकें।", en: "Your field is being checked from satellite images. Please wait half a minute." },
+  done: { hi: "नतीजा तैयार है। नीचे देखें। हर डिब्बे के पास बने स्पीकर को दबाकर आप उसे सुन सकते हैं।", en: "Your result is ready. Look below. Press the speaker on any box to hear it." },
+};
+const step = () => (state.busy ? "load" : state.drawing ? "draw" : state.report && state.reportFor === fieldParam() ? "done" : state.point ? "size" : state.searched ? "tap" : "start");
+let lastSpoken = "";
+function renderGuide(sayIt = true) {
+  const s = step(), [title, text] = G[s][getLang()];
+  const n = { start: 1, tap: 2 }[s] || 3;
+  const acres = +$("#acres").value || 2, drawn = state.vertices.length >= 3 && !state.drawing;
+  let body = "";
+  if (s === "start") body = `<button class="btn big" id="gLocate" type="button">${ic("locate")}${t("myLoc")}</button>`;
+  if (s === "tap") body = `<p class="place">${ic("map-pin")}<span>${esc(state.areaLabel || "")}</span></p>`;
+  if (s === "size") body = `<p class="place">${ic("map-pin")}<span id="placeName">${esc(state.placeName || `${state.point[0].toFixed(4)}, ${state.point[1].toFixed(4)}`)}</span></p>
+    ${drawn ? `<p class="place">${ic("scale")}<span>${areaAcres(currentFeature()).toFixed(2)} ${t("acres")}</span></p>` : `<div class="sizes">${[1, 2, 3, 5, 10].map((a) => `<button type="button" data-ac="${a}" class="${acres === a ? "on" : ""}"><b>${a}</b><small>${t("acres")}</small></button>`).join("")}<button type="button" id="gDraw">${ic("pencil-line")}<small>${t("drawOwn")}</small></button></div>`}
+    <div class="row"><button class="btn big" id="gGo" type="button">${ic("satellite")}${t("seeResult")}</button><button class="iconbtn" id="gClear" type="button" aria-label="${t("clear")}">${ic("x")}</button></div>`;
+  if (s === "draw") body = `<div class="row"><button class="btn big" id="gDone" type="button" ${state.vertices.length < 3 ? "disabled" : ""}>${ic("circle-check")}${t("done")} (${state.vertices.length})</button><button class="btn line big" id="gCancel" type="button">${t("clear")}</button></div>`;
+  if (s === "load") body = `<div id="progress" class="progress"><div class="bar"></div><span class="ptext"></span></div>`;
+  if (s === "done") body = `<div class="row"><button class="btn big" id="gShow" type="button">${ic("circle-check")}${t("seeResult")}</button><button class="btn line big" id="gNew" type="button">${t("newField")}</button></div>`;
+  $("#guide").innerHTML = `<div class="ghead"><span class="gstep">${n}<small>/3</small></span><div class="gtext"><h2>${title}</h2><p>${text}</p></div><button class="say big" type="button" data-say="guide" aria-label="${t("listen")}">${ic("volume-2")}</button></div>${body}`;
+  const on = (id, fn) => { const el = $("#" + id); if (el) el.onclick = fn; };
+  on("gLocate", locateMe); on("gDraw", startDraw); on("gGo", analyse); on("gClear", resetField);
+  on("gDone", () => finishDraw(true)); on("gCancel", () => finishDraw(false));
+  on("gShow", () => $("#report").scrollIntoView({ behavior: "smooth" })); on("gNew", resetField);
+  $$("#guide [data-ac]").forEach((b) => (b.onclick = () => { $("#acres").value = b.dataset.ac; drawSquare(); renderGuide(false); }));
+  setTimeout(() => map.invalidateSize(), 60);
+  if (sayIt && state.voiceOn && s !== lastSpoken) { lastSpoken = s; Voice.speak(L_(SAY_GUIDE[s]), getLang(), $("#guide .say")); }
+}
+function progress(done, total) {
+  const p = $("#progress"); if (!p) return;
+  $(".bar", p).style.width = total ? `${(100 * done) / total}%` : "6%";
+  $(".ptext", p).textContent = total ? `${t("working")} ${done}/${total}` : t("working");
 }
 
+/* ---------------- map layers ---------------- */
+async function applyLayers() {
+  [s2Layer, modisLayer, isroLayer].forEach((l) => l && map.removeLayer(l));
+  s2Layer = modisLayer = isroLayer = null;
+  const ov = rs.overlay;
+  if (ov === "nasa") modisLayer = L.tileLayer(RS.gibsTiles("modis", rs.date), { maxNativeZoom: 9, maxZoom: 21, zIndex: 2, attribution: ATTR_NASA }).addTo(map);
+  else if (ov !== "none") {
+    const opacity = ov === "true" || ov === "false" ? 1 : rs.opacity;
+    if (rs.scene) s2Layer = L.tileLayer(RS.sceneTiles(rs.scene.id, ov), { minZoom: 8, maxNativeZoom: 15, maxZoom: 21, zIndex: 3, opacity, attribution: ATTR_S2 });
+    else {
+      rs.mosaic = rs.mosaic || (await RS.latestMosaic(30, 5).catch(() => null));
+      if (rs.mosaic && rs.overlay === ov) s2Layer = L.tileLayer(RS.mosaicTiles(rs.mosaic.sid, ov), { minZoom: 9, maxNativeZoom: 15, maxZoom: 21, zIndex: 3, opacity, attribution: ATTR_S2 });
+    }
+    if (s2Layer) s2Layer.addTo(map);
+  }
+  if (rs.isro) isroLayer = L.tileLayer.wms(src.BHUVAN_WMS, { layers: src.BHUVAN_LULC, format: "image/png", transparent: true, version: "1.1.1", opacity: 0.55, maxZoom: 21, zIndex: 4, attribution: "ISRO Bhuvan (NRSC)" }).addTo(map);
+  await applyNasa();
+  labels[rs.names ? "addTo" : "remove"](map);
+  updateBadge(); renderLegend(); renderViewChips();
+}
 async function applyNasa() {
   for (const k of Object.keys(rs.nasa)) {
     if (nasaOverlays[k]) { map.removeLayer(nasaOverlays[k]); delete nasaOverlays[k]; }
     if (!rs.nasa[k]) continue;
-    const L0 = RS.NASA[k];
-    const url = RS.gibsTiles(k, RS.nasaDate(k, rs.date));
-    if (L0.vector) {
+    if (RS.NASA[k].vector) {
       const pts = await RS.firesOn(RS.nasaDate(k, rs.date)).catch(() => []);
       rs.fireCount = pts.length;
-      const hi = getLang() === "hi";
-      nasaOverlays[k] = L.layerGroup(pts.map((f) => L.circleMarker([f.lat, f.lon], { radius: 5, color: "#ffffff", weight: 1, fillColor: "#ff3b1f", fillOpacity: 0.95 })
-        .bindPopup(`<b>${hi ? "सैटेलाइट ने आग देखी" : "Fire detected"}</b><br>${f.date} ${String(f.time).padStart(4, "0").replace(/(\d\d)(\d\d)/, "$1:$2")} UTC<br>${hi ? "तीव्रता" : "Fire power"}: ${f.frp ?? "-"} MW<br>VIIRS NOAA-20, 375 m`)));
-    } else {
-      nasaOverlays[k] = L.tileLayer(url, { maxNativeZoom: L0.lvl, maxZoom: 19, opacity: rs.opacity, attribution: ATTR_NASA });
-    }
+      nasaOverlays[k] = L.layerGroup(pts.map((f) => L.circleMarker([f.lat, f.lon], { radius: 5, color: "#fff", weight: 1, fillColor: "#ff3b1f", fillOpacity: 0.95 })
+        .bindPopup(`<b>${T2("Fire seen by satellite", "सैटेलाइट ने आग देखी")}</b><br>${f.date}<br>VIIRS NOAA-20`)));
+    } else nasaOverlays[k] = L.tileLayer(RS.gibsTiles(k, RS.nasaDate(k, rs.date)), { maxNativeZoom: RS.NASA[k].lvl, maxZoom: 21, zIndex: 5, opacity: rs.opacity, attribution: ATTR_NASA });
     nasaOverlays[k].addTo(map);
   }
 }
-
 function updateBadge() {
-  const b = $("#imgBadge");
-  const hi = getLang() === "hi";
-  const z = map.getZoom();
-  let txt = "";
-  if (rs.mode === "photo") txt = hi ? "तेज़ फोटो (Esri): तारीख पुरानी हो सकती है" : "Sharp photo (Esri): may be years old";
-  else if (rs.mode === "nasa" || z < (rs.mode === "scene" ? 8 : 9) || (rs.mode === "latest" && !rs.mosaic)) txt = `NASA MODIS Terra, ${fmtDate(rs.date)}${rs.mode !== "nasa" ? (hi ? ". 10 मी. चित्र के लिए ज़ूम करें" : ". Zoom in for 10 m imagery") : ""}`;
-  else if (rs.mode === "latest") txt = hi ? `Sentinel-2, हर जगह का सबसे नया साफ़ चित्र (${fmtDate(rs.mosaic.from)} के बाद)` : `Sentinel-2, newest clear pass at each place (since ${fmtDate(rs.mosaic.from)})`;
-  else if (rs.mode === "scene") { const sc = rs.scenes.find((s) => s.id === rs.sceneId); txt = sc ? `${sc.platform.replace(/sentinel/i, "Sentinel")}, ${fmtDate(sc.date)}, ${hi ? "बादल" : "cloud"} ${Math.round(sc.cloud)}%` : "Sentinel-2"; }
-  const nasaOn = Object.keys(rs.nasa).filter((k) => rs.nasa[k]);
-  if (nasaOn.length) txt += ` + ${nasaOn.map((k) => L_(RS.NASA[k]).split(" (")[0] + (k === "fires" && rs.fireCount != null ? ` (${rs.fireCount} ${hi ? "हरियाणा में" : "in Haryana"}, ${fmtDate(RS.nasaDate("fires", rs.date))})` : "")).join(", ")}`;
-  b.innerHTML = `${ic("satellite")}<span>${esc(txt)}</span>`;
+  const ov = rs.overlay;
+  let txt = ov === "none" ? T2("Sharp photo", "साफ़ फोटो")
+    : ov === "nasa" ? `NASA MODIS, ${fmtDate(rs.date)}`
+    : rs.scene ? `Sentinel-2, ${fmtDate(rs.scene.date)}`
+    : T2("Sentinel-2, newest clear pass", "Sentinel-2, सबसे नई साफ़ तस्वीर");
+  if (ov !== "none" && ov !== "nasa" && map.getZoom() < 9) txt = T2("Zoom in to see the live layer", "लाइव परत देखने के लिए नक्शा बड़ा करें");
+  if (rs.nasa.fires && rs.fireCount != null) txt += `, ${rs.fireCount} ${T2("fires", "जगह आग")}`;
+  $("#imgBadge").innerHTML = `${ic("satellite")}<span>${esc(txt)}</span>`;
 }
 map.on("zoomend", updateBadge);
-
 function renderLegend() {
-  const box = $("#legendBox");
   const keys = [];
-  if (rs.mode !== "photo" && rs.mode !== "nasa" && (rs.view === "ndvi" || rs.view === "ndmi")) keys.push(rs.view);
+  if (rs.overlay === "ndvi" || rs.overlay === "ndmi") keys.push(rs.overlay);
   for (const k of Object.keys(rs.nasa)) if (rs.nasa[k] && RS.NASA[k].legend) keys.push(RS.NASA[k].legend);
+  const box = $("#legendBox");
   box.classList.toggle("hidden", !keys.length);
   box.innerHTML = keys.map((k) => { const g = RS.LEGENDS[k]; return `<div class="lg"><span>${L_(g.lo)}</span><div class="ramp" style="background:${g.ramp}"></div><span>${L_(g.hi_)}</span></div>`; }).join("");
 }
-
-async function loadScenes() {
-  const c = map.getCenter();
-  try { rs.scenes = await RS.scenesAt(c.lat, c.lng, 120, 40); } catch { rs.scenes = []; }
-  return rs.scenes;
+const VIEW_CHIPS = [["none", "image", { en: "Photo", hi: "फोटो" }], ["ndvi", "leaf", { en: "Crop health", hi: "फसल सेहत" }], ["ndmi", "droplets", { en: "Water", hi: "पानी" }], ["true", "satellite", { en: "Latest image", hi: "ताज़ा तस्वीर" }]];
+function renderViewChips() {
+  $("#viewChips").innerHTML = VIEW_CHIPS.map(([k, icn, lab]) => `<button type="button" data-ov="${k}" class="${rs.overlay === k ? "on" : ""}">${ic(icn)}${L_(lab)}</button>`).join("") + `<button type="button" id="moreLayers">${ic("layers")}${T2("More", "और")}</button>`;
+  $$("#viewChips [data-ov]").forEach((b) => (b.onclick = () => { rs.overlay = b.dataset.ov; if (rs.overlay !== "none" && map.getZoom() < 10) toast(T2("Zoom in to see the live layer", "लाइव परत देखने के लिए नक्शा बड़ा करें")); applyLayers(); }));
+  $("#moreLayers").onclick = () => { const p = $("#layerPanel"); if (p.classList.contains("hidden")) { renderLayerPanel(); p.classList.remove("hidden"); } else p.classList.add("hidden"); };
 }
-
 function renderLayerPanel() {
-  const hi = getLang() === "hi";
-  const p = $("#layerPanel");
-  const radio = (name, val, cur, label, sub = "") => `<label class="opt"><input type="radio" name="${name}" value="${val}" ${val === cur ? "checked" : ""}><span><b>${label}</b>${sub ? `<small>${sub}</small>` : ""}</span></label>`;
-  const sceneOpts = rs.scenes.map((s) => `<option value="${s.id}" ${s.id === rs.sceneId ? "selected" : ""}>${fmtDate(s.date)}, ${s.platform.replace(/sentinel/i, "Sentinel")}, ${hi ? "बादल" : "cloud"} ${Math.round(s.cloud)}%</option>`).join("");
-  p.innerHTML = `
-    <div class="lp-head"><b>${ic("layers")}${t("layersTitle")}</b><button class="iconbtn" type="button" id="lpClose" aria-label="Close">${ic("x")}</button></div>
-    <div class="lp-sec"><h4>${t("lpImage")}</h4>
-      ${radio("rsmode", "latest", rs.mode, t("lpLatest"), t("lpLatestSub"))}
-      ${radio("rsmode", "scene", rs.mode, t("lpScene"), t("lpSceneSub"))}
-      <select id="lpScene" class="${rs.mode === "scene" ? "" : "hidden"}">${sceneOpts || `<option>${t("lpLoading")}</option>`}</select>
-      ${radio("rsmode", "nasa", rs.mode, t("lpNasa"), t("lpNasaSub"))}
-      ${radio("rsmode", "photo", rs.mode, t("lpPhoto"), t("lpPhotoSub"))}
-    </div>
-    <div class="lp-sec ${rs.mode === "photo" || rs.mode === "nasa" ? "dim" : ""}"><h4>${t("lpView")}</h4>
-      <div class="seg">${Object.entries(RS.VIEWS).map(([k, v]) => `<button type="button" data-view="${k}" class="${k === rs.view ? "on" : ""}">${L_(v)}</button>`).join("")}</div>
-    </div>
-    <div class="lp-sec"><h4>${t("lpNasaLayers")}</h4>
-      ${Object.keys(rs.nasa).map((k) => `<label class="opt"><input type="checkbox" data-nasa="${k}" ${rs.nasa[k] ? "checked" : ""}><span><b>${L_(RS.NASA[k])}</b></span></label>`).join("")}
-      <label class="opt"><input type="checkbox" id="lpNames" ${rs.names ? "checked" : ""}><span><b>${t("lpNames")}</b></span></label>
-    </div>
-    <div class="lp-sec"><h4>${t("lpDate")}</h4>
+  const p = $("#layerPanel"), hi = getLang() === "hi";
+  const opt = (type, attr, checked, label, sub = "") => `<label class="opt"><input type="${type}" ${attr} ${checked ? "checked" : ""}><span><b>${label}</b>${sub ? `<small>${sub}</small>` : ""}</span></label>`;
+  const views = [["none", t("lpPhoto"), t("lpPhotoSub")], ["true", L_(RS.VIEWS.true), ""], ["ndvi", L_(RS.VIEWS.ndvi), ""], ["false", L_(RS.VIEWS.false), ""], ["ndmi", L_(RS.VIEWS.ndmi), ""], ["nasa", t("lpNasa"), t("lpNasaSub")]];
+  p.innerHTML = `<div class="lp-head"><b>${ic("layers")}${t("layersTitle")}</b><button class="iconbtn" type="button" id="lpClose" aria-label="Close">${ic("x")}</button></div>
+    <div class="lp-sec"><h4>${t("lpImage")}</h4>${views.map(([k, l, s]) => opt("radio", `name="ov" value="${k}"`, rs.overlay === k, l, s)).join("")}</div>
+    <div class="lp-sec"><h4>${T2("Sentinel-2 date", "Sentinel-2 की तारीख")}</h4>
+      <select id="lpScene"><option value="">${t("lpLatest")}</option>${rs.scenes.map((s) => `<option value="${s.id}" ${rs.scene?.id === s.id ? "selected" : ""}>${fmtDate(s.date)}, ${hi ? "बादल" : "cloud"} ${Math.round(s.cloud)}%</option>`).join("")}</select>
+      <p class="hint">${t("lpSceneSub")}</p></div>
+    <div class="lp-sec"><h4>ISRO</h4>${opt("checkbox", 'id="lpIsro"', rs.isro, T2("Land use map (ISRO Bhuvan, NRSC)", "भूमि उपयोग नक्शा (ISRO भुवन, NRSC)"), T2("Crop land, built-up, water, forest. Survey of 2015-16.", "खेती, आबादी, पानी, जंगल। 2015-16 का सर्वे।"))}</div>
+    <div class="lp-sec"><h4>${t("lpNasaLayers")}</h4>${Object.keys(rs.nasa).map((k) => opt("checkbox", `data-nasa="${k}"`, rs.nasa[k], L_(RS.NASA[k]))).join("")}
       <div class="row"><button class="iconbtn" type="button" id="lpPrev" aria-label="Previous day">${ic("chevron-right", "flip")}</button><input type="date" id="lpDate" value="${rs.date}" max="${yesterday()}" min="2015-01-01"><button class="iconbtn" type="button" id="lpNext" aria-label="Next day">${ic("chevron-right")}</button></div>
-      <p class="hint">${t("lpDateHint")}</p>
-      <label class="f"><span>${t("lpOpacity")}</span><input type="range" id="lpOpacity" min="0.2" max="1" step="0.05" value="${rs.opacity}"></label>
-    </div>`;
+      <p class="hint">${t("lpDateHint")}</p></div>
+    <div class="lp-sec">${opt("checkbox", 'id="lpNames"', rs.names, t("lpNames"))}<label class="f"><span>${t("lpOpacity")}</span><input type="range" id="lpOpacity" min="0.2" max="1" step="0.05" value="${rs.opacity}"></label></div>`;
   $("#lpClose").onclick = () => p.classList.add("hidden");
-  $$('input[name="rsmode"]', p).forEach((r) => (r.onchange = async () => {
-    rs.mode = r.value;
-    if (rs.mode === "scene") {
-      if (!rs.scenes.length) await loadScenes();
-      rs.sceneId = rs.sceneId && rs.scenes.some((s) => s.id === rs.sceneId) ? rs.sceneId : rs.scenes[0]?.id;
-    }
-    renderLayerPanel(); applyImagery();
-  }));
-  $("#lpScene").onchange = (e) => { rs.sceneId = e.target.value; applyImagery(); };
-  $$("[data-view]", p).forEach((b) => (b.onclick = () => { rs.view = b.dataset.view; renderLayerPanel(); applyImagery(); }));
-  $$("[data-nasa]", p).forEach((c) => (c.onchange = () => { rs.nasa[c.dataset.nasa] = c.checked; applyNasa().then(() => { updateBadge(); renderLegend(); labels.bringToFront(); }); }));
-  $("#lpNames").onchange = (e) => { rs.names = e.target.checked; applyImagery(); };
-  const setDate = (d) => { rs.date = d > yesterday() ? yesterday() : d; $("#lpDate").value = rs.date; applyImagery(); };
+  $$('input[name="ov"]', p).forEach((r) => (r.onchange = () => { rs.overlay = r.value; applyLayers(); }));
+  $("#lpScene").onchange = (e) => { rs.scene = rs.scenes.find((s) => s.id === e.target.value) || null; if (rs.overlay === "none" || rs.overlay === "nasa") rs.overlay = "true"; applyLayers().then(renderLayerPanel); };
+  $("#lpIsro").onchange = (e) => { rs.isro = e.target.checked; applyLayers(); };
+  $$("[data-nasa]", p).forEach((c) => (c.onchange = () => { rs.nasa[c.dataset.nasa] = c.checked; applyNasa().then(() => { updateBadge(); renderLegend(); }); }));
+  $("#lpNames").onchange = (e) => { rs.names = e.target.checked; applyLayers(); };
+  const setDate = (d) => { rs.date = d > yesterday() ? yesterday() : d; $("#lpDate").value = rs.date; applyLayers(); };
   $("#lpDate").onchange = (e) => e.target.value && setDate(e.target.value);
-  const step = (n) => { const d = new Date(rs.date + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); setDate(d.toISOString().slice(0, 10)); };
-  $("#lpPrev").onclick = () => step(-1);
-  $("#lpNext").onclick = () => step(1);
-  $("#lpOpacity").oninput = (e) => { rs.opacity = +e.target.value; Object.values(nasaOverlays).forEach((l) => l.setOpacity?.(rs.opacity)); };
+  const stepDay = (n) => { const d = new Date(rs.date + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); setDate(d.toISOString().slice(0, 10)); };
+  $("#lpPrev").onclick = () => stepDay(-1); $("#lpNext").onclick = () => stepDay(1);
+  $("#lpOpacity").oninput = (e) => { rs.opacity = +e.target.value; if (s2Layer && rs.overlay !== "true" && rs.overlay !== "false") s2Layer.setOpacity(rs.opacity); Object.values(nasaOverlays).forEach((l) => l.setOpacity?.(rs.opacity)); };
+  if (!rs.scenes.length) { const c = map.getCenter(); RS.scenesAt(c.lat, c.lng, 120, 40).then((s) => { rs.scenes = s; if (!p.classList.contains("hidden") && s.length) renderLayerPanel(); }).catch(() => {}); }
 }
-$("#fabLayers").onclick = () => { const p = $("#layerPanel"); if (p.classList.contains("hidden")) { renderLayerPanel(); p.classList.remove("hidden"); } else p.classList.add("hidden"); };
-// show a field's newest clear scene as crop-health colours after a report
-function showFieldScene(item) {
-  rs.mode = "scene"; rs.view = "ndvi"; rs.sceneId = item.id;
-  const p = item.properties;
-  if (!rs.scenes.some((s) => s.id === item.id)) rs.scenes.unshift({ id: item.id, date: p.datetime, cloud: p["eo:cloud_cover"], platform: p.platform || item.id.slice(0, 3) });
-  applyImagery();
-  if (!$("#layerPanel").classList.contains("hidden")) renderLayerPanel();
-}
-applyImagery();
+applyLayers();
 
 /* ---------------- analysis ---------------- */
-function progress(done, total, label) {
-  const p = $("#progress");
-  p.classList.remove("hidden");
-  $(".bar", p).style.width = total ? `${(100 * done) / total}%` : "8%";
-  $(".ptext", p).textContent = label || `${t("working")} ${done}/${total}`;
+async function analyse() {
+  const feature = currentFeature();
+  if (!feature || state.busy) return;
+  const [lat, lon] = state.point;
+  if (outsideHaryana(lat, lon)) toast(t("outside"));
+  state.busy = true; state.feature = feature; state.areaAcres = areaAcres(feature);
+  saveField(); renderGuide(); progress(0, 0);
+  const tasks = { sat: src.fieldTimeSeries(feature, (d, n) => progress(d, n)), soil: src.soilProfile(lat, lon), climate: src.climateHistory(lat, lon), fc: src.forecast(lat, lon), prices: src.mandiPrices(), wet: src.soilWetness(lat, lon), lulc: src.landUse(lat, lon) };
+  const keys = Object.keys(tasks), settled = await Promise.allSettled(Object.values(tasks)), R = {};
+  settled.forEach((s, i) => (R[keys[i]] = s.status === "fulfilled" ? s.value : { error: s.reason?.message || String(s.reason) }));
+  const ok = (k) => (R[k] && !R[k].error ? R[k] : null);
+  const series = R.sat?.series || [], latest = series[series.length - 1];
+  let neighbour = null;
+  if (latest) neighbour = await src.neighbourhoodNdvi(latest.item, lat, lon, 1000).catch(() => null);
+  state.report = { lat, lon, series, scenesFound: R.sat?.scenesFound, newestPass: R.sat?.newestPass, satError: R.sat?.error, soil: ok("soil"), soilError: R.soil?.error, climate: ok("climate"), wet: ok("wet"), lulc: ok("lulc"), latestItem: latest?.item, neighbour, at: new Date() };
+  state.reportFor = fieldParam();
+  if (ok("fc")) { state.forecast = R.fc; state.forecastFor = { lat, lon, label: L_(state.district) }; }
+  if (ok("prices")) { state.prices = R.prices; watchLivePrices(); }
+  if (latest) { const p = latest.item.properties; rs.scene = { id: latest.item.id, date: p.datetime, cloud: p["eo:cloud_cover"], platform: p.platform || "" }; rs.overlay = "ndvi"; applyLayers(); }
+  state.busy = false;
+  renderGuide(false); renderReport();
+  $("#report").scrollIntoView({ behavior: "smooth" });
+  if (state.voiceOn) Voice.speak(sayText("all"), getLang(), $("#sayAll"));
 }
 
-$("#analyseBtn").onclick = async () => {
-  const feature = currentFeature();
-  if (!feature) { $("#msg").textContent = t("pickFirst"); return; }
-  if (state.drawing) $("#doneBtn").click();
-  $("#msg").textContent = "";
-  $("#analyseBtn").disabled = true;
-  state.feature = feature;
-  state.areaAcres = areaAcres(feature);
-  saveField();
-  const [lat, lon] = state.point;
-  progress(0, 0, t("working"));
+/* ---------------- plain-language verdicts ---------------- */
+const TEXTURE_WORD = { clay: { en: "Heavy clay soil", hi: "चिकनी मिट्टी" }, "silty clay": { en: "Heavy clay soil", hi: "चिकनी मिट्टी" }, "sandy clay": { en: "Clay soil with sand", hi: "रेत वाली चिकनी मिट्टी" }, "clay loam": { en: "Clay loam (good, holds water)", hi: "चिकनी दोमट (अच्छी, पानी रोकती है)" }, "silty clay loam": { en: "Clay loam (good, holds water)", hi: "चिकनी दोमट (अच्छी, पानी रोकती है)" }, "sandy clay loam": { en: "Loam soil", hi: "दोमट मिट्टी" }, loam: { en: "Loam (best for most crops)", hi: "दोमट (ज़्यादातर फसलों के लिए सबसे अच्छी)" }, "silty loam": { en: "Silty loam (fertile)", hi: "गाद वाली दोमट (उपजाऊ)" }, silt: { en: "Silty soil", hi: "गाद वाली मिट्टी" }, "sandy loam": { en: "Sandy loam (light, drains fast)", hi: "रेतीली दोमट (हल्की, पानी जल्दी सोखती है)" }, "loamy sand": { en: "Sandy soil", hi: "रेतीली मिट्टी" }, sand: { en: "Sandy soil", hi: "रेतीली मिट्टी" } };
+const LULC_WORD = { Agriculture: { en: "farm land", hi: "खेती की ज़मीन" }, Builtup: { en: "built-up area", hi: "आबादी / मकान" }, Forest: { en: "forest", hi: "जंगल" }, Wastelands: { en: "waste land", hi: "बंजर ज़मीन" }, Waterbodies: { en: "water", hi: "पानी" }, "Grass/Grazing": { en: "grazing land", hi: "चरागाह" } };
+function verdicts(r) {
+  const V = [], latest = r.series[r.series.length - 1], prev = r.series[r.series.length - 2];
+  if (latest) {
+    const n = latest.ndvi, rising = prev && n - prev.ndvi > 0.04, diff = r.neighbour != null ? n - r.neighbour : 0;
+    let level, big, text;
+    if (n < 0.2) { level = "info"; big = T2("Field is empty", "खेत खाली है"); text = T2("The satellite sees bare soil. The field is empty or was sown recently.", "सैटेलाइट को खाली मिट्टी दिख रही है। खेत खाली है या अभी-अभी बुवाई हुई है।"); }
+    else if (n < 0.4) { level = rising ? "good" : "warn"; big = rising ? T2("Crop is coming up", "फसल उग रही है") : T2("Crop is thin", "फसल कमज़ोर है"); text = rising ? T2("Green cover is growing. Young crop looks normal.", "हरियाली बढ़ रही है। छोटी फसल ठीक दिख रही है।") : T2("Green cover is low and not growing. Check water, fertilizer and pests.", "हरियाली कम है और बढ़ नहीं रही। पानी, खाद और कीड़े की जांच करें।"); }
+    else if (n < 0.6) { level = "good"; big = T2("Crop is fine", "फसल ठीक है"); text = T2("The crop is growing with medium strength.", "फसल ठीक-ठाक बढ़ रही है।"); }
+    else { level = "good"; big = T2("Crop is very good", "फसल बहुत अच्छी है"); text = T2("Dense, healthy green crop.", "घनी और हरी-भरी फसल है।"); }
+    if (n >= 0.2 && diff < -0.1) { level = "warn"; text += " " + T2("It is weaker than the fields around it.", "यह आसपास के खेतों से कमज़ोर है।"); }
+    else if (n >= 0.2 && diff > 0.1) text += " " + T2("It is better than the fields around it.", "यह आसपास के खेतों से बेहतर है।");
+    if (n > 0.5 && latest.ndre != null && latest.ndre < 0.28) text += " " + T2("Leaves look pale: the crop may need nitrogen (urea).", "पत्ते हल्के रंग के दिख रहे हैं: फसल को नाइट्रोजन (यूरिया) की ज़रूरत हो सकती है।");
+    const uni = uniformity(latest, getLang()); if (uni && n >= 0.3) text += " " + uni;
+    V.push({ key: "crop", icon: "leaf", level, title: T2("Crop health", "फसल की सेहत"), big, text, foot: `${T2("Satellite image of", "सैटेलाइट तस्वीर")} ${fmtDate(latest.item.properties.datetime)}` });
+    // water
+    const rain3 = state.forecast?.daily ? state.forecast.daily.precipitation_sum.slice(0, 3).reduce((a, b) => a + b, 0) : 0;
+    const wet = r.wet?.root;
+    let wl = "good", wb = T2("Water is fine", "पानी ठीक है"), wt = T2("The crop does not look thirsty.", "फसल में पानी की कमी नहीं दिख रही।");
+    if (n >= 0.3 && latest.ndmi != null && latest.ndmi < -0.05) { wl = "warn"; wb = T2("Crop needs water", "फसल को पानी चाहिए"); wt = T2("Moisture in the crop is low. Irrigate soon.", "फसल में नमी कम है। जल्दी सिंचाई करें।"); }
+    else if (n < 0.3) { wl = wet != null && wet < 0.3 ? "warn" : "info"; wb = wet != null ? (wet < 0.3 ? T2("Soil is dry", "मिट्टी सूखी है") : wet < 0.6 ? T2("Soil has some moisture", "मिट्टी में नमी है") : T2("Soil is wet", "मिट्टी गीली है")) : T2("No crop to check", "फसल नहीं है"); wt = wet != null ? T2(`NASA shows soil in your area is ${Math.round(wet * 100)}% wet at root depth.`, `NASA के अनुसार आपके इलाके की मिट्टी में जड़ों की गहराई पर ${Math.round(wet * 100)}% नमी है।`) : ""; }
+    if (rain3 >= 10) wt += " " + T2(`Rain of about ${Math.round(rain3)} mm is expected in 3 days: hold irrigation.`, `अगले 3 दिन में लगभग ${Math.round(rain3)} मि.मी. बारिश आ सकती है: अभी सिंचाई रोकें।`);
+    V.push({ key: "water", icon: "droplets", level: wl, title: T2("Water", "पानी"), big: wb, text: wt.trim(), foot: wet != null ? `NASA POWER, ${fmtDate(r.wet.date)}` : "" });
+  } else V.push({ key: "crop", icon: "leaf", level: "info", title: T2("Crop health", "फसल की सेहत"), big: T2("No clear image", "साफ़ तस्वीर नहीं मिली"), text: t("cloudy"), foot: "" });
+  // soil
+  const s = adviceSoil();
+  if (s) {
+    const ph = s.phh2o, oc = s.soc != null ? s.soc / 10 : null;
+    let level = "good", text = "";
+    if (ph != null) { if (ph > 8.5) { level = "warn"; text += T2("Soil is alkaline (usar). Gypsum can help.", "मिट्टी क्षारीय (ऊसर) है। जिप्सम डालने से फ़ायदा होगा।"); } else if (ph > 7.8) text += T2("Soil is slightly alkaline, normal for Haryana.", "मिट्टी हल्की क्षारीय है, जो हरियाणा में आम है।"); else text += T2("Soil reaction is normal.", "मिट्टी सामान्य है।"); }
+    if (oc != null && oc < 0.5) { level = "warn"; text += " " + T2("Organic matter is low: add farmyard manure or green manure.", "मिट्टी में जीवांश कम है: गोबर की खाद या हरी खाद डालें।"); }
+    V.push({ key: "soil", icon: "mountain", level, title: T2("Soil", "मिट्टी"), big: L_(TEXTURE_WORD[s.texture] || TEXTURE_WORD.loam), text: text.trim(), foot: s.fromCard ? T2("From your Soil Health Card", "आपके मृदा स्वास्थ्य कार्ड से") : T2("Estimate from soil map. Scan your Soil Health Card for exact values.", "मिट्टी के नक्शे से अनुमान। सही मान के लिए मृदा कार्ड स्कैन करें।") });
+  }
+  // weather
+  if (state.forecast) {
+    const al = weatherAlerts(state.forecast, getLang()), top = al.find((a) => a.level === "high") || al.find((a) => a.level === "medium") || al[0];
+    V.push({ key: "weather", icon: "cloud-sun", level: top ? (top.level === "high" ? "bad" : top.level === "medium" ? "warn" : "info") : "good", title: T2("Weather, next 10 days", "मौसम, अगले 10 दिन"), big: top ? T2("Be careful", "सावधान रहें") : T2("Weather is fine", "मौसम ठीक है"), text: top ? `${top.date}: ${top.text}` : T2("No frost, storm or heavy rain is expected.", "पाला, आंधी या भारी बारिश की उम्मीद नहीं है।"), foot: "Open-Meteo" });
+  }
+  // best crop
+  try {
+    const top = recommend({ season: state.season, district: state.district, soil: s, water: $("#water").value, risk: $("#risk").value, acres: 1, prices: state.prices })[0];
+    if (top) V.push({ key: "best", icon: "sprout", level: "good", title: `${T2("Best crop for", "सबसे अच्छी फसल")}: ${L_(SEASONS[state.season])}`, big: L_(top.crop), text: T2(`Expected profit about ${rupee(top.budget.perAcreMid)} per acre in a normal year.`, `सामान्य साल में एक एकड़ से लगभग ${rupee(top.budget.perAcreMid)} का मुनाफ़ा।`), sayText: T2(`Expected profit about ${Voice.sayMoney(top.budget.perAcreMid, "en")} per acre in a normal year.`, `सामान्य साल में एक एकड़ से लगभग ${Voice.sayMoney(top.budget.perAcreMid, "hi")} का मुनाफ़ा हो सकता है।`), foot: "", action: "advice" });
+  } catch {}
+  return V;
+}
 
-  const tasks = {
-    sat: src.fieldTimeSeries(feature, (d, n) => progress(d, n)),
-    soil: src.soilProfile(lat, lon),
-    climate: src.climateHistory(lat, lon),
-    fc: src.forecast(lat, lon),
-    prices: src.mandiPrices(),
-  };
-  const keys = Object.keys(tasks);
-  const settled = await Promise.allSettled(Object.values(tasks));
-  const R = {};
-  settled.forEach((s, i) => (R[keys[i]] = s.status === "fulfilled" ? s.value : { error: s.reason?.message || String(s.reason) }));
-
-  const series = R.sat?.series || [];
-  const latest = series[series.length - 1];
-  let neighbour = null;
-  if (latest) { try { neighbour = await src.neighbourhoodNdvi(latest.item, lat, lon, 1000); } catch {} }
-
-  state.report = { lat, lon, series, scenesFound: R.sat?.scenesFound, satError: R.sat?.error, soil: R.soil?.error ? null : R.soil, soilError: R.soil?.error, climate: R.climate?.error ? null : R.climate, latestItem: latest?.item, neighbour, at: new Date() };
-  if (!R.fc?.error) { state.forecast = R.fc; state.forecastFor = { lat, lon, label: L_(state.district) }; }
-  if (!R.prices?.error) { state.prices = R.prices; watchLivePrices(); }
-
-  if (latest) showFieldScene(latest.item);
-  $("#progress").classList.add("hidden");
-  $("#analyseBtn").disabled = false;
-  renderReport();
-  $("#report").scrollIntoView({ behavior: "smooth" });
-};
-
-let ndviChart = null;
+/* ---------------- result ---------------- */
+let ndviChart = null, climChart = null;
 function renderReport() {
   const r = state.report;
   if (!r) return;
-  const el = $("#report");
+  const el = $("#report"), lang = getLang(), hi = lang === "hi";
   el.classList.remove("hidden");
-  const lang = getLang();
-  const latest = r.series[r.series.length - 1];
-  const notes = interpretSeries(r.series, lang);
-  const uni = uniformity(latest, lang);
-  if (uni) notes.push(uni);
-  const s = r.soil;
-  const diff = latest && r.neighbour != null ? latest.ndvi - r.neighbour : null;
-  const ndviWord = (v) => (v < 0.2 ? (lang === "hi" ? "खाली या अभी बोया गया" : "Bare or just sown") : v < 0.4 ? (lang === "hi" ? "कम हरियाली" : "Low cover") : v < 0.6 ? (lang === "hi" ? "मध्यम हरियाली" : "Moderate cover") : lang === "hi" ? "घनी, स्वस्थ फसल" : "Dense, healthy crop");
-  const pos = (v) => `${Math.max(0, Math.min(100, ((v + 0.1) / 1.0) * 100))}%`;
-  // satellite snapshot with the field boundary drawn on top, in Web Mercator so the outline lines up exactly
-  let snap = "", outline = "", s2snap = "", outline2 = "";
+  const latest = r.series[r.series.length - 1], s = r.soil;
+  const V = (state.verdicts = verdicts(r));
+  // picture of the field: newest clear Sentinel-2 pass and the sharp photo, both with the boundary
+  let snap = "";
   if (state.feature) {
     const R = 6378137, mx = (lon) => (R * lon * Math.PI) / 180, my = (lat) => R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
-    const ring = state.feature.geometry.coordinates[0].map(([x, y]) => [mx(x), my(y)]);
-    const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
+    const ring = state.feature.geometry.coordinates[0].map(([x, y]) => [mx(x), my(y)]), xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-    const W = Math.max(Math.max(...xs) - Math.min(...xs), (Math.max(...ys) - Math.min(...ys)) * 1.2, 350) * 3.2, H = W / 1.2;
-    const x0 = cx - W / 2, x1 = cx + W / 2, y0 = cy - H / 2, y1 = cy + H / 2;
-    snap = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${x0},${y0},${x1},${y1}&bboxSR=3857&imageSR=3857&size=600,500&format=jpg&f=image`;
-    const pts = ring.map(([x, y]) => `${(((x - x0) / W) * 600).toFixed(1)},${(((y1 - y) / H) * 500).toFixed(1)}`).join(" ");
-    outline = `<svg viewBox="0 0 600 500" preserveAspectRatio="none" aria-hidden="true"><polygon points="${pts}" fill="rgba(240,190,30,0.12)" stroke="#f0be1e" stroke-width="3"/></svg>`;
-    // newest clear Sentinel-2 view of the same box (lon/lat corners of the Mercator box; outline maps linearly)
+    const W = Math.max(Math.max(...xs) - Math.min(...xs), (Math.max(...ys) - Math.min(...ys)) * 1.2, 350) * 3.2, H = W / 1.2, x0 = cx - W / 2, x1 = cx + W / 2, y0 = cy - H / 2, y1 = cy + H / 2;
+    const out = (pts) => `<svg viewBox="0 0 600 500" preserveAspectRatio="none" aria-hidden="true"><polygon points="${pts}" fill="rgba(245,163,0,0.1)" stroke="#f5a300" stroke-width="3"/></svg>`;
+    const photoUrl = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${x0},${y0},${x1},${y1}&bboxSR=3857&imageSR=3857&size=600,500&format=jpg&f=image`;
+    const pPhoto = ring.map(([x, y]) => `${(((x - x0) / W) * 600).toFixed(1)},${(((y1 - y) / H) * 500).toFixed(1)}`).join(" ");
+    let s2 = "";
     if (latest) {
-      const lon = (x) => (x / R) * 180 / Math.PI, lat = (y) => (2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * 180 / Math.PI;
-      const w = lon(x0), e = lon(x1), so = lat(y0), no = lat(y1);
-      s2snap = RS.sceneImage(latest.item.id, [w, so, e, no], 600, 500, "true");
-      const pts2 = state.feature.geometry.coordinates[0].map(([x, y]) => `${(((x - w) / (e - w)) * 600).toFixed(1)},${(((no - y) / (no - so)) * 500).toFixed(1)}`).join(" ");
-      outline2 = `<svg viewBox="0 0 600 500" preserveAspectRatio="none" aria-hidden="true"><polygon points="${pts2}" fill="rgba(240,190,30,0.12)" stroke="#f0be1e" stroke-width="3"/></svg>`;
+      const lon = (x) => ((x / R) * 180) / Math.PI, lat = (y) => ((2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * 180) / Math.PI, w = lon(x0), e = lon(x1), so = lat(y0), no = lat(y1);
+      const p2 = state.feature.geometry.coordinates[0].map(([x, y]) => `${(((x - w) / (e - w)) * 600).toFixed(1)},${(((no - y) / (no - so)) * 500).toFixed(1)}`).join(" ");
+      s2 = `<div class="snapimg hidden" data-k="s2"><img src="${RS.sceneImage(latest.item.id, [w, so, e, no], 600, 500, "true")}" alt="" loading="lazy">${out(p2)}</div>`;
     }
+    snap = `<div class="snapwrap" id="snapBox"><div class="snapimg" data-k="photo"><img src="${photoUrl}" alt="${esc(t("fieldFromSky"))}">${out(pPhoto)}</div>${s2}
+      ${s2 ? `<div class="snapseg"><button type="button" class="on" data-k="photo">${T2("Sharp photo", "साफ़ फोटो")}</button><button type="button" data-k="s2">${T2("Satellite on", "सैटेलाइट")} ${fmtDate(latest.item.properties.datetime)}</button></div>` : ""}</div>`;
   }
+  const notes = interpretSeries(r.series, lang);
+  const idx = latest ? [["NDVI", latest.ndvi, T2("Greenness of the crop", "फसल की हरियाली")], ["NDMI", latest.ndmi, T2("Moisture in crop and soil", "फसल और मिट्टी की नमी")], ["NDRE", latest.ndre, T2("Leaf colour (nitrogen hint)", "पत्तों का रंग (नाइट्रोजन का संकेत)")], ["BSI", latest.bsi, T2("Bare soil showing", "खुली मिट्टी")]].filter((x) => x[1] != null) : [];
   el.innerHTML = `
-    <div class="card">
-      <div class="section-head" style="margin-top:0">
-        <div><h2>${t("tabLand")}: ${esc(L_(state.district))}</h2><p class="hint">${r.lat.toFixed(4)}, ${r.lon.toFixed(4)}</p></div>
-        <button class="btn line noprint" id="printBtn">${ic("printer")}${t("printReport")}</button>
-      </div>
-      <div class="status">
-        <span><i class="${r.series.length ? "" : "bad"}"></i>Sentinel-2</span>
-        <span><i class="${s ? "" : "bad"}"></i>SoilGrids</span>
-        <span><i class="${r.climate ? "" : "bad"}"></i>NASA POWER</span>
-        <span><i class="${state.forecast ? "" : "bad"}"></i>Open-Meteo</span>
-        <span><i class="${state.prices?.latest?.records?.length ? "" : "bad"}"></i>${lang === "hi" ? "मंडी भाव" : "Mandi prices"}</span>
-      </div>
-      <div class="report-head">
-        ${snap ? `<div class="snapwrap" id="snapBox">
-          ${s2snap ? `<div class="snapimg" data-k="s2"><img src="${s2snap}" alt="${esc(t("fieldFromSky"))}">${outline2}</div>` : ""}
-          <div class="snapimg ${s2snap ? "hidden" : ""}" data-k="photo"><img src="${snap}" alt="${esc(t("fieldFromSky"))}">${outline}</div>
-          ${s2snap ? `<div class="snapseg"><button type="button" class="on" data-k="s2">Sentinel-2, ${fmtDate(latest.item.properties.datetime)}</button><button type="button" data-k="photo">${t("sharpOld")}</button></div>` : `<span class="tag">${t("sharpOld")}</span>`}
-        </div>` : ""}
-        <div class="kpis">
-          <div class="kpi gold"><div class="l">${ic("scale")}${t("area")}</div><div class="v">${state.areaAcres.toFixed(2)}</div><div class="s">${t("acres")}, ${(state.areaAcres * 0.4047).toFixed(2)} ha</div></div>
-          <div class="kpi"><div class="l">${ic("leaf")}${t("ndviNow")}</div><div class="v">${latest ? latest.ndvi.toFixed(2) : "-"}</div>
-            ${latest ? `<div class="ndvi-scale"><i style="left:${pos(latest.ndvi)}"></i></div><div class="s">${ndviWord(latest.ndvi)}, ${latest.date}</div>` : `<div class="s">${esc(r.satError || t("cloudy"))}</div>`}</div>
-          <div class="kpi water"><div class="l">${ic("droplets")}${t("ndmiNow")}</div><div class="v">${latest?.ndmi != null ? latest.ndmi.toFixed(2) : "-"}</div><div class="s">${lang === "hi" ? "-1 सूखा, +1 नम" : "-1 dry, +1 moist"}</div></div>
-          <div class="kpi"><div class="l">${ic("chart-column")}${t("vsNeighbours")}</div><div class="v ${diff == null ? "" : diff >= 0 ? "pos" : "neg"}">${diff == null ? "-" : (diff >= 0 ? "+" : "") + diff.toFixed(2)}</div><div class="s">${r.neighbour != null ? (lang === "hi" ? "आसपास का NDVI " : "Area NDVI ") + r.neighbour.toFixed(2) : ""}</div></div>
-          <div class="kpi water"><div class="l">${ic("cloud-rain")}${t("annualRain")}</div><div class="v">${r.climate ? Math.round(r.climate.annualRain) : "-"}</div><div class="s">${lang === "hi" ? "मि.मी. प्रति वर्ष" : "mm per year"}</div></div>
-        </div>
-      </div>
-      ${latest ? passPanel(latest, lang) : ""}
+    <div class="result-head">
+      <div><h2>${T2("Your field's result", "आपके खेत का नतीजा")}</h2>
+        <p class="hint">${esc(state.placeName || L_(state.district))}, ${state.areaAcres.toFixed(2)} ${t("acres")}${latest ? `. ${T2("Newest satellite image", "सबसे नई सैटेलाइट तस्वीर")}: ${fmtDate(latest.item.properties.datetime)}` : ""}</p></div>
+      <button class="say big" type="button" id="sayAll" data-say="all" aria-label="${t("listen")}">${ic("volume-2")}</button>
     </div>
-    <div class="card">
-      <h2>${t("findings")}</h2>
-      ${notes.length ? notes.map((n) => `<div class="finding">${ic("satellite")}<span>${esc(n)}</span></div>`).join("") : `<p class="hint">${t("cloudy")}</p>`}
-      <h3 style="margin-top:1.2rem">${t("history")}</h3>
-      <div class="chartbox"><canvas id="ndviChart"></canvas></div>
-      <p class="hint">${lang === "hi" ? `${r.series.length} साफ़ सैटेलाइट चित्र (Sentinel-2) पढ़े गए, कुल ${r.scenesFound ?? 0} उपलब्ध।` : `${r.series.length} clear Sentinel-2 images read out of ${r.scenesFound ?? 0} available.`}</p>
+    <div class="verdicts">${V.map((v) => `<article class="verdict ${v.level}">
+        <div class="vhead"><span class="vicon">${ic(v.icon)}</span><div class="vt"><div class="vlabel">${esc(v.title)}</div><div class="vbig">${esc(v.big)}</div></div><button class="say" type="button" data-say="v:${v.key}" aria-label="${t("listen")}">${ic("volume-2")}</button></div>
+        ${v.text ? `<p>${esc(v.text)}</p>` : ""}${v.foot ? `<p class="vfoot">${esc(v.foot)}</p>` : ""}
+        ${v.action ? `<button class="btn ghost" type="button" data-go="${v.action}">${T2("See all crops and budgets", "सारी फसलें और बजट देखें")}</button>` : ""}
+      </article>`).join("")}</div>
+    <div class="actionsrow noprint">
+      <button class="btn mustard" id="shareBtn" type="button">${ic("share-2")}${t("shareReport")}</button>
+      <button class="btn ghost" id="toCard" type="button">${ic("flask-conical")}${t("goCard")}</button>
+      <button class="btn ghost" id="toTech" type="button">${ic("book-open-text")}${t("goTech")}</button>
+      <button class="btn line" id="printBtn" type="button">${ic("printer")}${t("printReport")}</button>
     </div>
-    <div class="card">
-      <h2>${t("soil")}</h2>
+    <details class="card more" id="moreBox"><summary>${ic("satellite")}${T2("Full satellite details", "सैटेलाइट की पूरी जानकारी")}</summary>
+      <div class="status">${[["Sentinel-2", r.series.length], ["SoilGrids", s], ["NASA POWER", r.climate || r.wet], ["ISRO Bhuvan", r.lulc], ["Open-Meteo", state.forecast]].map(([n, okk]) => `<span><i class="${okk ? "" : "bad"}"></i>${n}</span>`).join("")}</div>
+      <div class="report-head">${snap}<div>
+        ${latest ? passPanel(latest, lang) : `<p class="hint">${esc(r.satError || t("cloudy"))}</p>`}
+        ${r.lulc ? `<p class="isro">${ic("landmark")}<span>${T2("ISRO land-use map (2015-16) marks this place as", "ISRO के भूमि-उपयोग नक्शे (2015-16) में यह जगह")}: <b>${esc(L_(LULC_WORD[r.lulc.group] || { en: r.lulc.group, hi: r.lulc.group }))}</b> (${esc(r.lulc.cls)})</span></p>` : ""}
+      </div></div>
+      ${idx.length ? `<h3>${T2("What the satellite measured", "सैटेलाइट ने क्या नापा")}</h3><div class="idx">${idx.map(([k, v, d]) => `<div><b>${v.toFixed(2)}</b><span>${k}</span><small>${d}</small></div>`).join("")}</div>` : ""}
+      ${notes.length ? notes.map((n) => `<div class="finding">${ic("satellite")}<span>${esc(n)}</span></div>`).join("") : ""}
+      ${r.series.length ? `<h3>${t("history")}</h3><div class="chartbox"><canvas id="ndviChart"></canvas></div><p class="hint">${hi ? `${r.series.length} साफ़ सैटेलाइट तस्वीरें पढ़ी गईं (कुल ${r.scenesFound ?? 0} में से)।` : `${r.series.length} clear satellite images read (of ${r.scenesFound ?? 0}).`}</p>` : ""}
+      <h3>${t("soil")}</h3>
       ${s ? `<div class="soilgrid">
         <div><div class="l">${t("texture")}</div><b>${esc(s.texture)}</b></div>
-        <div><div class="l">${t("ph")}</div><b>${s.phh2o?.toFixed(1) ?? "-"}</b><span class="s">${s.phh2o > 8.5 ? (lang === "hi" ? "क्षारीय, जिप्सम की ज़रूरत हो सकती है" : "Alkaline, may need gypsum") : s.phh2o < 6.5 ? (lang === "hi" ? "अम्लीय" : "Acidic") : lang === "hi" ? "सामान्य" : "Normal"}</span></div>
+        <div><div class="l">pH</div><b>${s.phh2o?.toFixed(1) ?? "-"}</b></div>
         <div><div class="l">${t("clay")}</div><b>${[s.clay, s.sand, s.silt].map((v) => (v == null ? "-" : Math.round(v) + "%")).join(" / ")}</b></div>
-        <div><div class="l">${t("soc")}</div><b>${s.soc != null ? (s.soc / 10).toFixed(2) + "%" : "-"}</b><span class="s">${s.soc != null ? (s.soc / 10 < 0.4 ? (lang === "hi" ? "कम, गोबर या हरी खाद डालें" : "Low, add manure or green manure") : s.soc / 10 < 0.75 ? (lang === "hi" ? "मध्यम" : "Medium") : lang === "hi" ? "अच्छा" : "Good") : ""}</span></div>
+        <div><div class="l">${t("soc")}</div><b>${s.soc != null ? (s.soc / 10).toFixed(2) + "%" : "-"}</b></div>
         <div><div class="l">${t("nitrogen")}</div><b>${s.nitrogen != null ? s.nitrogen.toFixed(2) + " g/kg" : "-"}</b></div>
-        <div><div class="l">${t("cec")}</div><b>${s.cec != null ? s.cec.toFixed(1) + " cmol/kg" : "-"}</b></div>
-      </div>` : `<p class="hint">${t("error")}: ${esc(r.soilError || "")}</p>`}
-      <p class="hint" style="margin-top:0.8rem">${t("soilTip")}</p>
-      ${r.climate ? `<h3 style="margin-top:1.2rem">${t("climate")}</h3><div class="chartbox"><canvas id="climChart"></canvas></div>` : ""}
-    </div>
-    <div class="actionsrow noprint">
-      <button class="btn mustard" id="shareBtn">${ic("share-2")}${t("shareReport")}</button>
-      <button class="btn" id="toAdvice">${ic("sprout")}${t("goAdvice")}</button>
-      <button class="btn mustard" id="toCard">${ic("flask-conical")}${t("goCard")}</button>
-      <button class="btn ghost" id="toTech">${ic("book-open-text")}${t("goTech")}</button>
-    </div>`;
-
-  $("#printBtn").onclick = () => window.print();
-  $$("#snapBox .snapseg button").forEach((b) => (b.onclick = () => {
-    $$("#snapBox .snapseg button").forEach((x) => x.classList.toggle("on", x === b));
-    $$("#snapBox .snapimg").forEach((x) => x.classList.toggle("hidden", x.dataset.k !== b.dataset.k));
-  }));
+        ${r.wet ? `<div><div class="l">${T2("Root-zone wetness (NASA)", "जड़ क्षेत्र की नमी (NASA)")}</div><b>${Math.round(r.wet.root * 100)}%</b></div>` : ""}
+      </div><p class="hint">${t("soilTip")}</p>` : `<p class="hint">${t("error")}: ${esc(r.soilError || "")}</p>`}
+      ${r.climate ? `<h3>${t("climate")}</h3><div class="chartbox"><canvas id="climChart"></canvas></div>` : ""}
+    </details>`;
   $("#shareBtn").onclick = () => shareReport();
-  $("#toAdvice").onclick = () => showTab("advice");
+  $("#printBtn").onclick = () => { $("#moreBox").open = true; drawCharts(); setTimeout(() => window.print(), 300); };
   $("#toCard").onclick = () => showTab("soilcard");
   $("#toTech").onclick = () => { state.techCat = "star"; showTab("techniques"); };
-
+  $$("#report [data-go]").forEach((b) => (b.onclick = () => showTab(b.dataset.go)));
+  $$("#snapBox .snapseg button").forEach((b) => (b.onclick = () => { $$("#snapBox .snapseg button").forEach((x) => x.classList.toggle("on", x === b)); $$("#snapBox .snapimg").forEach((x) => x.classList.toggle("hidden", x.dataset.k !== b.dataset.k)); }));
+  $("#moreBox").addEventListener("toggle", () => $("#moreBox").open && drawCharts());
+}
+function drawCharts() {
+  const r = state.report, lang = getLang();
+  if (!r) return;
+  chartTheme();
   if (ndviChart) ndviChart.destroy();
-  if (r.series.length) {
-    chartTheme();
-    ndviChart = new Chart($("#ndviChart"), {
-      type: "line",
-      data: {
-        labels: r.series.map((x) => x.date),
-        datasets: [
-          { label: lang === "hi" ? "हरियाली (NDVI)" : "Greenness (NDVI)", data: r.series.map((x) => x.ndvi), borderColor: C().green, backgroundColor: alpha(C().green, 0.16), fill: true, tension: 0.3, pointRadius: 2 },
-          { label: lang === "hi" ? "नमी (NDMI)" : "Moisture (NDMI)", data: r.series.map((x) => x.ndmi), borderColor: C().canal, borderDash: [5, 4], tension: 0.3, pointRadius: 0 },
-        ],
-      },
-      options: { scales: { y: { min: -0.3, max: 1 } }, plugins: { legend: { position: "bottom" } } },
-    });
-  }
-  if (r.climate) {
+  if (climChart) climChart.destroy();
+  if (r.series.length && $("#ndviChart")) ndviChart = new Chart($("#ndviChart"), { type: "line", data: { labels: r.series.map((x) => x.date), datasets: [
+    { label: T2("Greenness (NDVI)", "हरियाली (NDVI)"), data: r.series.map((x) => x.ndvi), borderColor: C().green, backgroundColor: alpha(C().green, 0.14), fill: true, tension: 0.3, pointRadius: 2 },
+    { label: T2("Moisture (NDMI)", "नमी (NDMI)"), data: r.series.map((x) => x.ndmi), borderColor: C().canal, borderDash: [5, 4], tension: 0.3, pointRadius: 0 }] },
+    options: { scales: { y: { min: -0.3, max: 1 } }, plugins: { legend: { position: "bottom" } } } });
+  if (r.climate && $("#climChart")) {
     const months = lang === "hi" ? ["जन", "फर", "मार्च", "अप्रै", "मई", "जून", "जुला", "अग", "सित", "अक्टू", "नव", "दिस"] : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    new Chart($("#climChart"), {
-      data: {
-        labels: months,
-        datasets: [
-          { type: "bar", label: (lang === "hi" ? "बारिश" : "Rain") + " (mm)", data: r.climate.monthly.map((m) => m.rain), backgroundColor: alpha(C().canal, 0.45), yAxisID: "y" },
-          { type: "line", label: lang === "hi" ? "सबसे गर्म दिन °C" : "Hottest day °C", data: r.climate.monthly.map((m) => m.tmax), borderColor: C().risk, yAxisID: "y1" },
-          { type: "line", label: lang === "hi" ? "सबसे ठंडी रात °C" : "Coldest night °C", data: r.climate.monthly.map((m) => m.tmin), borderColor: C().canal, yAxisID: "y1" },
-        ],
-      },
-      options: { scales: { y: { position: "left", title: { display: true, text: "mm" } }, y1: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "°C" } } }, plugins: { legend: { position: "bottom" } } },
-    });
+    climChart = new Chart($("#climChart"), { data: { labels: months, datasets: [
+      { type: "bar", label: T2("Rain (mm)", "बारिश (मि.मी.)"), data: r.climate.monthly.map((m) => m.rain), backgroundColor: alpha(C().canal, 0.45), yAxisID: "y" },
+      { type: "line", label: T2("Hottest day °C", "सबसे गर्म दिन °C"), data: r.climate.monthly.map((m) => m.tmax), borderColor: C().risk, yAxisID: "y1" },
+      { type: "line", label: T2("Coldest night °C", "सबसे ठंडी रात °C"), data: r.climate.monthly.map((m) => m.tmin), borderColor: C().canal, yAxisID: "y1" }] },
+      options: { scales: { y: { position: "left" }, y1: { position: "right", grid: { drawOnChartArea: false } } }, plugins: { legend: { position: "bottom" } } } });
   }
 }
+
+/* ---------------- voice guide: what each speaker button says ---------------- */
+function sayText(key, el) {
+  const lang = getLang();
+  if (key === "guide") return L_(SAY_GUIDE[step()]);
+  if (key.startsWith("v:")) { const v = state.verdicts?.find((x) => x.key === key.slice(2)); return v ? `${v.title}. ${v.big}. ${v.sayText || v.text}` : ""; }
+  if (key === "all") return (state.verdicts || []).map((v) => `${v.title}. ${v.big}. ${v.sayText || v.text}`).join(" ");
+  if (key === "crop") {
+    const c = CROPS.find((x) => x.id === el.dataset.id); if (!c) return "";
+    return `${L_(c)}. ${T2("Take care of these things.", "इन बातों का ध्यान रखें।")} ${L_(c.precautions).join(" ")}`;
+  }
+  if (key === "tech") {
+    const q = TECHNIQUES.find((x) => x.id === el.dataset.id); if (!q) return "";
+    return `${L_(q)}. ${L_(q.what)} ${T2("Benefits.", "फ़ायदे।")} ${L_(q.benefits).join(". ")}. ${T2("How to do it.", "कैसे करें।")} ${L_(q.steps).join(". ")}. ${q.subsidy ? L_(q.subsidy) : ""}`;
+  }
+  if (key === "tab") {
+    const tab = el.dataset.tab, soil = adviceSoil();
+    if (tab === "advice") {
+      let top = null; try { top = recommend({ season: state.season, district: state.district, soil, water: $("#water").value, risk: $("#risk").value, acres: 1, prices: state.prices })[0]; } catch {}
+      return T2("This page shows which crop suits your field. The crop at the top is the best match. For every crop you can see the cost, and the profit in a bad year, a normal year and a good year. First choose whether you have sure water or little water.", "इस पन्ने पर दिखता है कि आपके खेत में कौन सी फसल ठीक रहेगी। सबसे ऊपर वाली फसल सबसे अच्छी है। हर फसल के साथ लागत, और ख़राब साल, सामान्य साल और अच्छे साल का मुनाफ़ा लिखा है। पहले यह चुनें कि आपके पास पानी पक्का है या कम है।") +
+        (top ? " " + T2(`Right now the best crop is ${top.crop.en}, with a profit of about ${Voice.sayMoney(top.budget.perAcreMid, "en")} per acre.`, `अभी सबसे अच्छी फसल ${top.crop.hi} है। इसमें एक एकड़ से लगभग ${Voice.sayMoney(top.budget.perAcreMid, "hi")} का मुनाफ़ा हो सकता है।`) : "");
+    }
+    if (tab === "soilcard") {
+      const adv = Object.keys(state.card).length ? card.cardAdvice(state.card, lang).map((a) => a.text).join(" ") : "";
+      return T2("Here you can scan your Soil Health Card. Press the big camera box and take a clear photo of the table on your card. The app reads the numbers and tells you how many bags of urea, D A P and potash you need.", "यहाँ आप अपना मृदा स्वास्थ्य कार्ड स्कैन कर सकते हैं। बड़े कैमरे वाले डिब्बे को दबाएं और कार्ड की तालिका की साफ़ फोटो खींचें। ऐप अंक पढ़कर बताएगा कि यूरिया, डी ए पी और पोटाश की कितनी बोरी चाहिए।") + (adv ? " " + T2("About your card.", "आपके कार्ड के बारे में।") + " " + adv : "");
+    }
+    if (tab === "techniques") return T2("Here are new ways of farming that save water and money. Each card has a photo, the benefits and the government help. Press the red button to watch videos. Press the speaker on a card to hear it.", "यहाँ खेती के नए तरीके हैं जो पानी और पैसा बचाते हैं। हर कार्ड में फोटो, फ़ायदे और सरकारी मदद लिखी है। वीडियो देखने के लिए लाल बटन दबाएं। किसी कार्ड को सुनने के लिए उसका स्पीकर दबाएं।");
+    if (tab === "prices") {
+      const msp = CROPS.filter((c) => c.msp && c.season === state.season).slice(0, 4).map((c) => T2(`${c.en}, ${c.msp} rupees.`, `${c.hi}, ${c.msp} रुपये।`)).join(" ");
+      return T2("This page shows mandi prices and the government support price, per quintal.", "इस पन्ने पर मंडी के भाव और सरकारी समर्थन मूल्य दिखते हैं, प्रति क्विंटल।") + " " + T2("Support prices.", "सरकारी भाव।") + " " + msp;
+    }
+    if (tab === "weather") {
+      const fc = state.forecast, al = fc ? weatherAlerts(fc, lang) : [];
+      const d = fc?.daily;
+      return T2("This is the weather for the next 10 days.", "यह अगले 10 दिन का मौसम है।") + " " + (d ? T2(`Today the highest temperature is ${Math.round(d.temperature_2m_max[0])} degrees and the lowest is ${Math.round(d.temperature_2m_min[0])} degrees.`, `आज सबसे ज़्यादा तापमान ${Math.round(d.temperature_2m_max[0])} डिग्री और सबसे कम ${Math.round(d.temperature_2m_min[0])} डिग्री रहेगा।`) : "") + " " + (al.length ? al.slice(0, 3).map((a) => `${a.date}. ${a.text}`).join(" ") : T2("No frost, storm or heavy rain is expected.", "पाला, आंधी या भारी बारिश की उम्मीद नहीं है।"));
+    }
+  }
+  return "";
+}
+function setVoice(on) {
+  state.voiceOn = on;
+  try { localStorage.setItem("km-voice", on ? "1" : "0"); } catch {}
+  const b = $("#voiceBtn");
+  b.classList.toggle("on", on);
+  b.innerHTML = ic(on ? "volume-2" : "volume-x");
+  b.setAttribute("aria-label", on ? T2("Voice guide is on", "आवाज़ गाइड चालू है") : T2("Voice guide is off", "आवाज़ गाइड बंद है"));
+  if (!on) Voice.stop();
+}
+$("#voiceBtn").onclick = () => { setVoice(!state.voiceOn); toast(state.voiceOn ? T2("Voice guide on", "आवाज़ गाइड चालू") : T2("Voice guide off", "आवाज़ गाइड बंद")); if (state.voiceOn) { lastSpoken = ""; renderGuide(); } };
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-say]");
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  if (Voice.isPlaying(b)) { Voice.stop(); return; }
+  if (!Voice.speak(sayText(b.dataset.say, b), getLang(), b)) toast(t("noVoice"));
+  if (b.dataset.say === "guide" && !state.voiceOn) setVoice(true);
+}, true);
 
 /* ---------------- advice ---------------- */
 $("#seasonSel").onchange = (e) => { state.season = e.target.value; renderAdvice(); };
@@ -675,7 +688,7 @@ async function renderAdvice() {
     return `<article class="card crop" data-crop="${c.id}">
       <div class="photo" style="background-image:url('${photo?.src || ""}')" role="img" aria-label="${esc(photo?.title || L_(c))}">
         ${i === 0 ? `<span class="best">${ic("star")}${t("bestMatch")}</span>` : ""}
-        <div class="cap"><div><div class="rank">${lang === "hi" ? "क्रम" : "Rank"} ${i + 1}</div><h3>${esc(L_(c))}</h3></div>${meter(x.score)}</div>
+        <div class="cap"><div><div class="rank">${lang === "hi" ? "क्रम" : "Rank"} ${i + 1}</div><h3>${esc(L_(c))}</h3></div><div class="capr"><button class="say" type="button" data-say="crop" data-id="${c.id}" aria-label="${t("listen")}">${ic("volume-2")}</button>${meter(x.score)}</div></div>
       </div>
       <div class="body">
         <div class="scen">
@@ -860,7 +873,6 @@ $("#cardFile").onchange = async (e) => {
 };
 
 /* ---------------- techniques ---------------- */
-state.techCat = "";
 $("#techSearch").oninput = renderTechniques;
 function renderTechniques() {
   const soil = adviceSoil();
@@ -886,7 +898,7 @@ function renderTechniques() {
         ${rel.has(tq.id) ? `<span class="star">${ic("star")}${t("forYou")}</span>` : ""}
       </div>
       <div class="body">
-        <h3>${esc(L_(tq))}</h3>
+        <div class="th"><h3>${esc(L_(tq))}</h3><button class="say" type="button" data-say="tech" data-id="${tq.id}" aria-label="${t("listen")}">${ic("volume-2")}</button></div>
         <p>${esc(L_(tq.what))}</p>
         <ul class="notes">${L_(tq.benefits).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
         <details><summary>${ic("list-checks")}${t("howTo")}</summary><ol class="notes">${L_(tq.steps).map((x) => `<li>${esc(x)}</li>`).join("")}</ol></details>
@@ -1125,33 +1137,13 @@ async function shareReport() {
   window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, "_blank", "noopener");
 }
 
-/* ---------------- phone map buttons ---------------- */
-function locateMe() {
-  if (!navigator.geolocation) { toast(t("noGps")); return; }
-  toast(t("findingYou"));
-  navigator.geolocation.getCurrentPosition((p) => { setPoint(p.coords.latitude, p.coords.longitude, false); map.setView([p.coords.latitude, p.coords.longitude], 17); },
-    (e) => toast(t("gpsDenied")), { enableHighAccuracy: true, timeout: 15000 });
-}
-$("#fabLocate").onclick = locateMe;
-$("#fabDraw").onclick = () => {
-  if (state.drawing) { $("#doneBtn").click(); return; }
-  $("#drawBtn").click();
-};
-function syncDrawUi() {
-  $("#fabDraw").classList.toggle("on", state.drawing);
-  $("#fabDraw").innerHTML = state.drawing ? ic("circle-check") : ic("pencil-line");
-  const tip = $("#mapTip");
-  tip.classList.toggle("hidden", !state.drawing);
-  tip.textContent = t("drawTip");
-}
-
 /* ---------------- theme ---------------- */
 function setTheme(th) {
   document.documentElement.dataset.theme = th;
-  try { localStorage.setItem("km-theme", th); } catch {}
+  try { localStorage.setItem("km-theme2", th); } catch {}
   $("#themeBtn").innerHTML = th === "sun" ? ic("moon") : ic("sun");
   $("#themeBtn").setAttribute("aria-label", th === "sun" ? t("nightMode") : t("sunMode"));
-  document.querySelector('meta[name="theme-color"]').content = th === "sun" ? "#f2f5ee" : "#0b1622";
+  document.querySelector('meta[name="theme-color"]').content = th === "sun" ? "#ffffff" : "#0d1512";
   chartTheme();
   const active = $(".tab.active")?.dataset.tab;
   if (state.report) renderReport();
@@ -1159,13 +1151,6 @@ function setTheme(th) {
 }
 $("#themeBtn").onclick = () => setTheme(document.documentElement.dataset.theme === "sun" ? "night" : "sun");
 $("#aboutBtn").onclick = () => showTab("about");
-
-/* ---------------- live clock in the hero readout ---------------- */
-function tick() {
-  const el = $("#clockIST");
-  if (el) el.textContent = new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) + " IST";
-}
-tick(); setInterval(tick, 30000);
 
 /* ---------------- install as app, offline notice ---------------- */
 let installEvt = null;
@@ -1179,32 +1164,13 @@ window.addEventListener("beforeinstallprompt", (e) => {
 });
 window.addEventListener("offline", () => toast(t("offline")));
 
-/* ---------------- hero: newest clear Sentinel-2 image of fields near Karnal ---------------- */
-(async () => {
-  const fallback = () => { const h = $("#hero .sat"); if (!h.src) h.src = h.dataset.fallback; };
-  const timer = setTimeout(fallback, 12000);
-  try {
-    const sc = (await RS.scenesAt(29.756, 76.86, 60, 5))[0];
-    if (!sc) { fallback(); return; }
-    const img = new Image();
-    img.onerror = fallback;
-    img.onload = () => {
-      clearTimeout(timer);
-      const h = $("#hero .sat");
-      h.src = img.src;
-      const d = fmtDate(sc.date), sat = sc.platform.replace(/sentinel/i, "Sentinel");
-      $("#heroSat").textContent = `${sat}, ${d}`;
-      $("#hero .credit span").textContent = getLang() === "hi" ? `करनाल के पास के खेत, ${sat}, ${d}` : `Fields near Karnal, ${sat}, ${d}`;
-    };
-    img.src = RS.sceneImage(sc.id, [76.80, 29.725, 76.92, 29.785], 1600, 800, "true");
-  } catch { fallback(); }
-})();
-
 /* ---------------- boot ---------------- */
 $$(".tab").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 $$(".lang button").forEach((b) => (b.onclick = () => {
   setLang(b.dataset.lang);
+  Voice.stop();
   paintStatic();
+  renderGuide(false); renderViewChips(); updateBadge(); renderLegend();
   if (state.report) renderReport();
   const active = $(".tab.active")?.dataset.tab;
   if (active && active !== "land") showTab(active);
@@ -1212,6 +1178,9 @@ $$(".lang button").forEach((b) => (b.onclick = () => {
 paintStatic();
 setTheme(document.documentElement.dataset.theme || "night");
 if (!restoreField(location.hash.slice(1))) { try { restoreField(localStorage.getItem("km-field")); } catch {} }
+let savedVoice = false; try { savedVoice = localStorage.getItem("km-voice") === "1"; } catch {}
+setVoice(savedVoice);
+renderGuide(false);
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 const initial = location.hash.slice(1);
 if (["advice", "soilcard", "techniques", "prices", "weather", "about"].includes(initial)) showTab(initial);
