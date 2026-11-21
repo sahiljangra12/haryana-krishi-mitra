@@ -1,3 +1,4 @@
+import { DISTRICTS } from "./districts.js?v=20261120203954";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
@@ -303,61 +304,147 @@ export function parseCoordinates(text) {
   return isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
 }
 
-const FILLER = /\b(vill(age)?|vpo|v\.?\s?p\.?\s?o\.?|gaon|gram|po|p\.o\.|post|teh(sil)?|teh\.|block|distt?\.?|district|dist\.|pin(\s*code)?|haryana|india|near|opp(osite)?|h\.?\s?no\.?|house\s*no\.?)\b|गांव|गाँव|ग्राम|तहसील|ज़िला|जिला|डाकघर|हरियाणा|पिन/gi;
+// Words that carry no location (they confuse geocoders) and unit numbers no database has (ward, gali, house, plot, khasra).
+const FILLER = /\b(vill(age)?|vpo|v\.?\s?p\.?\s?o\.?|gaon|gram|po|p\.o\.|post|teh(sil)?|teh\.|block|distt?\.?|district|dist\.|pin(\s*code)?|haryana|india|near|nr\.?|opp(osite)?|behind|in front of|back side|h\.?\s?no\.?|house\s*no\.?|mohalla|mohala)\b|गांव|गाँव|ग्राम|तहसील|ज़िला|जिला|डाकघर|हरियाणा|पिन|मोहल्ला|के पास|नज़दीक|नजदीक/gi;
+const UNIT_NO = /\b(ward|gali|street|lane|plot|khasra|killa|murabba|flat|shop|house|h)\s*(no\.?|number|#)?\s*[-.:]?\s*\d+[a-z]?\b|वार्ड\s*(नं\.?|नंबर)?\s*\d+|गली\s*(नं\.?|नंबर)?\s*\d+/gi;
 export function cleanAddress(q) {
   const pin = (/\b1[23]\d{4}\b/.exec(q) || [])[0] || null; // Haryana PINs start with 12/13
-  const parts = q.replace(/\b1[23]\d{4}\b/g, " ").replace(FILLER, " ").split(/[,;\n]+/).map((p) => p.replace(/[^\p{L}\p{M}\p{N}\s\-.]/gu, " ").replace(/\s+/g, " ").replace(/^[\s.\-]+|[\s.\-]+$/g, "").trim()).filter((p) => p.length > 1 && !/^[\d\s.\-]+$/.test(p));
+  const parts = q.replace(/\b1[23]\d{4}\b/g, " ").replace(UNIT_NO, " ").replace(FILLER, " ").split(/[,;\n]+/)
+    .map((p) => p.replace(/[^\p{L}\p{M}\p{N}\s\-.]/gu, " ").replace(/\s+/g, " ").replace(/^[\s.\-]+|[\s.\-]+$/g, "").trim())
+    .filter((p) => p.length > 1 && !/^[\d\s.\-]+$/.test(p));
   return { parts, pin };
 }
 
 const KIND = { Locality: "place", POI: "place", PointAddress: "address", StreetAddress: "address", StreetName: "road", Postal: "pin", PostalExt: "pin" };
-
-async function esriFind(text) {
-  const u = `${ESRI_GEO}/findAddressCandidates?f=json&singleLine=${encodeURIComponent(text)}&countryCode=IND&searchExtent=${HR_BBOX}&maxLocations=6&outFields=Addr_type,City,Subregion,Region&forStorage=false`;
-  const j = await getJSON(u, {}, 12000);
-  return (j.candidates || []).map((c) => ({ label: c.address, lat: c.location.y, lon: c.location.x, score: c.score, kind: KIND[c.attributes.Addr_type] || "place", src: "Esri" }));
+const norm = (t) => (t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9ऀ-ॿ ]/g, " ").replace(/\s+/g, " ").trim();
+// Dice similarity on letter pairs: 1 = same name, handles small spelling differences (Nangal / Nagal)
+function similar(a, b) {
+  a = norm(a).replace(/ /g, ""); b = norm(b).replace(/ /g, "");
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const pairs = (s) => { const m = new Map(); for (let i = 0; i < s.length - 1; i++) { const k = s.slice(i, i + 2); m.set(k, (m.get(k) || 0) + 1); } return m; };
+  const A = pairs(a), B = pairs(b);
+  let hit = 0;
+  for (const [k, n] of A) hit += Math.min(n, B.get(k) || 0);
+  return (2 * hit) / (a.length - 1 + b.length - 1 || 1);
 }
-async function osmFind(text) {
-  const u = `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=in&viewbox=${HR_BBOX}&bounded=1&q=${encodeURIComponent(text)}`;
-  const j = await getJSON(u, {}, 12000);
-  return j.map((p) => ({ label: p.display_name.split(",").slice(0, 4).join(","), lat: +p.lat, lon: +p.lon, score: 80 + (p.importance || 0) * 10, kind: p.class === "place" ? "place" : p.class === "highway" ? "road" : "address", src: "OpenStreetMap" }));
+const kmBetween = (a, b) => { const dy = (a.lat - b.lat) * 111.3, dx = (a.lon - b.lon) * 111.3 * Math.cos((a.lat * Math.PI) / 180); return Math.sqrt(dx * dx + dy * dy); };
+
+// District names (and older names people still use) -> centroid, to keep results inside the right district
+const DISTRICT_ALIASES = { gurgaon: "Gurugram", mewat: "Nuh", dadri: "Charkhi Dadri", narnaul: "Mahendragarh", "yamuna nagar": "Yamunanagar", jagadhri: "Yamunanagar", thanesar: "Kurukshetra" };
+function findDistrict(part) {
+  const p = norm(part);
+  const hit = DISTRICTS.find((d) => norm(d.name) === p || norm(d.hi) === p || (typeof transliterate === "function" && norm(d.name) === norm(transliterate(part))));
+  if (hit) return hit;
+  const alias = DISTRICT_ALIASES[p];
+  return alias ? DISTRICTS.find((d) => d.name === alias) : null;
 }
 
-function merge(lists) {
+const extentAround = (c, km) => { const d = km / 111.3, e = km / (111.3 * Math.cos((c.lat * Math.PI) / 180)); return `${c.lon - e},${c.lat - d},${c.lon + e},${c.lat + d}`; };
+
+async function esriFind(text, extent = HR_BBOX, near = null) {
+  const loc = near ? `&location=${near.lon},${near.lat}` : "";
+  const u = `${ESRI_GEO}/findAddressCandidates?f=json&singleLine=${encodeURIComponent(text)}&countryCode=IND&searchExtent=${extent}${loc}&maxLocations=8&outFields=Addr_type,PlaceName,City,Subregion,Region&forStorage=false`;
+  const j = await getJSON(u, {}, 12000);
+  return (j.candidates || []).map((c) => {
+    const at = c.attributes || {};
+    // POIs come back as just "Bus Stand": add town and district so the farmer can tell them apart
+    const ctx = [at.City, at.Subregion].filter((x) => x && !norm(c.address).includes(norm(x))).join(", ");
+    return { label: ctx ? `${c.address}, ${ctx}` : c.address, name: at.PlaceName || c.address.split(",")[0], region: at.Region || "", lat: c.location.y, lon: c.location.x, score: c.score, kind: KIND[at.Addr_type] || "place", src: "Esri" };
+  });
+}
+async function osmFind(text, extent = HR_BBOX) {
+  const u = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&countrycodes=in&viewbox=${extent}&bounded=1&q=${encodeURIComponent(text)}`;
+  const j = await getJSON(u, {}, 12000);
+  return j.map((p) => {
+    const a = p.address || {};
+    return { label: p.display_name.split(",").slice(0, 4).join(","), name: p.name || p.display_name.split(",")[0], region: a.state || "", lat: +p.lat, lon: +p.lon, score: 78 + (p.importance || 0) * 10, kind: p.class === "place" || p.class === "boundary" ? "place" : p.class === "highway" ? "road" : "address", src: "OpenStreetMap" };
+  });
+}
+async function photonFind(text, near) {
+  const u = `https://photon.komoot.io/api/?q=${encodeURIComponent(text)}&limit=6&lat=${near.lat}&lon=${near.lon}&bbox=${extentAround(near, 12)}`;
+  const j = await getJSON(u, {}, 10000);
+  return (j.features || []).map((f) => {
+    const p = f.properties || {};
+    return { label: [p.name, p.street, p.city || p.district || p.county].filter(Boolean).join(", "), name: p.name || "", region: p.state || "", lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], score: 80, kind: p.osm_key === "place" ? "place" : p.osm_key === "highway" ? "road" : "address", src: "OpenStreetMap" };
+  });
+}
+
+// keep Haryana only, merge near-duplicates, rank by name match + distance to the anchor/district
+function rankAll(list, want, opts = {}) {
   const out = [];
-  for (const r of lists.flat()) {
-    if (!r || !inHaryana(r.lat, r.lon) || OTHER_STATE.test(r.label)) continue;
-    const dup = out.find((o) => Math.abs(o.lat - r.lat) < 0.004 && Math.abs(o.lon - r.lon) < 0.004);
-    if (dup) { dup.score = Math.max(dup.score, r.score) + 3; continue; }
-    out.push({ ...r });
+  for (const r of list) {
+    if (!r || !inHaryana(r.lat, r.lon)) continue;
+    if (OTHER_STATE.test(norm(r.label)) || (r.region && !/haryana|हरियाणा/i.test(norm(r.region)))) continue;
+    if (opts.near && kmBetween(r, opts.near) > opts.maxKm) continue;
+    const dup = out.find((o) => kmBetween(o, r) < 0.4);
+    const sim = Math.max(similar(want, r.name), similar(want, r.label.split(",")[0]));
+    const kindBonus = { exact: 30, address: 12, place: 10, road: 4, pin: 0 }[r.kind] || 0;
+    const distPenalty = opts.near ? Math.min(20, kmBetween(r, opts.near)) : 0;
+    const rank = sim * 60 + kindBonus + (r.score || 0) * 0.2 - distPenalty;
+    if (dup) { if (rank > dup.rank) Object.assign(dup, r, { rank }); continue; }
+    out.push({ ...r, rank, sim });
   }
-  const rank = { address: 3, place: 2, road: 1, pin: 0 };
-  return out.sort((a, b) => b.score + rank[b.kind] * 4 - (a.score + rank[a.kind] * 4));
+  return out.sort((a, b) => b.rank - a.rank);
 }
 
+async function search(text, extent, near) {
+  const jobs = [esriFind(text, extent, near), osmFind(text, extent)];
+  if (near) jobs.push(photonFind(text, near));
+  const got = await Promise.allSettled(jobs);
+  return got.flatMap((g) => (g.status === "fulfilled" ? g.value : []));
+}
+
+/**
+ * Read an address the way a person does: right-most parts are the bigger places (district, town),
+ * left-most part is the specific thing (landmark, colony, village).
+ *  1. find the district (if named) and the town/village ("anchor"), within that district
+ *  2. search the specific part only within a few km of the anchor
+ *  3. if the specific part is in no database, return the anchor and say so
+ */
 export async function geocode(q) {
   const coord = parseCoordinates(q);
-  if (coord) return [{ label: `${coord.lat.toFixed(5)}, ${coord.lon.toFixed(5)}`, ...coord, score: 100, kind: "exact", src: "coordinates" }];
-  const { parts, pin } = cleanAddress(q);
-  const full = parts.join(", ");
-  const tries = [full];
-  if (parts.length > 1) {
-    tries.push(`${parts[0]}, ${parts[parts.length - 1]}`); // village + district
-    tries.push(parts[0]);
+  if (coord) return Object.assign([{ label: `${coord.lat.toFixed(5)}, ${coord.lon.toFixed(5)}`, ...coord, score: 100, kind: "exact", src: "coordinates" }], { note: "" });
+  let { parts, pin } = cleanAddress(q);
+  if (hasDevanagari(parts.join(" "))) parts = parts.map((p) => (hasDevanagari(p) ? transliterate(p) : p));
+  // "Dhani Phogat Charkhi Dadri" has no commas: peel a district name off the end
+  if (parts.length === 1) {
+    const w = parts[0].split(" ");
+    for (let k = Math.min(3, w.length - 1); k >= 1; k--) {
+      if (findDistrict(w.slice(-k).join(" "))) { parts = [w.slice(0, -k).join(" "), w.slice(-k).join(" ")]; break; }
+    }
   }
-  if (pin) tries.push(`${parts[0] || ""} ${pin}`.trim());
-  if (hasDevanagari(full)) {
-    const lat = parts.map(transliterate);
-    tries.splice(1, 0, lat.join(", "), lat.length > 1 ? `${lat[0]}, ${lat[lat.length - 1]}` : lat[0]);
+  let district = null;
+  const places = [];
+  for (const p of parts) { const d = findDistrict(p); if (d && !district) district = d; else places.push(p); }
+  if (!places.length && district) places.push(district.name);
+  const dCenter = district ? { lat: district.lat, lon: district.lon } : null;
+  const dExtent = dCenter ? extentAround(dCenter, 45) : HR_BBOX;
+  const dOpts = dCenter ? { near: dCenter, maxKm: 60 } : {};
+
+  const specific = places[0];
+  const anchorName = places.length > 1 ? places[places.length - 1] : null;
+
+  // one place given (village/town/landmark, maybe with district)
+  if (!anchorName) {
+    const q1 = district ? `${specific}, ${district.name}` : specific;
+    let res = rankAll(await search(q1, dExtent), specific, dOpts);
+    if (!res.length && pin) res = rankAll(await search(`${specific} ${pin}`), specific, {});
+    if (!res.length && district) res = rankAll(await search(district.name), district.name, {});
+    return Object.assign(res.slice(0, 8), { note: res.length && res[0].sim < 0.5 ? "approx" : "" });
   }
-  let results = [];
-  for (const t of [...new Set(tries)].filter(Boolean)) {
-    const got = await Promise.allSettled([esriFind(t), osmFind(t)]);
-    results = merge([results, ...got.map((g) => (g.status === "fulfilled" ? g.value : []))]);
-    // stop as soon as we have a confident village/address-level hit
-    if (results.some((r) => r.kind !== "pin" && r.kind !== "road" && r.score >= 90)) break;
+
+  // anchor = town/village, then the specific landmark/colony near it
+  const anchors = rankAll(await search(district ? `${anchorName}, ${district.name}` : anchorName, dExtent), anchorName, dOpts).filter((r) => r.kind !== "road" && r.sim >= 0.45);
+  const anchor = anchors[0];
+  if (!anchor) {
+    const res = rankAll(await search(places.join(", ") + (district ? ", " + district.name : ""), dExtent), specific, dOpts);
+    return Object.assign(res.slice(0, 8), { note: res.length ? "approx" : "" });
   }
-  return results.slice(0, 8);
+  const nearRes = rankAll(await search(`${specific}, ${anchor.name || anchorName}`, extentAround(anchor, 10), anchor), specific, { near: anchor, maxKm: 10 }).filter((r) => r.sim >= 0.4);
+  if (nearRes.length) return Object.assign([...nearRes.slice(0, 6), { ...anchor, fallback: true }], { note: "" });
+  // the landmark/colony is in no database: show the town and let the farmer tap the field
+  return Object.assign([{ ...anchor, fallback: true }, ...anchors.slice(1, 3)], { note: "notExact", missing: specific, anchorLabel: anchor.label });
 }
 
 // Type-ahead suggestions (Esri). Only Haryana suggestions are kept.

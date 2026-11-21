@@ -1,4 +1,7 @@
 export const STR = {
+  notExact: { en: "\"{what}\" is not in any map database. Showing {where} instead: pick it, then tap your exact field on the satellite map.", hi: "\"{what}\" किसी नक्शा डेटाबेस में नहीं है। इसकी जगह {where} दिखा रहे हैं: इसे चुनें, फिर सैटेलाइट नक्शे पर अपने सटीक खेत पर टैप करें।" },
+  approx: { en: "No exact match. These are the closest names; check the district before choosing.", hi: "सटीक मेल नहीं मिला। ये सबसे मिलते-जुलते नाम हैं; चुनने से पहले जिला जांचें।" },
+  townArea: { en: "Town / village area", hi: "कस्बा / गाँव क्षेत्र" },
   searching: { en: "Searching…", hi: "खोज रहे हैं…" },
   notFound: { en: "No place found in Haryana. Try just the village and district (e.g. Rambha, Karnal), paste a Google Maps link, or zoom the map and tap your field.", hi: "हरियाणा में कोई जगह नहीं मिली। केवल गाँव और जिला लिखें (जैसे रम्भा, करनाल), Google Maps लिंक चिपकाएं, या नक्शा ज़ूम करके अपने खेत पर टैप करें।" },
   onlyArea: { en: "Only a nearby area was found. Pick it, then find your field on the satellite map.", hi: "केवल आसपास का क्षेत्र मिला। उसे चुनें, फिर सैटेलाइट नक्शे पर अपना खेत ढूंढें।" },

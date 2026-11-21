@@ -1,12 +1,12 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120012049";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120012049";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120012049";
-import * as src from "./sources.js?v=20261120012049";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120012049";
-import * as card from "./soilcard.js?v=20261120012049";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120012049";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120012049";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120012049";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120203954";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120203954";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120203954";
+import * as src from "./sources.js?v=20261120203954";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120203954";
+import * as card from "./soilcard.js?v=20261120203954";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120203954";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120203954";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120203954";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -189,7 +189,7 @@ function goTo(p) {
 function showResults(list, note = "") {
   const box = $("#searchResults");
   box.innerHTML = (note ? `<p class="hint" style="color:#eef3e8">${note}</p>` : "") + list.map((p, i) => `<button type="button" data-i="${i}">
-      <span class="kind k-${p.kind}">${L_(KIND_LABEL[p.kind] || KIND_LABEL.place)}</span><span class="lbl">${esc(p.label)}</span><span class="src">${esc(p.src)}</span></button>`).join("");
+      <span class="kind k-${p.fallback ? "pin" : p.kind}">${p.fallback ? t("townArea") : L_(KIND_LABEL[p.kind] || KIND_LABEL.place)}</span><span class="lbl">${esc(p.label)}</span><span class="src">${esc(p.src)}</span></button>`).join("");
   $$("button", box).forEach((b) => (b.onclick = () => goTo(list[+b.dataset.i])));
 }
 
@@ -204,7 +204,11 @@ $("#searchForm").onsubmit = async (e) => {
     const r = await src.geocode(q);
     if (!r.length) { box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("notFound")}</p>`; return; }
     if (r.length === 1 && r[0].kind === "exact") return goTo(r[0]);
-    showResults(r, r.every((x) => x.kind === "pin" || x.kind === "road") ? t("onlyArea") : "");
+    let note = "";
+    if (r.note === "notExact") note = t("notExact", { what: esc(r.missing), where: esc(r.anchorLabel) });
+    else if (r.note === "approx") note = t("approx");
+    else if (r.every((x) => x.kind === "pin" || x.kind === "road")) note = t("onlyArea");
+    showResults(r, note);
   } catch (err) { box.innerHTML = `<p class="hint" style="color:#eef3e8">${t("error")}: ${esc(err.message)}</p>`; }
 };
 
