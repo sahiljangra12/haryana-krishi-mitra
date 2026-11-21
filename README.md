@@ -4,6 +4,15 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 
 **Live site:** https://sahiljangra12.github.io/haryana-krishi-mitra/
 
+## How a farmer uses it (three steps)
+1. **Type the PIN code** (or village name, or say it with the mic, or press "My location").
+2. **Tap the field** on the sharp map and pick its size: 1, 2, 3, 5 or 10 acres, or draw the boundary.
+3. **Press "See result".** The first answer appears in about 6 seconds from the newest satellite passes; the season history, soil map and climate fill in over the next 20 seconds or so.
+
+The result is written in plain words on five cards: crop health, water, soil, weather and best crop. Each card has a traffic-light colour, and the measurements behind it sit under "Full satellite details".
+
+**Voice guide.** Every step, every result card, every tab and every crop and technique has a speaker button that reads it aloud in everyday Hindi or English (the browser's own text-to-speech, nothing recorded or uploaded). Turn on the speaker in the header and each step is read out automatically. The mic in the search box takes a spoken village name or PIN.
+
 ## What it does
 
 | Tab | What the farmer gets | Data |
@@ -15,21 +24,24 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 | **Techniques & videos** (तकनीकें) | 17 techniques: DSR, crop diversification, laser levelling, Happy/Super Seeder, zero-till, drip/sprinkler, AWD, raised beds, IPM, seed treatment, soil testing, green manure, gypsum, summer moong, leaf colour chart, e-NAM/FPO, crop insurance. Each has steps, benefits, verified Haryana incentives and YouTube video links. Techniques that suit your field are starred. | `docs/js/techniques.js` |
 | **Weather** (मौसम) | 10-day forecast with farm alerts for frost, heavy rain, heat during grain filling, wind (don't spray) and rust/blight-favourable humidity. | **Open-Meteo** |
 
-## Live remote sensing (map layers)
-The map does **not** rely on an old basemap photo. Layers, from the layer button on the map:
-- **Latest Sentinel-2 (10 m):** a mosaic of every clear Sentinel-2A/2B/2C pass over Haryana in the last 30 days, **newest first**, so each place shows its most recent clear view. It's registered on the fly with the Microsoft Planetary Computer mosaic API.
-- **Sentinel-2 on a chosen date:** every clear pass over the area in the last 4 months (typically every 2 to 5 days).
-- **Show as** true colour, crop health (NDVI), false colour (vegetation shows red) or water stress (NDMI). These are computed from the raw bands on the server.
-- **NASA daily image** (MODIS Terra true colour), which is also used automatically when zoomed out past Sentinel-2's range.
-- **NASA layers** with a date control (like NASA Worldview):
-  - **VIIRS fire detections**, which show stubble burning. These are decoded from GIBS vector tiles in the browser, and tapping a dot shows its time and fire power.
-  - **VIIRS 8-day crop greenness**
-  - **MODIS land surface temperature**
-  - **SMAP root-zone soil moisture**
-  - **GPM IMERG rainfall**
-- The **sharp Esri photo** is kept only as an optional reference, labelled as possibly years old.
+## Remote sensing
+**Base map.** A sharp aerial photo (Esri World Imagery) that zooms all the way in. Real tiles stop at zoom 18 in rural Haryana, so the map enlarges those instead of asking for deeper ones, and no blank boxes appear. The photo can be a few years old, so it's used only to find the field. Everything measured comes from the live layers below.
 
-The opening image and the field snapshot in each report also use the newest clear Sentinel-2 pass, with its date shown.
+**Field analysis (Sentinel-2, 10 m, a new pass every 2 to 5 days).** For the field boundary, one server call per pass returns four indices computed from the raw bands, after masking cloud:
+- **NDVI** crop greenness, plus how even it is across the field
+- **NDMI** moisture in the crop and soil
+- **NDRE** red-edge leaf colour, a hint of nitrogen shortage
+- **BSI** how much bare soil is showing
+
+The four newest passes are read first, then one every 15 days over 13 months for the season chart, and the field is compared with the fields within 1 km.
+
+**Other live sources in the result**
+- **NASA POWER** root-zone and surface soil wetness and 7-day rain (daily, about 3 days behind).
+- **ISRO Bhuvan (NRSC)** land-use map of Haryana, 1:50,000, survey of 2015-16: says whether the spot is crop land, built-up, forest or waste land. It can also be switched on as a map layer.
+- **ISRIC SoilGrids** (250 m model): texture class from sand, silt and clay, pH, organic carbon and nitrogen. A scanned Soil Health Card overrides it.
+- **Open-Meteo** 10-day forecast and **NASA POWER** 5-year monthly climate.
+
+**Map layers** (chips on the map): Photo, Crop health, Water, Latest image, and under More: false colour, any Sentinel-2 date from the last 4 months, the NASA daily image (MODIS), VIIRS fire detections (stubble burning), VIIRS 8-day greenness, MODIS land temperature, SMAP root-zone soil moisture, GPM IMERG rainfall and the ISRO land-use map.
 
 ## Finding a field
 Village-level addresses in India are patchy in every free database, so the search:
@@ -42,11 +54,11 @@ Village-level addresses in India are patchy in every free database, so the searc
 Suggestions appear as you type. A village or PIN is an area, not a field, so the app drops a pin there and asks the farmer to tap the exact field. It then names the nearest village (reverse geocoding) to confirm.
 
 ## Design (mobile first)
-- Built for phones first. There's a bottom navigation bar within thumb reach, and a full-width satellite map with floating GPS and draw-field buttons. The "Analyse" button stays on screen. Tap targets are 44 px or more, and inputs use 16 px text so phones don't zoom in.
-- The **night theme** (default) gives a satellite-console look: live data readout, satellite pass panel (which satellite, when it passed and cloud cover over the field) and a status row showing which data sources loaded. **Sun mode** is a high-contrast light theme for reading outdoors, one tap from the header.
+- The first screen is the map, edge to edge, with a white sheet at the bottom that shows one step at a time. A bottom bar switches between the six sections.
+- One typeface, *Anek Devanagari*, for Hindi and English. Leaf green for actions, marigold for the field outline and the speaker buttons, and green, amber, red and blue only to grade a result.
+- Light theme by default (readable in sunlight) with a night theme.
 - It's **installable** (web app manifest plus service worker): it opens from the home screen and works offline for screens already seen.
 - It **remembers the last field**. **Share on WhatsApp** sends a link (`#poly=…` or `#field=lat,lon,acres`) that reopens the same field.
-- Type: *Hind* for the interface and *Tiro Devanagari Hindi* for display headings, both built for Devanagari; Hindi is the default.
 - Photos come from Wikimedia Commons (credited on the About page, listed in `docs/js/images.js`). Icons are from [Lucide](https://lucide.dev) (ISC licence). The site uses no emojis.
 
 ## How it's built
@@ -56,6 +68,8 @@ docs/index.html       single page (GitHub Pages serves /docs), no build step
 docs/css/style.css
 docs/js/app.js             UI, map (Leaflet), charts (Chart.js)
 docs/js/sources.js         every external API call lives here
+docs/js/rs.js              map layers: Sentinel-2 tiles and mosaics, NASA GIBS, legends
+docs/js/voice.js           read-aloud and voice search (Web Speech API)
 docs/js/advisor.js         scoring, budgets, weather alerts, NDVI interpretation (transparent rules)
 docs/js/soilcard.js        Soil Health Card OCR, parsing, rating, fertilizer plan
 docs/js/risk.js            climate/market risk, incentives, scenarios
