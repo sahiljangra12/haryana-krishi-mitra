@@ -1,15 +1,15 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120220922";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120220922";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120220922";
-import * as Voice from "./voice.js?v=20261120220922";
-import * as Field from "./field.js?v=20261120220922";
-import * as RS from "./rs.js?v=20261120220922";
-import * as src from "./sources.js?v=20261120220922";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120220922";
-import * as card from "./soilcard.js?v=20261120220922";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120220922";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120220922";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120220922";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120221402";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120221402";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120221402";
+import * as Voice from "./voice.js?v=20261120221402";
+import * as Field from "./field.js?v=20261120221402";
+import * as RS from "./rs.js?v=20261120221402";
+import * as src from "./sources.js?v=20261120221402";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120221402";
+import * as card from "./soilcard.js?v=20261120221402";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120221402";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120221402";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120221402";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -523,6 +523,7 @@ async function analyse(opts = {}) {
   const [lat, lon] = state.point, run = ++analyseRun;
   if (outsideHaryana(lat, lon) && !auto) toast(t("outside"));
   state.busy = true; state.feature = feature; state.areaAcres = areaAcres(feature);
+  if (!auto) state.fpMode = null;
   saveField(); renderGuide(!auto); progress(0, 0);
   // Quick answer first: newest satellite passes, soil wetness, land use and forecast. History, soil map and climate fill in after.
   const soilP = src.soilProfile(lat, lon), climP = src.climateHistory(lat, lon), histP = src.fieldHistory(feature, (d, n) => { const h = $("#histNote"); if (h && run === analyseRun) h.textContent = `${T2("Reading older images", "पुरानी तस्वीरें पढ़ रहे हैं")} ${d}/${n}`; });
@@ -629,7 +630,9 @@ function verdicts(r) {
     else if (n >= 0.2 && diff > 0.1) text += " " + T2("It is better than the fields around it.", "यह आसपास के खेतों से बेहतर है।");
     if (n > 0.5 && latest.ndre != null && latest.ndre < 0.28) text += " " + T2("Leaves look pale: the crop may need nitrogen (urea).", "पत्ते हल्के रंग के दिख रहे हैं: फसल को नाइट्रोजन (यूरिया) की ज़रूरत हो सकती है।");
     const px = r.px && r.px.now.date === latest.date ? r.px : null;
-    if (px && px.patchy && n >= 0.25) text += " " + T2(`${partWord(px.weakShare)}${sideText(px.weakSide)} is weaker than the rest. See it in the picture above.`, `${partWord(px.weakShare)}${sideText(px.weakSide)} बाकी से कमज़ोर है। ऊपर तस्वीर में देखें।`).replace(/^./, (m) => m.toUpperCase());
+    if (px && px.patchy && n >= 0.25) text += " " + (px.weakShare < 0.5
+      ? T2(`${partWord(px.weakShare)}${sideText(px.weakSide)} is weaker than the rest.`, `${partWord(px.weakShare)}${sideText(px.weakSide)} बाकी से कमज़ोर है।`).replace(/^./, (m) => m.toUpperCase())
+      : T2(`The crop is not even across the field${px.weakSide ? `: it is weaker on the ${SIDE_WORD[px.weakSide].en} side` : ""}.`, `फसल पूरे खेत में एक जैसी नहीं है${px.weakSide ? `: ${SIDE_WORD[px.weakSide].hi} की तरफ़ ज़्यादा कमज़ोर है` : ""}।`)) + " " + T2("See it in the picture above.", "ऊपर तस्वीर में देखें।");
     else { const uni = uniformity(latest, getLang()); if (uni && n >= 0.3) text += " " + uni; }
     V.push({ key: "crop", icon: "leaf", level, title: T2("Crop health", "फसल की सेहत"), big, text, foot: `${satName(latest)}, ${fmtDate(latest.item.properties.datetime)}` });
     V.push(changeVerdict(r));
@@ -1451,7 +1454,8 @@ $$(".lang button").forEach((b) => (b.onclick = () => {
 }));
 paintStatic();
 setTheme(document.documentElement.dataset.theme || "night");
-if (!restoreField(location.hash.slice(1))) { try { restoreField(localStorage.getItem("km-field")); } catch {} }
+if (restoreField(location.hash.slice(1))) { try { history.replaceState(null, "", location.pathname + location.search); } catch {} } // a shared link is used once; after that the app remembers the field itself
+else { try { restoreField(localStorage.getItem("km-field")); } catch {} }
 let savedVoice = false; try { savedVoice = localStorage.getItem("km-voice") === "1"; } catch {}
 setVoice(savedVoice);
 renderGuide(false);

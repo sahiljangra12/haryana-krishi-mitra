@@ -1,4 +1,4 @@
-import { DISTRICTS } from "./districts.js?v=20261120220922";
+import { DISTRICTS } from "./districts.js?v=20261120221402";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
