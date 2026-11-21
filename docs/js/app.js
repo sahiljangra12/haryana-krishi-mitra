@@ -1,18 +1,18 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120231549";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120231549";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120231549";
-import * as Voice from "./voice.js?v=20261120231549";
-import { ARCGIS_KEY } from "./config.js?v=20261120231549";
-import * as Pheno from "./phenology.js?v=20261120231549";
-import { askIntent, cropInText } from "./ask.js?v=20261120231549";
-import * as Field from "./field.js?v=20261120231549";
-import * as RS from "./rs.js?v=20261120231549";
-import * as src from "./sources.js?v=20261120231549";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120231549";
-import * as card from "./soilcard.js?v=20261120231549";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120231549";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120231549";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120231549";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120231740";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120231740";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120231740";
+import * as Voice from "./voice.js?v=20261120231740";
+import { ARCGIS_KEY } from "./config.js?v=20261120231740";
+import * as Pheno from "./phenology.js?v=20261120231740";
+import { askIntent, cropInText } from "./ask.js?v=20261120231740";
+import * as Field from "./field.js?v=20261120231740";
+import * as RS from "./rs.js?v=20261120231740";
+import * as src from "./sources.js?v=20261120231740";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120231740";
+import * as card from "./soilcard.js?v=20261120231740";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120231740";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120231740";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120231740";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -805,7 +805,9 @@ async function answer(kind, text) {
     if (!crop) return T2("I do not have that crop yet.", "यह फसल अभी मेरी सूची में नहीं है।");
     const x = recommend(advCtx(crop.season)).find((y) => y.crop.id === id), w = whyList(x);
     const verdict = x.late ? T2("its sowing time has passed for this season", "इस मौसम में इसकी बुवाई का समय निकल चुका है") : x.score >= 70 ? T2("is a good fit for your field", "आपके खेत के लिए ठीक है") : x.score >= 50 ? T2("can be grown, with some limits", "उगाई जा सकती है, पर कुछ कमी है") : T2("is not a good fit for your field", "आपके खेत के लिए ठीक नहीं है");
-    return T2(`${L_(crop)} ${verdict} (${x.score} out of 100). `, `${L_(crop)} ${verdict} (100 में से ${x.score})। `) + w.map(([, s]) => s).join(" ") + (r ? "" : " " + T2("Choose your field for a more exact answer.", "और सही जवाब के लिए अपना खेत चुनें।"));
+    const lines = (x.late ? w.slice(1) : w).map(([, s]) => s).join(" ");
+    const head = x.late ? T2(`${L_(crop)}: the sowing time for this season ended ${x.late} days ago. Sown now, the yield will be lower. Otherwise: `, `${L_(crop)}: इस मौसम में बुवाई का समय ${x.late} दिन पहले निकल चुका है। अब बोने पर उपज कम होगी। बाकी बातें: `) : T2(`${L_(crop)} ${verdict} (${x.score} out of 100). `, `${L_(crop)} ${verdict} (100 में से ${x.score})। `);
+    return head + lines + (r ? "" : " " + T2("Choose your field for a more exact answer.", "और सही जवाब के लिए अपना खेत चुनें।"));
   }
   if (kind === "rain" || kind === "water" || kind === "harvest") {
     if (!state.forecast) { try { const p = state.point || [state.district.lat, state.district.lon]; state.forecast = await src.forecast(p[0], p[1]); } catch {} }

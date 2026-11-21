@@ -14,7 +14,8 @@ Written 21 November 2026, after the audit in `PROJECT_AUDIT.md`. Nothing here is
 | 5 Recommendation engine | **Built and verified**: plain reasons, last crop and irrigation method, sowing calendar (a crop whose sowing has closed is marked late), costly no-MSP crops ranked down unless the farmer picks high risk, duration, water, yield, general fertiliser dose, assumptions, label check before any spray. **Missing: seed rate per crop** (no verified CCS HAU figures found yet) and Hindi wording of the sowing dates. |
 | 8 Mandi | Text corrected. Waiting for the India phone test. |
 | 10 Farm history | **Built and verified**: saved fields, crop per season, harvest answers, a diary per field (sowing, irrigation, fertiliser, spray, harvest, sale) and a backup file. Kept on the phone only. |
-| 6 Assistant, 7 Crop doctor, 9 Schemes, 11 Six-item navigation | Not started |
+| 6 Assistant | **Built and verified**: eight questions (what to grow, is my field right for a crop, when to irrigate, rain, why weaker, fertiliser, when to harvest, which mandi) answered from the field's own data by tap, typing or voice, in Hindi and English. No outside AI service. Other questions get "not understood yet". Haryanvi not done. |
+| 7 Crop doctor, 9 Schemes, 11 Six-item navigation | Not started |
 
 ## Ground rules for every phase
 - Work inside the existing app. No rewrite.

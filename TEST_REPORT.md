@@ -95,6 +95,19 @@ There are no automated tests, lint rules or type checks in the repository. `node
 | Field diary | Pass | Added and removed an entry; it survives a reload; a confirmed harvest is written to the diary. |
 | Backup file | Written, download not observed | The button creates a JSON file in the browser. The test browser cannot show the download. Loading a backup adds only fields that are not already on the phone. |
 
+## Phase 6 (assistant): run 21 November 2026 (IST), live site
+
+| Check | Result | Detail |
+|---|---|---|
+| Eight question buttons, Hindi | Pass | Each gave an answer built from the test field's data. Examples: "what to grow" named wheat, then onion, then barley, and listed mustard, gram and potato as past sowing time; "rain" read the 10-day forecast; "harvest" used the crop's duration and asked for the sowing date in the diary. |
+| Typed questions, Hindi and English | Pass | "सरसों के लिए मेरा खेत सही है क्या" and "Is my field right for bajra?" picked the right crop and answered. |
+| Unknown question | Pass | "ट्रैक्टर कौन सा लूं?" got "not understood yet, tap a question above". |
+| Spoken answer | Pass (state only) | The browser reported speaking and the speaker button showed playing. Audio not heard by the tester. |
+| Question by microphone | Not testable | Microphone is blocked in the test browser. |
+| Mandi question | Pass with a known limit | Says live prices have not loaded and gives the MSP, because prices do not load outside India. |
+| Place names are not taken as questions | Pass | Unit tests: "Mandi Dabwali", "बैरसाल करनाल", "132001" are not questions. |
+| Young crop wording | Pass | In sowing weeks a thin green cover now reads "crop is small or just coming up", not "crop is weak". |
+
 ## Automated tests
-`npm test` runs 23 unit tests (change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `6e76ad0`.
+`npm test` runs 28 unit tests (change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `6e76ad0`.
 

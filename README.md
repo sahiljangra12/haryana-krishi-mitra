@@ -23,6 +23,10 @@ The next time the app is opened, the saved field is checked again by itself. Whi
 
 Nothing is presented as live. The sharp photo shows the month it was taken, and satellite results show the date of the pass and how many days ago it was.
 
+**Ask a question.** Eight everyday questions (what to grow, is my field right for wheat, when to irrigate, will it rain, why is the crop weaker, which fertiliser, when to harvest, which mandi) are answered from the field's own satellite, weather and price data, by tap, typing or voice. No outside AI service is used.
+
+**Field diary.** Each saved field has a diary (sowing, irrigation, fertiliser, spray, harvest, sale) and a backup file.
+
 **Voice.** Every step, result card, page, crop and technique has a speaker button (everyday Hindi or English, the device's own text-to-speech). A bar shows the sentence being read, with a stop button. If the device stays silent (no Hindi voice, speech blocked, or an in-app browser without speech), the same bar shows the full text and says what to change. The mic in the search box takes a village name or PIN and a few commands ("मौसम", "नतीजा देखो", "2 एकड़"). Where the browser cannot listen, the mic explains why and opens the keyboard so its own dictation key can be used.
 
 **Navigation.** Every page has a back arrow. The phone's back button and the browser's back button move between pages and close the layer panel.
@@ -100,6 +104,7 @@ docs/js/sources.js         every external API call lives here
 docs/js/rs.js              map layers: Sentinel-2 tiles and mosaics, NASA GIBS, legends
 docs/js/field.js           cell-by-cell field health and change (harvest) detection
 docs/js/phenology.js       land cover and likely crop from the yearly greenness curve
+docs/js/ask.js             which of the eight questions a sentence is asking
 docs/js/config.js          public settings: the ArcGIS key and its expiry date
 tests/                     unit tests (npm test)
 docs/js/voice.js           read-aloud and voice search (Web Speech API), with on-screen fallback
