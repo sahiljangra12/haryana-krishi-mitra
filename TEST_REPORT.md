@@ -3,7 +3,7 @@
 Run: 21 November 2026 (IST), on the live site, commit `09fb783`.
 Environment: Chromium browser pane, 375 x 812 and 1024 x 768, US network. It cannot play audio to the tester, cannot grant microphone or GPS, and is outside India.
 
-There are no automated tests, lint rules or type checks in the repository. `node --check` passes for all 15 JavaScript files.
+There are no automated tests, lint rules or type checks in the repository. `node --check` (syntax only) passes for all 14 JavaScript files.
 
 ## Results
 
@@ -37,7 +37,7 @@ There are no automated tests, lint rules or type checks in the repository. `node
 | 26 | Microphone | Not testable | Blocked by the test browser; the "blocked" message appeared |
 | 27 | Back arrow on each page | Pass | 6 pages |
 | 28 | Browser back button | Pass | Returns to previous page; closes layer panel |
-| 29 | Night theme, English | Pass | |
+| 29 | English; night theme | Pass | English checked in this run. Night theme checked earlier the same day, before the latest changes. |
 | 30 | Sideways scroll at 375 px | Pass | None on any page |
 | 31 | Service worker and caches | Pass | Shell cache and 70 tiles in tile cache |
 | 32 | Console errors during the run | Pass | None from the app; two 503 answers from an outside service |
