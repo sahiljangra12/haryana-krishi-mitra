@@ -1,4 +1,11 @@
 export const STR = {
+  navLand: { en: "Field", hi: "खेत" },
+  navAdvice: { en: "Crops", hi: "फसल" },
+  navCard: { en: "Soil card", hi: "मिट्टी" },
+  navTech: { en: "Learn", hi: "सीखें" },
+  navPrices: { en: "Mandi", hi: "मंडी" },
+  navWeather: { en: "Weather", hi: "मौसम" },
+  navAbout: { en: "About", hi: "जानकारी" },
   liveData: { en: "Live satellite data", hi: "लाइव सैटेलाइट डेटा" },
   shareReport: { en: "Share on WhatsApp", hi: "WhatsApp पर भेजें" },
   noGps: { en: "This phone has no location service.", hi: "इस फ़ोन में लोकेशन सेवा नहीं है।" },
