@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { read, seasonOf, cycle } from "../docs/js/phenology.js";
+import { read, seasonOf, cycle, wellObserved } from "../docs/js/phenology.js";
 
 // build a year of observations from [date, ndvi, ndmi] triples
 const rows = (list) => list.map(([date, ndvi, ndmi = 0]) => ({ date, ndvi, ndmi }));
@@ -60,4 +60,21 @@ test("too few observations gives no guess", () => {
 test("a cycle that never greened is not 'grown'", () => {
   const c = cycle(rows([["2026-06-10", 0.1], ["2026-08-01", 0.15], ["2026-10-01", 0.12]]), { start: "2026-06-01", end: "2026-11-25" });
   assert.equal(c.grown, false);
+});
+
+test("a season hidden by monsoon cloud is not named; the last well-seen crop is", () => {
+  // real series from a field near Nilokheri, Karnal: clear wheat curve, then a 58-day hole in the monsoon
+  const r = read(rows([
+    ["2025-10-25", 0.24], ["2025-11-09", 0.25], ["2025-11-24", 0.25], ["2025-12-16", 0.49, 0.15], ["2026-01-05", 0.57, 0.26], ["2026-02-07", 0.78, 0.38], ["2026-02-27", 0.87, 0.46],
+    ["2026-03-16", 0.79, 0.36], ["2026-04-05", 0.4, 0.06], ["2026-04-23", 0.32], ["2026-05-15", 0.24], ["2026-06-02", 0.26], ["2026-06-17", 0.23, 0.12], ["2026-07-14", 0.52, 0.28],
+    ["2026-09-10", 0.45, 0.12], ["2026-09-30", 0.35], ["2026-10-20", 0.38, 0.13], ["2026-11-04", 0.4], ["2026-11-09", 0.29], ["2026-11-11", 0.39], ["2026-11-14", 0.34],
+  ]), "2026-11-21", "NE", "Agriculture");
+  assert.equal(r.guess.id, "wheat");
+  assert.equal(r.guess.season.id, "rabi");
+  assert.equal(r.sparse.id, "kharif");
+});
+
+test("wellObserved needs five looks with no gap over 40 days", () => {
+  assert.equal(wellObserved({ grown: true, obs: rows([["2026-07-01", 0.2], ["2026-07-20", 0.4], ["2026-08-10", 0.6], ["2026-09-01", 0.7], ["2026-09-25", 0.5]]) }), true);
+  assert.equal(wellObserved({ grown: true, obs: rows([["2026-07-01", 0.2], ["2026-07-14", 0.5], ["2026-09-10", 0.45], ["2026-09-30", 0.35], ["2026-10-20", 0.3]]) }), false);
 });

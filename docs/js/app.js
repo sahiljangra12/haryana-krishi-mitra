@@ -1,17 +1,17 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120225123";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120225123";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120225123";
-import * as Voice from "./voice.js?v=20261120225123";
-import { ARCGIS_KEY } from "./config.js?v=20261120225123";
-import * as Pheno from "./phenology.js?v=20261120225123";
-import * as Field from "./field.js?v=20261120225123";
-import * as RS from "./rs.js?v=20261120225123";
-import * as src from "./sources.js?v=20261120225123";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120225123";
-import * as card from "./soilcard.js?v=20261120225123";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120225123";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120225123";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120225123";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120225456";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120225456";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120225456";
+import * as Voice from "./voice.js?v=20261120225456";
+import { ARCGIS_KEY } from "./config.js?v=20261120225456";
+import * as Pheno from "./phenology.js?v=20261120225456";
+import * as Field from "./field.js?v=20261120225456";
+import * as RS from "./rs.js?v=20261120225456";
+import * as src from "./sources.js?v=20261120225456";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120225456";
+import * as card from "./soilcard.js?v=20261120225456";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120225456";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120225456";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120225456";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -662,7 +662,7 @@ function coverVerdict(r) {
   const rows = r.series.filter((x) => isS2(x) && x.cloud <= 0.05);
   const today = new Date().toISOString().slice(0, 10), ph = Pheno.read(rows, today, state.district?.zone || null, r.lulc?.group || null);
   r.pheno = ph;
-  const f = currentField(), season = ph.guessSeason || ph.season || Pheno.seasonOf(today), sKey = `${season.id}-${season.year}`, told = f && f.crop ? f.crop[sKey] : null;
+  const f = currentField(), season = ph.season || Pheno.seasonOf(today), sKey = `${season.id}-${season.year}`, told = f && f.crop ? f.crop[sKey] : null;
   let big = L_(COVER_WORD[ph.cover] || COVER_WORD.unknown), text = "";
   if (ph.cover === "unknown" || !ph.enough) text = T2("There are not enough clear images yet to read a full season.", "पूरा मौसम पढ़ने के लिए अभी काफ़ी साफ़ तस्वीरें नहीं हैं।");
   if (told) { big = told === "none" ? T2("No crop (you told us)", "कोई फसल नहीं (आपने बताया)") : `${cropName(told)} (${T2("you told us", "आपने बताया")})`; text = T2(`Saved for ${seasonLabel(season)}.`, `${seasonLabel(season)} के लिए याद रखा गया।`); }
@@ -670,7 +670,8 @@ function coverVerdict(r) {
     const g = ph.guess, other = ph.crops[1] && ph.crops[1].id !== g.id ? ph.crops[1].id : null, conf = g.confidence === "medium" ? T2("medium", "मध्यम") : T2("low", "कम");
     big = T2(`Probably ${cropName(g.id)}`, `शायद ${cropName(g.id)}`);
     text = T2(`In ${seasonLabel(g.season)} this field probably had ${cropName(g.id)}${other ? ` (it could also be ${cropName(other)})` : ""}. Confidence: ${conf}. This is a guess from how the greenness rose and fell over the season, not from one image.`, `${seasonLabel(g.season)} में इस खेत में शायद ${cropName(g.id)} थी${other ? ` (${cropName(other)} भी हो सकती है)` : ""}। भरोसा: ${conf}। यह अंदाज़ा पूरे मौसम में हरियाली के चढ़ने-उतरने से लगाया है, एक तस्वीर से नहीं।`);
-  } else if (ph.cover === "crop") text = T2("The crop could not be told from the seasonal curve.", "हरियाली के उतार-चढ़ाव से फसल का नाम पक्का नहीं हो पाया।") + (ph.lastFallow ? " " + T2("The last season looks fallow.", "पिछला मौसम खाली गया लगता है।") : "");
+    if (ph.sparse) text += " " + T2(`For ${seasonLabel(ph.sparse)} there were too few clear images (cloud), so that crop is not guessed.`, `${seasonLabel(ph.sparse)} में बादलों के कारण साफ़ तस्वीरें कम मिलीं, इसलिए उस फसल का अंदाज़ा नहीं लगाया।`);
+  } else if (ph.cover === "crop") text = (ph.sparse ? T2(`For ${seasonLabel(ph.sparse)} there were too few clear images (cloud) to guess the crop.`, `${seasonLabel(ph.sparse)} में बादलों के कारण साफ़ तस्वीरें कम मिलीं, इसलिए फसल का अंदाज़ा नहीं लगाया।`) : T2("The crop could not be told from the seasonal curve.", "हरियाली के उतार-चढ़ाव से फसल का नाम पक्का नहीं हो पाया।")) + (ph.lastFallow ? " " + T2("The last season looks fallow.", "पिछला मौसम खाली गया लगता है।") : "");
   if (ph.cover === "crop" && ph.stage) text += " " + L_(STAGE_WORD[ph.stage]);
   const story = (ph.events || []).slice(-5).map((e) => `<li><span>${fmtDate(e.date)}</span>${L_(EVENT_WORD[e.type])}</li>`).join("");
   const opts = [["", T2("Choose the right crop", "सही फसल चुनें")], ...CROPS.filter((k) => k.season === season.id || k.id === "sugarcane").map((k) => [k.id, L_(k)]), ["none", T2("No crop / fallow", "कोई फसल नहीं / खाली")]];

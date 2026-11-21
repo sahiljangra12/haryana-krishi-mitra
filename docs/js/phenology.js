@@ -34,6 +34,15 @@ export function cycle(rows, season) {
   return { obs, peak, rise, fall, grown: true, complete: !!fall, lastGreen: fall ? after[after.indexOf(fall) - 1] || peak : null };
 }
 
+// A cycle can be named only if the satellite saw it often enough: monsoon cloud can hide a field for two months,
+// and a curve with a hole that size says little about its real peak.
+export function wellObserved(c) {
+  if (!c || !c.grown || c.obs.length < 5) return false;
+  let gap = 0;
+  for (let i = 1; i < c.obs.length; i++) gap = Math.max(gap, (Date.parse(c.obs[i].date) - Date.parse(c.obs[i - 1].date)) / DAY);
+  return gap <= 40;
+}
+
 // Each crop: the calendar windows (month-day) its curve should hit, and extra tests. Windows follow the usual Haryana calendar.
 const SIGNS = {
   wheat: { season: "rabi", rise: [1105, 1231], peak: [125, 320], fall: [401, 505], peakMin: 0.55 },
@@ -80,22 +89,26 @@ export function read(rows, today, zone = null, lulc = null) {
   else out.cover = "crop";
   if (out.cover !== "crop") return out;
 
-  const cur = out.season, last = prevSeason(cur);
-  const cCur = cycle(obs, cur), cLast = cycle(obs, last);
+  const cur = out.season, last = prevSeason(cur), older = prevSeason(last);
+  const cCur = cycle(obs, cur), cLast = cycle(obs, last), cOlder = cycle(obs, older);
   const push = (c, season) => {
     if (!c || !c.grown) return;
     if (c.rise) out.events.push({ date: c.rise.date, type: "rise", season: season.id });
     out.events.push({ date: c.peak.date, type: "peak", season: season.id, ndvi: c.peak.ndvi });
     if (c.fall) out.events.push({ date: c.fall.date, type: "fall", season: season.id });
   };
-  push(cLast, last); push(cCur, cur);
+  push(cOlder, older); push(cLast, last); push(cCur, cur);
   out.events.sort((a, b) => a.date.localeCompare(b.date));
   // a fallow season: the window passed without green cover
   out.lastFallow = !!cLast && !cLast.grown;
 
   // which cycle to name: the current season once its peak is in, otherwise the last finished one
   const curUsable = cCur && cCur.grown && (cCur.complete || (Date.parse(today) - Date.parse(cCur.peak.date)) / DAY >= 20);
-  const target = curUsable ? { c: cCur, season: cur } : cLast && cLast.grown ? { c: cLast, season: last } : null;
+  // name the newest cycle that was seen well enough; note a newer one that cloud hid
+  const cands = [curUsable ? { c: cCur, season: cur } : null, cLast && cLast.grown ? { c: cLast, season: last } : null, cOlder && cOlder.grown ? { c: cOlder, season: older } : null].filter(Boolean);
+  const target = cands.find((x) => wellObserved(x.c)) || null;
+  const hidden = cands.find((x) => !wellObserved(x.c));
+  if (hidden && (!target || hidden.season.start > target.season.start)) out.sparse = hidden.season;
   if (target) {
     const ids = Object.keys(SIGNS).filter((id) => SIGNS[id].season === target.season.id);
     const ranked = ids.map((id) => scoreCrop(id, target.c, obs, zone)).sort((a, b) => b.score - a.score);
