@@ -8,9 +8,9 @@ No free source is both very sharp and recent. The app therefore uses two kinds o
 
 | Need | Best free choice | Detail | Age / revisit | Cloud | Cost and terms | Status |
 |---|---|---|---|---|---|---|
-| Recognise the field and its boundary | **Esri World Imagery** | 0.31 to 0.5 m in all 20 districts sampled | Photo dates from Oct 2019 (Rewari) to May 2026 (Hisar); most are 2025 | Cloud-free (curated mosaic) | Free to display with attribution; Esri's terms point to an ArcGIS account for use outside Esri software, so the owner should create a free developer key | In use, tested |
+| Recognise the field and its boundary | **Esri World Imagery** | 0.31 to 0.5 m in all 20 districts sampled | Photo dates from Oct 2019 (Rewari) to May 2026 (Hisar); most are 2025 | Cloud-free (curated mosaic) | Used through the owner's ArcGIS Location Platform key (free tier: 2 million basemap tiles a month) | In use, tested |
 | Condition of the crop now | **Sentinel-2** (ESA), through Microsoft Planetary Computer | 10 m | A pass every 2 to 5 days | Often cloudy in monsoon; cloud is masked per field | Free, open | In use, tested |
-| See through cloud | **Sentinel-1 radar** (ESA), terrain-corrected product on Planetary Computer | 10 m | Passes on 4, 12, 16 Nov 2026 at the test field | Not affected by cloud | Free, open | Tested, not yet used |
+| See through cloud | **Sentinel-1 radar** (ESA), terrain-corrected product on Planetary Computer | 10 m | Passes on 4, 12, 16 Nov 2026 at the test field | Not affected by cloud | Free, open | In use since 21 Nov 2026 |
 | Fill optical gaps | **Landsat 8/9** (NASA/USGS) | 30 m | Every 8 days combined | Cloud-masked | Free, open | Tested, wired in |
 | Cloud-free wide view | Newest-clear-pixel mosaic of the last 30 days of Sentinel-2 (built on request) | 10 m | Up to 30 days | Cloud-free by construction | Free | In use |
 
@@ -38,7 +38,7 @@ No free source is both very sharp and recent. The app therefore uses two kinds o
 | CCEA MSP decisions | MSP table | National | Each season | Free | Values in code; not re-checked |
 | India Post PIN code service (api.postalpincode.in) | Villages inside a PIN code | Post office | Static | Free | Tested |
 | Esri World Geocoder, OpenStreetMap Nominatim, Photon | Village and address search | Village | Varies | Free tiers | Tested |
-| Copernicus DEM 30 m (Planetary Computer) | Elevation, slope (planned) | 30 m | Static | Free | Tested, not yet used |
+| Copernicus DEM 30 m (Planetary Computer) | Elevation of the field | 30 m | Static | Free | In use |
 
 ## Sources still to investigate
 - IMD: an official open service usable from a browser.

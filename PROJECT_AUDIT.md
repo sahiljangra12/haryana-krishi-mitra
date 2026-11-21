@@ -2,7 +2,7 @@
 
 Audit date: 21 November 2026 (IST). Code audited: commit `09fb783` on `main`. Live site tested: https://sahiljangra12.github.io/haryana-krishi-mitra/
 
-No application code was changed for this audit.
+No application code was changed for this audit. Work done after it is listed in `DEVELOPMENT_ROADMAP.md` (status table) and `TEST_REPORT.md`; the findings below describe the app as it was at the audit.
 
 Status words used below:
 - **Working**: tested in this audit and behaved correctly.

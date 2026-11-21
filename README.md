@@ -11,10 +11,13 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 
 The next time the app is opened, the saved field is checked again by itself. While the app is open it looks for a new satellite pass every few minutes and updates the field when one arrives.
 
+**My fields.** Every field that is checked is saved on the phone with a name; the first screen lists them. Area is shown in acres (killa), hectares and kanal.
+
 **What the farmer sees**
 - **A picture of the field.** The sharp photo, to recognise the land, with the satellite's 10 m cells coloured inside the boundary. Four views: Health, What changed, Latest image, Sharp photo. Every view carries its real capture date.
 - **Crop health**: bare, weak, fair or strong, and which side of the field is weaker.
-- **What changed** between two clear passes: a part that looks cut (harvested), a part that lost greenness, or a part that grew, with the share of the field and the side.
+- **What changed** between two clear passes, or any two dates the farmer picks: a part that was possibly cut, a part that lost greenness, or a part that grew, with the share of the field and the side. A possible harvest stays "possible" until the farmer answers Yes or No. A radar reading (Sentinel-1, through cloud) follows it.
+- **Land and crop**: the kind of land and the likely crop of the last well-seen season, read from a year of images, with a confidence and a list to correct it.
 - **Water**: whether the crop looks thirsty, and soil wetness.
 - Soil, weather and best crop as three one-line rows that open their own pages.
 
@@ -96,6 +99,9 @@ docs/js/app.js             UI, map (Leaflet), charts (Chart.js)
 docs/js/sources.js         every external API call lives here
 docs/js/rs.js              map layers: Sentinel-2 tiles and mosaics, NASA GIBS, legends
 docs/js/field.js           cell-by-cell field health and change (harvest) detection
+docs/js/phenology.js       land cover and likely crop from the yearly greenness curve
+docs/js/config.js          public settings: the ArcGIS key and its expiry date
+tests/                     unit tests (npm test)
 docs/js/voice.js           read-aloud and voice search (Web Speech API), with on-screen fallback
 docs/js/advisor.js         scoring, budgets, weather alerts, NDVI interpretation (transparent rules)
 docs/js/soilcard.js        Soil Health Card OCR, parsing, rating, fertilizer plan

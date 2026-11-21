@@ -2,6 +2,20 @@
 
 Written 21 November 2026, after the audit in `PROJECT_AUDIT.md`. Nothing here is built yet. Work starts after the owner approves Phase 1.
 
+## Status on 21 November 2026
+
+| Phase | Status |
+|---|---|
+| 1 Imagery and land mapping | **Built and verified** (see `TEST_REPORT.md`). Open point: haze is not graded, only cautioned. |
+| 2 Land cover and likely crop | **First version built.** Rule-based, confidence never above medium, farmer can correct. Not validated against known fields. |
+| 3 Health and harvest timeline | **Partly built**: field story from well-seen seasons, possible-harvest with confirmation, standing-water check. |
+| 4 Soil, water, weather | **Partly built**: source labels, elevation. Block-level groundwater and IMD not started. |
+| 12/13 Tests and checks | **Started**: 17 unit tests and a compatibility check on every push. `app.js` not yet split. |
+| 5 Recommendation engine | Not started (crop cards already hold duration, sowing window and varieties in the data) |
+| 8 Mandi | Text corrected. Waiting for the India phone test. |
+| 10 Farm history | Fields, crop per season and harvest answers are saved. Records form not started. |
+| 6 Assistant, 7 Crop doctor, 9 Schemes, 11 Six-item navigation | Not started |
+
 ## Ground rules for every phase
 - Work inside the existing app. No rewrite.
 - Free data and free hosting unless the owner approves a cost.
