@@ -1,13 +1,13 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120211132";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120211132";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120211132";
-import * as RS from "./rs.js?v=20261120211132";
-import * as src from "./sources.js?v=20261120211132";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120211132";
-import * as card from "./soilcard.js?v=20261120211132";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120211132";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120211132";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120211132";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120211356";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120211356";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120211356";
+import * as RS from "./rs.js?v=20261120211356";
+import * as src from "./sources.js?v=20261120211356";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120211356";
+import * as card from "./soilcard.js?v=20261120211356";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120211356";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120211356";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120211356";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -289,7 +289,7 @@ async function applyImagery() {
   nasaBase.setUrl(RS.gibsTiles("modis", rs.date));
   if (rs.mode === "photo") esriPhoto.addTo(map);
   if (rs.mode === "latest") {
-    try { rs.mosaic = rs.mosaic || (await RS.latestMosaic(30, 20)); } catch { rs.mosaic = null; }
+    try { rs.mosaic = rs.mosaic || (await RS.latestMosaic(30, 5)); } catch { rs.mosaic = null; }
     if (rs.mosaic && rs.mode === "latest") s2Layer = L.tileLayer(RS.mosaicTiles(rs.mosaic.sid, rs.view), { minZoom: 9, maxNativeZoom: 15, maxZoom: 19, attribution: ATTR_S2 }).addTo(map);
   }
   if (rs.mode === "scene" && rs.sceneId) s2Layer = L.tileLayer(RS.sceneTiles(rs.sceneId, rs.view), { minZoom: 8, maxNativeZoom: 15, maxZoom: 19, attribution: ATTR_S2 }).addTo(map);
@@ -331,7 +331,7 @@ function updateBadge() {
   let txt = "";
   if (rs.mode === "photo") txt = hi ? "तेज़ फोटो (Esri): तारीख पुरानी हो सकती है" : "Sharp photo (Esri): may be years old";
   else if (rs.mode === "nasa" || z < (rs.mode === "scene" ? 8 : 9) || (rs.mode === "latest" && !rs.mosaic)) txt = `NASA MODIS Terra, ${fmtDate(rs.date)}${rs.mode !== "nasa" ? (hi ? ". 10 मी. चित्र के लिए ज़ूम करें" : ". Zoom in for 10 m imagery") : ""}`;
-  else if (rs.mode === "latest") txt = `Sentinel-2, ${fmtDate(rs.mosaic.from)} – ${fmtDate(rs.mosaic.to)}${hi ? ", सबसे साफ़ चित्र" : ", clearest pixels"}`;
+  else if (rs.mode === "latest") txt = hi ? `Sentinel-2, हर जगह का सबसे नया साफ़ चित्र (${fmtDate(rs.mosaic.from)} के बाद)` : `Sentinel-2, newest clear pass at each place (since ${fmtDate(rs.mosaic.from)})`;
   else if (rs.mode === "scene") { const sc = rs.scenes.find((s) => s.id === rs.sceneId); txt = sc ? `${sc.platform.replace(/sentinel/i, "Sentinel")}, ${fmtDate(sc.date)}, ${hi ? "बादल" : "cloud"} ${Math.round(sc.cloud)}%` : "Sentinel-2"; }
   const nasaOn = Object.keys(rs.nasa).filter((k) => rs.nasa[k]);
   if (nasaOn.length) txt += ` + ${nasaOn.map((k) => L_(RS.NASA[k]).split(" (")[0]).join(", ")}`;

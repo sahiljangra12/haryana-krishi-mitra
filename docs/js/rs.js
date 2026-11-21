@@ -19,15 +19,16 @@ async function json(url, opts = {}, ms = 20000) {
    Processing baseline 04.00+ adds 1000 to every band, so ratios subtract 2000 in the denominator.
    Mosaics mix baselines; recent Haryana scenes are all >= 05.x, so the offset version is used. */
 export const VIEWS = {
-  true: { q: "assets=visual&asset_bidx=visual%7C1,2,3&nodata=0", en: "True colour", hi: "असली रंग" },
+  true: { q: "assets=visual&asset_bidx=visual%7C1,2,3&nodata=0&color_formula=" + encodeURIComponent("Gamma RGB 1.1 Sigmoidal RGB 5 0.38 Saturation 1.25"), en: "True colour", hi: "असली रंग" },
   ndvi: { q: `expression=${encodeURIComponent("(B08-B04)/(B08+B04-2000)")}&asset_as_band=true&rescale=-0.1,0.9&colormap_name=rdylgn&nodata=0`, en: "Crop health (NDVI)", hi: "फसल सेहत (NDVI)" },
   false: { q: "assets=B08&assets=B04&assets=B03&nodata=0&rescale=1000,5000&color_formula=" + encodeURIComponent("gamma RGB 1.3"), en: "False colour (crops red)", hi: "फ़ॉल्स कलर (फसल लाल)" },
   ndmi: { q: `expression=${encodeURIComponent("(B8A-B11)/(B8A+B11-2000)")}&asset_as_band=true&rescale=-0.4,0.5&colormap_name=rdbu&nodata=0`, en: "Water stress (NDMI)", hi: "पानी तनाव (NDMI)" },
 };
 
-// A "latest" mosaic: every Sentinel-2 scene over Haryana in the last N days, least cloudy on top.
-export async function latestMosaic(days = 30, maxCloud = 20) {
-  const key = `km-mosaic-${days}-${maxCloud}`;
+// A "latest" mosaic: clear Sentinel-2 scenes over Haryana from the last N days, NEWEST on top,
+// so every place shows its most recent clear pass (sorting by cloud % instead picks smoky November days).
+export async function latestMosaic(days = 30, maxCloud = 5) {
+  const key = `km-mosaic2-${days}-${maxCloud}`;
   try {
     const c = JSON.parse(sessionStorage.getItem(key) || "null");
     if (c && Date.now() - c.at < 6 * 3600e3) return c;
@@ -41,7 +42,7 @@ export async function latestMosaic(days = 30, maxCloud = 20) {
       { op: "anyinteracts", args: [{ property: "datetime" }, { interval: [start.toISOString(), end.toISOString()] }] },
       { op: "<=", args: [{ property: "eo:cloud_cover" }, maxCloud] },
     ] },
-    sortby: [{ field: "eo:cloud_cover", direction: "asc" }],
+    sortby: [{ field: "datetime", direction: "desc" }],
   };
   const j = await json(`${PC}/data/v1/mosaic/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const out = { sid: j.searchid || j.id, from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10), at: Date.now() };

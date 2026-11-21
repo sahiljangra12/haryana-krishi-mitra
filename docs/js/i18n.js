@@ -3,7 +3,7 @@ export const STR = {
   layersTitle: { en: "Satellite layers", hi: "सैटेलाइट परतें" },
   lpImage: { en: "Image", hi: "चित्र" },
   lpLatest: { en: "Latest Sentinel-2 (10 m)", hi: "नवीनतम Sentinel-2 (10 मी.)" },
-  lpLatestSub: { en: "Clearest view from the last 30 days", hi: "पिछले 30 दिनों का सबसे साफ़ दृश्य" },
+  lpLatestSub: { en: "Newest clear pass at each place, last 30 days", hi: "हर जगह का सबसे नया साफ़ चित्र, पिछले 30 दिन" },
   lpScene: { en: "Sentinel-2 on a chosen date", hi: "चुनी गई तारीख का Sentinel-2" },
   lpSceneSub: { en: "Every clear pass over this area in the last 4 months", hi: "पिछले 4 महीनों में इस क्षेत्र के हर साफ़ चित्र" },
   lpNasa: { en: "NASA daily image", hi: "NASA दैनिक चित्र" },
