@@ -1,0 +1,9 @@
+{
+  "name": "haryana-krishi-mitra",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "for f in docs/js/*.js docs/sw.js; do node --check \"$f\" || exit 1; done; ! grep -nE '\\(\\?<[=!]' docs/js/*.js"
+  }
+}

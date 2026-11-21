@@ -2,7 +2,7 @@
 // Sentinel-2 sees the ground in 10 m x 10 m cells. For the newest clear pass and an earlier clear pass this module
 // reads the greenness (NDVI) of every cell inside the field boundary, grades each cell, and compares the two dates
 // to find parts that were cut (harvested), parts that lost greenness and parts that grew.
-import * as src from "./sources.js?v=20261120221402";
+import * as src from "./sources.js?v=20261120225123";
 
 const M = 111320;
 
@@ -63,14 +63,16 @@ function side(cells, all, W) {
 
 const clearS2 = (r) => r && r.sensor !== "landsat" && r.cloud <= 0.05 && r.ndvi != null;
 
+export const clearPasses = (rows) => rows.filter(clearS2);
 // rows: the field's time series (oldest first). Returns null when there is no clear Sentinel-2 pass to read.
-export async function analyse(feature, rows) {
+// pick: optional { now: "YYYY-MM-DD", ref: "YYYY-MM-DD" } when the farmer chooses the two dates to compare.
+export async function analyse(feature, rows, pick = null) {
   const good = rows.filter(clearS2);
-  const now = good[good.length - 1];
+  const now = (pick && good.find((r) => r.date === pick.now)) || good[good.length - 1];
   if (!now) return null;
   const tNow = Date.parse(now.date);
   // compare with a clear pass at least 5 days older (so a real change has time to show), else the previous clear pass
-  const ref = [...good].reverse().find((r) => tNow - Date.parse(r.date) >= 5 * 864e5 && tNow - Date.parse(r.date) <= 30 * 864e5) || [...good].reverse().find((r) => r.date < now.date) || null;
+  const ref = (pick && good.find((r) => r.date === pick.ref && r.date < now.date)) || [...good].reverse().find((r) => tNow - Date.parse(r.date) >= 5 * 864e5 && tNow - Date.parse(r.date) <= 30 * 864e5) || [...good].reverse().find((r) => r.date < now.date) || null;
   const box = fieldBox(feature), { mask, count } = insideMask(feature, box);
   if (count < 2) return null;
   const [gNow, gRef] = await Promise.all([src.ndviGrid(now.item, box.bbox, box.W, box.H), ref ? src.ndviGrid(ref.item, box.bbox, box.W, box.H).catch(() => null) : null]);
@@ -83,6 +85,12 @@ export async function analyse(feature, rows) {
     if (gRef && !Number.isNaN(gRef[k])) byChange[changeClass(gRef[k], gNow[k])].push(k);
   }
   if (!all.length) return null;
+  // the same test on the land around the field: if nearly all crops around "vanished" on the same date, smoke or haze is a possible cause
+  let aroundCrop = 0, aroundCut = 0;
+  if (gRef) for (let k = 0; k < mask.length; k++) {
+    if (mask[k] || Number.isNaN(gNow[k]) || Number.isNaN(gRef[k]) || gRef[k] < 0.35) continue;
+    aroundCrop++; if (changeClass(gRef[k], gNow[k]) === "cut") aroundCut++;
+  }
   const N = all.length, compared = byChange.cut.length + byChange.down.length + byChange.up.length + byChange.same.length;
   const frac = (l) => (compared ? l.length / compared : 0);
   const weak = [...byHealth[0], ...byHealth[1]], fine = [...byHealth[2], ...byHealth[3]];
@@ -93,6 +101,7 @@ export async function analyse(feature, rows) {
     health: byHealth.map((l) => l.length / N),
     // a field is "patchy" when a real part of it is weak while another real part is growing well
     weakShare: weak.length / N, weakSide: weak.length / N >= 0.15 && fine.length / N >= 0.25 ? side(weak, all, box.W) : "", patchy: weak.length / N >= 0.15 && fine.length / N >= 0.25,
+    picked: !!pick, aroundCut: aroundCrop >= 20 ? aroundCut / aroundCrop : null,
     change: gRef ? { cut: frac(byChange.cut), down: frac(byChange.down), up: frac(byChange.up), same: frac(byChange.same), cutSide: side(byChange.cut, all, box.W), downSide: side(byChange.down, all, box.W), days: Math.round((tNow - Date.parse(ref.date)) / 864e5) } : null,
   };
 }
@@ -120,4 +129,31 @@ export function draw(canvas, A, mode) {
     cx.fillRect(i * k, j * k, k, k);
   }
   cx.globalAlpha = 1;
+}
+
+// The sharp photo of the frame, stitched from the map's own (licensed, cached) tiles instead of a separate export service.
+// Resolves to a data URL, or null if the tiles cannot be read.
+export async function photoFrame(box, tileUrl, maxZoom = 18) {
+  const [w, s, e, n] = box.bbox;
+  const X = (lon, z) => ((lon + 180) / 360) * 2 ** z, Y = (lat, z) => ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * 2 ** z;
+  let z = maxZoom;
+  while (z > 10 && X(e, z) - X(w, z) > 4.2) z--;
+  const x0 = X(w, z), x1 = X(e, z), y0 = Y(n, z), y1 = Y(s, z);
+  const tx0 = Math.floor(x0), tx1 = Math.floor(x1), ty0 = Math.floor(y0), ty1 = Math.floor(y1);
+  const cv = document.createElement("canvas");
+  cv.width = Math.round((x1 - x0) * 256); cv.height = Math.round((y1 - y0) * 256);
+  const cx = cv.getContext("2d");
+  const jobs = [];
+  for (let tx = tx0; tx <= tx1; tx++) for (let ty = ty0; ty <= ty1; ty++) {
+    jobs.push(new Promise((res) => {
+      const im = new Image();
+      im.crossOrigin = "anonymous";
+      im.onload = () => { cx.drawImage(im, Math.round((tx - x0) * 256), Math.round((ty - y0) * 256), 256, 256); res(true); };
+      im.onerror = () => res(false);
+      im.src = tileUrl.replace("{z}", z).replace("{x}", tx).replace("{y}", ty);
+    }));
+  }
+  const ok = await Promise.all(jobs);
+  if (!ok.some(Boolean)) return null;
+  try { return cv.toDataURL("image/jpeg", 0.88); } catch { return null; }
 }

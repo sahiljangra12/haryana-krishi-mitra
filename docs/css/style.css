@@ -616,3 +616,32 @@ details.opts input { margin-top: 0.25rem; flex: none; width: 1.2rem; height: 1.2
 #toMap { width: 100%; margin: 1rem 0 0; }
 @media (min-width: 900px) { .fieldcard { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 1rem; align-items: start; } .fieldcard .fieldpic { grid-row: span 3; } .fp-modes { margin-top: 0; flex-wrap: wrap; } }
 @media print { .saybar, .backbtn, .fp-modes { display: none !important; } }
+
+/* ---- my fields, crop guess, confirmations, compare dates ---- */
+.myfields { margin-top: 0.8rem; max-height: 168px; overflow-y: auto; }
+.myfields h3 { font-size: 0.9rem; color: var(--soil-2); margin: 0 0 0.35rem; font-weight: 600; }
+.mf { display: flex; gap: 6px; margin-bottom: 6px; }
+.mf-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.6rem; text-align: left; border: 1.5px solid var(--line-2); background: var(--paper); color: var(--soil); border-radius: 14px; padding: 0.45rem 0.7rem; font: inherit; cursor: pointer; min-height: 52px; }
+.mf-open .ic { color: var(--green); flex: none; }
+.mf-open span { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.mf-open small { color: var(--soil-2); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mf-del { flex: none; width: 52px; border: 0; border-radius: 14px; background: var(--chip); color: var(--soil-2); cursor: pointer; display: grid; place-items: center; font: inherit; font-size: 0.8rem; }
+.mf-del.sure { width: auto; padding: 0 0.7rem; background: var(--risk); color: #fff; font-weight: 600; }
+.place.fname { justify-content: flex-start; }
+.place.fname #fName { font-weight: 600; }
+.place.fname input { min-height: 40px; padding: 0.2rem 0.5rem; font-size: 1rem; width: 11rem; }
+.linkbtn { border: 0; background: none; color: var(--green); font: inherit; font-size: 0.88rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer; padding: 0.3rem 0.4rem; margin-left: auto; }
+.story { list-style: none; margin: 0.7rem 0 0; padding: 0 0 0 0.9rem; border-left: 3px solid var(--tone-l); display: grid; gap: 0.35rem; font-size: 0.93rem; }
+.story span { display: block; font-size: 0.78rem; color: var(--soil-2); }
+.pick { display: grid; gap: 0.25rem; margin-top: 0.8rem; }
+.pick span { font-size: 0.85rem; color: var(--soil-2); }
+.pick select { width: 100%; }
+.vcaution { display: flex; gap: 0.5rem; align-items: flex-start; background: var(--mustard-l); color: var(--soil); border-radius: 12px; padding: 0.55rem 0.7rem; font-size: 0.9rem; }
+.vcaution .ic { color: var(--mustard-d); flex: none; margin-top: 0.15rem; }
+.vconfirm { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; }
+.vconfirm span { flex: 1 1 100%; font-weight: 600; }
+.verdict .vconfirm .btn { flex: 1; width: auto; margin: 0; min-height: 46px; }
+.vtold { display: flex; gap: 0.4rem; align-items: center; font-weight: 600; color: var(--tone); }
+.cmp { flex: 1 1 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.3rem; }
+.cmp label { display: grid; gap: 0.15rem; font-size: 0.82rem; color: var(--soil-2); }
+.cmp select { min-height: 44px; width: 100%; color: var(--soil); }

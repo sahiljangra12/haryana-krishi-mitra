@@ -1,4 +1,4 @@
-import { DISTRICTS } from "./districts.js?v=20261120221402";
+import { DISTRICTS } from "./districts.js?v=20261120225123";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
@@ -6,9 +6,22 @@ import { DISTRICTS } from "./districts.js?v=20261120221402";
 //  - Climate history: NASA POWER
 //  - Mandi prices: data/prices.json, refreshed daily by a GitHub Action from data.gov.in (Agmarknet)
 
+import { ARCGIS_KEY } from "./config.js?v=20261120225123";
 const STAC = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
 const PCDATA = "https://planetarycomputer.microsoft.com/api/data/v1";
 
+// Esri place search: use the licensed endpoint with the site's key; if the key is refused (expired), fall back to the open one
+let esriKeyOk = !!ARCGIS_KEY;
+async function esriJSON(url, timeoutMs = 12000) {
+  if (esriKeyOk) {
+    try {
+      const j = await getJSON(url.replace("https://geocode.arcgis.com/", "https://geocode-api.arcgis.com/") + `&token=${ARCGIS_KEY}`, {}, timeoutMs);
+      if (!j.error) return j;
+      if ([498, 499, 403].includes(j.error.code)) esriKeyOk = false;
+    } catch { /* try the open endpoint */ }
+  }
+  return getJSON(url, {}, timeoutMs);
+}
 async function getJSON(url, opts = {}, timeoutMs = 25000) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), timeoutMs);
@@ -268,7 +281,7 @@ export async function landUse(lat, lon) {
 /* ---------------- PIN code -> area ---------------- */
 export async function pinLookup(pin) {
   const u = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${pin}&countryCode=IND&category=Postal&maxLocations=1&outFields=City,Subregion,Region&forStorage=false`;
-  const c = (await getJSON(u, {}, 12000)).candidates?.[0];
+  const c = (await esriJSON(u, 12000)).candidates?.[0];
   if (!c) return null;
   const a = c.attributes || {};
   return { pin, label: [a.City, a.Subregion].filter(Boolean).join(", ") || c.address, region: a.Region || "", lat: c.location.y, lon: c.location.x, extent: c.extent };
@@ -417,7 +430,7 @@ const extentAround = (c, km) => { const d = km / 111.3, e = km / (111.3 * Math.c
 async function esriFind(text, extent = HR_BBOX, near = null) {
   const loc = near ? `&location=${near.lon},${near.lat}` : "";
   const u = `${ESRI_GEO}/findAddressCandidates?f=json&singleLine=${encodeURIComponent(text)}&countryCode=IND&searchExtent=${extent}${loc}&maxLocations=8&outFields=Addr_type,PlaceName,City,Subregion,Region&forStorage=false`;
-  const j = await getJSON(u, {}, 12000);
+  const j = await esriJSON(u, 12000);
   return (j.candidates || []).map((c) => {
     const at = c.attributes || {};
     // POIs come back as just "Bus Stand": add town and district so the farmer can tell them apart
@@ -531,12 +544,12 @@ export async function suggest(text) {
   const { parts } = cleanAddress(text);
   const qtext = parts.join(", ") || text;
   const u = `${ESRI_GEO}/suggest?f=json&text=${encodeURIComponent(hasDevanagari(qtext) ? parts.map(transliterate).join(", ") : qtext)}&countryCode=IND&searchExtent=${HR_BBOX}&maxSuggestions=8`;
-  const j = await getJSON(u, {}, 8000);
+  const j = await esriJSON(u, 8000);
   return (j.suggestions || []).filter((s) => /haryana|हरियाणा/i.test(s.text)).slice(0, 6);
 }
 export async function resolveSuggestion(s) {
   const u = `${ESRI_GEO}/findAddressCandidates?f=json&singleLine=${encodeURIComponent(s.text)}&magicKey=${encodeURIComponent(s.magicKey)}&outFields=Addr_type&forStorage=false`;
-  const j = await getJSON(u, {}, 10000);
+  const j = await esriJSON(u, 10000);
   const c = (j.candidates || [])[0];
   return c ? { label: c.address, lat: c.location.y, lon: c.location.x, score: c.score, kind: KIND[c.attributes.Addr_type] || "place", src: "Esri" } : null;
 }
@@ -544,7 +557,7 @@ export async function resolveSuggestion(s) {
 // Name of the nearest village / locality for a tapped point
 export async function reverseGeocode(lat, lon) {
   try {
-    const j = await getJSON(`${ESRI_GEO}/reverseGeocode?f=json&location=${lon},${lat}&featureTypes=Locality,PointAddress,StreetAddress&forStorage=false`, {}, 8000);
+    const j = await esriJSON(`${ESRI_GEO}/reverseGeocode?f=json&location=${lon},${lat}&featureTypes=Locality,PointAddress,StreetAddress&forStorage=false`, 8000);
     if (j.address) return [j.address.Neighborhood, j.address.City || j.address.District, j.address.Subregion].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(", ");
   } catch {}
   try {
@@ -631,4 +644,41 @@ export async function ndviGrid(item, bbox, W, H) {
     for (let i = 0; i < W * H; i++) out[i] = px[i * 4 + 3] < 128 ? NaN : (px[i * 4] / 255) * 2 - 1;
     return out;
   } finally { clearTimeout(timer); }
+}
+
+/* ---------------- Sentinel-1 radar: sees the field through cloud ---------------- */
+// Terrain-corrected backscatter (VV and VH) for the field from the newest passes. Radar does not show colour or greenness:
+// VH rises as a crop canopy builds up and falls when the field is cut, ploughed or flooded.
+// Passes are compared only with an earlier pass from the same direction of flight.
+export async function radarSeries(feature, days = 40, maxPasses = 5) {
+  const end = new Date(), start = new Date(end.getTime() - days * 864e5);
+  const body = { collections: ["sentinel-1-rtc"], intersects: feature.geometry, datetime: `${start.toISOString().slice(0, 10)}T00:00:00Z/${end.toISOString().slice(0, 10)}T23:59:59Z`, sortby: [{ field: "datetime", direction: "desc" }], limit: 12 };
+  const j = await getJSON(STAC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, 15000);
+  const byDay = new Map();
+  for (const f of j.features || []) { const d = f.properties.datetime.slice(0, 10); if (!byDay.has(d)) byDay.set(d, f); }
+  const items = [...byDay.values()].slice(0, maxPasses);
+  const rows = await pool(items, 5, async (item) => {
+    const st = (await getJSON(`${PCDATA}/item/statistics?collection=sentinel-1-rtc&item=${encodeURIComponent(item.id)}&assets=vv&assets=vh`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(feature) }, 25000)).properties.statistics;
+    const vv = st.vv_b1?.mean, vh = st.vh_b1?.mean;
+    if (!(vv > 0) || !(vh > 0)) return null;
+    return { date: item.properties.datetime.slice(0, 10), datetime: item.properties.datetime, orbit: item.properties["sat:orbit_state"] || "", platform: item.properties.platform || "sentinel-1", vv: 10 * Math.log10(vv), vh: 10 * Math.log10(vh) };
+  });
+  return rows.filter(Boolean).sort((a, b) => a.date.localeCompare(b.date));
+}
+// Newest radar pass against the pass before it from the same direction. "up" / "down" need a clear step of 1.5 dB in VH.
+export function radarReading(rows) {
+  if (!rows || !rows.length) return null;
+  const latest = rows[rows.length - 1], prev = [...rows].reverse().find((r) => r.date < latest.date && r.orbit === latest.orbit) || null;
+  const d = prev ? latest.vh - prev.vh : null;
+  return { latest, prev, change: d, trend: d == null ? "none" : d >= 1.5 ? "up" : d <= -1.5 ? "down" : "same" };
+}
+
+/* ---------------- elevation of the field (Copernicus 30 m model) ---------------- */
+export async function elevation(feature) {
+  const c = feature.geometry.coordinates[0][0];
+  const j = await getJSON(STAC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ collections: ["cop-dem-glo-30"], intersects: { type: "Point", coordinates: c }, limit: 1 }) }, 15000);
+  const id = j.features?.[0]?.id;
+  if (!id) return null;
+  const s = Object.values((await getJSON(`${PCDATA}/item/statistics?collection=cop-dem-glo-30&item=${encodeURIComponent(id)}&assets=data`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(feature) }, 20000)).properties.statistics)[0];
+  return { mean: s.mean, min: s.min, max: s.max };
 }

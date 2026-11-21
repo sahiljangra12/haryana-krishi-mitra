@@ -220,7 +220,7 @@ export const STR = {
   disclaimer: { en: "Advice is indicative. Confirm with your Krishi Vigyan Kendra (KVK) or agriculture officer before large investments.", hi: "सलाह अनुमानित है। बड़े निवेश से पहले कृषि विज्ञान केंद्र (KVK) या कृषि अधिकारी से पुष्टि करें।" },
   pricesTitle: { en: "Today's mandi prices in Haryana (₹ per quintal)", hi: "हरियाणा में आज के मंडी भाव (₹ प्रति क्विंटल)" },
   pricesUpdated: { en: "Updated", hi: "अपडेट" },
-  pricesNone: { en: "Live mandi prices have not been fetched yet. They refresh automatically twice a day from Agmarknet (data.gov.in). MSP rates below are always available.", hi: "लाइव मंडी भाव अभी नहीं आए हैं। ये Agmarknet (data.gov.in) से दिन में दो बार अपने-आप अपडेट होते हैं। नीचे MSP दरें हमेशा उपलब्ध हैं।" },
+  pricesNone: { en: "Live mandi prices did not load. They come straight from Agmarknet (data.gov.in), which answers only inside India, and this has not yet been confirmed to work on phones there. MSP rates below are always available.", hi: "लाइव मंडी भाव नहीं आए। ये सीधे Agmarknet (data.gov.in) से आते हैं, जो सिर्फ़ भारत के अंदर जवाब देता है, और वहाँ के फ़ोन पर यह अभी जांचा नहीं गया है। नीचे MSP दरें हमेशा उपलब्ध हैं।" },
   filterCrop: { en: "Crop", hi: "फसल" },
   all: { en: "All", hi: "सभी" },
   market: { en: "Mandi", hi: "मंडी" },
