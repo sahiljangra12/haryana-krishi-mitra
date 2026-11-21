@@ -1,18 +1,18 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120231408";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120231408";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120231408";
-import * as Voice from "./voice.js?v=20261120231408";
-import { ARCGIS_KEY } from "./config.js?v=20261120231408";
-import * as Pheno from "./phenology.js?v=20261120231408";
-import { askIntent, cropInText } from "./ask.js?v=20261120231408";
-import * as Field from "./field.js?v=20261120231408";
-import * as RS from "./rs.js?v=20261120231408";
-import * as src from "./sources.js?v=20261120231408";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120231408";
-import * as card from "./soilcard.js?v=20261120231408";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120231408";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120231408";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120231408";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120231549";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120231549";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120231549";
+import * as Voice from "./voice.js?v=20261120231549";
+import { ARCGIS_KEY } from "./config.js?v=20261120231549";
+import * as Pheno from "./phenology.js?v=20261120231549";
+import { askIntent, cropInText } from "./ask.js?v=20261120231549";
+import * as Field from "./field.js?v=20261120231549";
+import * as RS from "./rs.js?v=20261120231549";
+import * as src from "./sources.js?v=20261120231549";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120231549";
+import * as card from "./soilcard.js?v=20261120231549";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120231549";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120231549";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120231549";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -719,6 +719,9 @@ function verdicts(r) {
     else if (n < 0.4) { level = rising ? "good" : "warn"; big = rising ? T2("Crop is coming up", "फसल उग रही है") : T2("Crop is thin", "फसल कमज़ोर है"); text = rising ? T2("Green cover is growing. Young crop looks normal.", "हरियाली बढ़ रही है। छोटी फसल ठीक दिख रही है।") : T2("Green cover is low and not growing. Check water, fertilizer and pests.", "हरियाली कम है और बढ़ नहीं रही। पानी, खाद और कीड़े की जांच करें।"); }
     else if (n < 0.6) { level = "good"; big = T2("Crop is fine", "फसल ठीक है"); text = T2("The crop is growing with medium strength.", "फसल ठीक-ठाक बढ़ रही है।"); }
     else { level = "good"; big = T2("Crop is very good", "फसल बहुत अच्छी है"); text = T2("Dense, healthy green crop.", "घनी और हरी-भरी फसल है।"); }
+    // in the sowing weeks a thin green cover is a young crop, not a weak one
+    const seasonNow = Pheno.seasonOf(latest.date).id, sowingTime = (SEASONS[seasonNow]?.sow || []).includes(new Date(latest.date).getMonth() + 1);
+    if (n >= 0.2 && n < 0.4 && !rising && sowingTime) { level = "info"; big = T2("Crop is small or just coming up", "फसल अभी छोटी है या जम रही है"); text = T2("It is sowing time, so little green cover is normal. Look again in 10 to 15 days.", "अभी बुवाई का समय है, इसलिए हरियाली कम होना सामान्य है। 10 से 15 दिन में दोबारा देखें।"); }
     if (n >= 0.2 && diff < -0.1) { level = "warn"; text += " " + T2("It is weaker than the fields around it.", "यह आसपास के खेतों से कमज़ोर है।"); }
     else if (n >= 0.2 && diff > 0.1) text += " " + T2("It is better than the fields around it.", "यह आसपास के खेतों से बेहतर है।");
     if (n > 0.5 && latest.ndre != null && latest.ndre < 0.28) text += " " + T2("Leaves look pale: the crop may need nitrogen (urea).", "पत्ते हल्के रंग के दिख रहे हैं: फसल को नाइट्रोजन (यूरिया) की ज़रूरत हो सकती है।");
@@ -819,12 +822,12 @@ async function answer(kind, text) {
   if (kind === "water") {
     if (!r || !v("water")) return needField + " " + rainLine();
     const w = v("water");
-    return `${w.big}. ${w.text} ${sum(3) >= 10 ? "" : rainLine()}`.trim();
+    return `${w.big}${T2(". ", "। ")}${w.text} ${sum(3) >= 10 ? "" : rainLine()}`.trim();
   }
   if (kind === "why") {
     if (!r || !v("crop")) return needField;
     const ch = v("change"), stage = r.pheno?.stage;
-    return `${v("crop").big}. ${ch ? ch.big + ". " + ch.text : ""} ` + (stage === "ripening" ? T2("The crop looks to be ripening, and greenness falls then. That is normal.", "फसल पकती दिख रही है, और पकते समय हरियाली घटती है। यह सामान्य है।") : T2("Common reasons for a weaker crop: too little water, too little nitrogen, pests or disease, standing water, or the crop ripening. The satellite cannot tell which one. Walk the field and look at the leaves, and show them to your Krishi Vigyan Kendra if unsure.", "फसल कमज़ोर होने के आम कारण: पानी की कमी, नाइट्रोजन की कमी, कीट या बीमारी, खेत में पानी भरना, या फसल का पकना। सैटेलाइट यह नहीं बता सकता कि इनमें से कौन सा है। खेत में जाकर पत्ते देखें, और पक्का न हो तो कृषि विज्ञान केंद्र को दिखाएं।"));
+    return `${v("crop").big}${T2(". ", "। ")}${v("crop").text} ${ch ? ch.big + T2(". ", "। ") + ch.text : ""} ` + (stage === "ripening" ? T2("The crop looks to be ripening, and greenness falls then. That is normal.", "फसल पकती दिख रही है, और पकते समय हरियाली घटती है। यह सामान्य है।") : T2("Common reasons for a weaker crop: too little water, too little nitrogen, pests or disease, standing water, or the crop ripening. The satellite cannot tell which one. Walk the field and look at the leaves, and show them to your Krishi Vigyan Kendra if unsure.", "फसल कमज़ोर होने के आम कारण: पानी की कमी, नाइट्रोजन की कमी, कीट या बीमारी, खेत में पानी भरना, या फसल का पकना। सैटेलाइट यह नहीं बता सकता कि इनमें से कौन सा है। खेत में जाकर पत्ते देखें, और पक्का न हो तो कृषि विज्ञान केंद्र को दिखाएं।"));
   }
   if (kind === "fert") {
     const fc = fieldCrop(); if (!fc) return needField;
