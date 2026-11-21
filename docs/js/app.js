@@ -1,12 +1,12 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120210410";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120210410";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120210410";
-import * as src from "./sources.js?v=20261120210410";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120210410";
-import * as card from "./soilcard.js?v=20261120210410";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120210410";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120210410";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120210410";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120210424";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120210424";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120210424";
+import * as src from "./sources.js?v=20261120210424";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120210424";
+import * as card from "./soilcard.js?v=20261120210424";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120210424";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120210424";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120210424";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -649,7 +649,7 @@ function renderCardTable() {
     const g = gaugePos(p, v);
     const warn = state.cardFlags?.[p.id] ? ` <span class="badge neg">${ic("circle-alert")}${t("check")}</span>` : "";
     const cls = !lab ? "" : lab.cls === "neg" ? "neg" : lab.cls === "pos" ? "" : "mid";
-    const gauge = p.id === "ec" ? "" : `<div class="gauge" title="${p.id === "ph" ? "5.5 - 10" : p.th.join(" / ")}">${p.id === "ph" ? '<span style="background:#f1c7bd"></span><span style="background:#c5ddb8"></span><span style="background:#f1c7bd"></span>' : "<span></span><span></span><span></span>"}${g != null ? `<i style="left:${g}%"></i>` : ""}</div>`;
+    const gauge = p.id === "ec" ? "" : `<div class="gauge" title="${p.id === "ph" ? "5.5 - 10" : p.th.join(" / ")}">${p.id === "ph" ? '<span style="background:#e0715c"></span><span style="background:#62b671"></span><span style="background:#e0715c;border-radius:0 5px 5px 0"></span>' : "<span></span><span></span><span></span>"}${g != null ? `<i style="left:${g}%"></i>` : ""}</div>`;
     return `<div class="param"><div>${esc(L_(p))}${warn}<div class="u">${p.unit}</div></div><input type="number" step="any" data-p="${p.id}" value="${v ?? ""}" aria-label="${esc(L_(p))}">${gauge || "<div></div>"}<div class="rt">${lab ? `<span class="badge ${cls}">${L_(lab)}</span>` : ""}</div></div>`;
   }).join("");
   $$("#cardTable input").forEach((inp) => (inp.onchange = () => {
