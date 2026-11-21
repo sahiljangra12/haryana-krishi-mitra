@@ -1,13 +1,13 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120211356";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120211356";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120211356";
-import * as RS from "./rs.js?v=20261120211356";
-import * as src from "./sources.js?v=20261120211356";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120211356";
-import * as card from "./soilcard.js?v=20261120211356";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120211356";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120211356";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120211356";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120211659";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120211659";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120211659";
+import * as RS from "./rs.js?v=20261120211659";
+import * as src from "./sources.js?v=20261120211659";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120211659";
+import * as card from "./soilcard.js?v=20261120211659";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120211659";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120211659";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120211659";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -309,14 +309,11 @@ async function applyNasa() {
     const L0 = RS.NASA[k];
     const url = RS.gibsTiles(k, RS.nasaDate(k, rs.date));
     if (L0.vector) {
-      try { await RS.loadVectorGrid(); } catch { toast(t("error")); continue; }
-      nasaOverlays[k] = L.vectorGrid.protobuf(url, {
-        maxNativeZoom: L0.lvl, maxZoom: 19, attribution: ATTR_NASA, interactive: false,
-        vectorTileLayerStyles: { default: { radius: 5, fill: true, fillColor: "#ff3b1f", fillOpacity: 0.95, color: "#fff", weight: 1 } },
-        getFeatureId: () => undefined,
-      });
-      // style every source layer the same way, whatever it is called inside the tile
-      nasaOverlays[k].options.vectorTileLayerStyles = new Proxy({}, { get: () => ({ radius: 5, fill: true, fillColor: "#ff3b1f", fillOpacity: 0.95, color: "#ffffff", weight: 1 }) });
+      const pts = await RS.firesOn(RS.nasaDate(k, rs.date)).catch(() => []);
+      rs.fireCount = pts.length;
+      const hi = getLang() === "hi";
+      nasaOverlays[k] = L.layerGroup(pts.map((f) => L.circleMarker([f.lat, f.lon], { radius: 5, color: "#ffffff", weight: 1, fillColor: "#ff3b1f", fillOpacity: 0.95 })
+        .bindPopup(`<b>${hi ? "सैटेलाइट ने आग देखी" : "Fire detected"}</b><br>${f.date} ${String(f.time).padStart(4, "0").replace(/(\d\d)(\d\d)/, "$1:$2")} UTC<br>${hi ? "तीव्रता" : "Fire power"}: ${f.frp ?? "-"} MW<br>VIIRS NOAA-20, 375 m`)));
     } else {
       nasaOverlays[k] = L.tileLayer(url, { maxNativeZoom: L0.lvl, maxZoom: 19, opacity: rs.opacity, attribution: ATTR_NASA });
     }
@@ -334,7 +331,7 @@ function updateBadge() {
   else if (rs.mode === "latest") txt = hi ? `Sentinel-2, हर जगह का सबसे नया साफ़ चित्र (${fmtDate(rs.mosaic.from)} के बाद)` : `Sentinel-2, newest clear pass at each place (since ${fmtDate(rs.mosaic.from)})`;
   else if (rs.mode === "scene") { const sc = rs.scenes.find((s) => s.id === rs.sceneId); txt = sc ? `${sc.platform.replace(/sentinel/i, "Sentinel")}, ${fmtDate(sc.date)}, ${hi ? "बादल" : "cloud"} ${Math.round(sc.cloud)}%` : "Sentinel-2"; }
   const nasaOn = Object.keys(rs.nasa).filter((k) => rs.nasa[k]);
-  if (nasaOn.length) txt += ` + ${nasaOn.map((k) => L_(RS.NASA[k]).split(" (")[0]).join(", ")}`;
+  if (nasaOn.length) txt += ` + ${nasaOn.map((k) => L_(RS.NASA[k]).split(" (")[0] + (k === "fires" && rs.fireCount != null ? ` (${rs.fireCount} ${hi ? "हरियाणा में" : "in Haryana"}, ${fmtDate(RS.nasaDate("fires", rs.date))})` : "")).join(", ")}`;
   b.innerHTML = `${ic("satellite")}<span>${esc(txt)}</span>`;
 }
 map.on("zoomend", updateBadge);

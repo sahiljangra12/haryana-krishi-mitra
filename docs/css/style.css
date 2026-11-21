@@ -195,7 +195,7 @@ input[type="range"] { min-height: 32px; }
 .layerbar label:has(input:checked) { background: var(--mustard); color: #10202d; border-color: var(--mustard); }
 .layerbar label:has(input:disabled) { opacity: 0.45; }
 .layerbar input { width: auto; min-height: 0; accent-color: var(--mustard); margin: 0; }
-.legend { position: absolute; bottom: 44px; left: 12px; flex-direction: column; align-items: stretch; background: rgba(11, 22, 34, 0.86); color: #e6eef4; padding: 6px 10px; border-radius: var(--r-sm); display: flex; align-items: center; gap: 8px; font-size: 0.78rem; z-index: 500; }
+.legend { position: absolute; bottom: 62px; left: 12px; flex-direction: column; align-items: stretch; background: rgba(11, 22, 34, 0.86); color: #e6eef4; padding: 6px 10px; border-radius: var(--r-sm); display: flex; align-items: center; gap: 8px; font-size: 0.78rem; z-index: 500; }
 .legend .lg { display: flex; align-items: center; gap: 8px; }
 .legend .ramp { width: 110px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #a50026, #f46d43, #fee08b, #a6d96a, #1a9850, #006837); }
 .mapfab { position: absolute; right: 12px; top: 64px; z-index: 600; display: flex; flex-direction: column; gap: 10px; }
@@ -213,7 +213,7 @@ input[type="range"] { min-height: 32px; }
 .progress .ptext { position: relative; font-size: 0.84rem; padding-left: 0.8rem; line-height: 28px; color: var(--soil); }
 
 /* remote-sensing panel (Worldview-style) */
-.imgbadge { position: absolute; left: 12px; bottom: 12px; right: 74px; z-index: 600; display: flex; gap: 0.4rem; align-items: center; background: rgba(11, 22, 34, 0.88); color: #e6eef4; font-size: 0.8rem; padding: 0.35rem 0.7rem; border-radius: 10px; width: fit-content; max-width: calc(100% - 86px); }
+.imgbadge { position: absolute; left: 12px; bottom: 26px; right: 74px; z-index: 600; display: flex; gap: 0.4rem; align-items: center; background: rgba(11, 22, 34, 0.88); color: #e6eef4; font-size: 0.8rem; padding: 0.35rem 0.7rem; border-radius: 10px; width: fit-content; max-width: calc(100% - 86px); }
 .imgbadge.loading .ic { animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.3; } }
 .layerpanel { position: absolute; z-index: 800; top: 0; right: 0; bottom: 0; width: min(360px, 100%); overflow-y: auto; background: var(--paper); border-left: 1px solid var(--line); padding: 0.8rem 1rem 1.2rem; box-shadow: var(--shadow); }

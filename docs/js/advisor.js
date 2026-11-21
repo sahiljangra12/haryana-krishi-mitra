@@ -1,6 +1,6 @@
 // Recommendation engine: transparent, rule-based scoring. No black box —
 // every score component is shown to the farmer in the UI.
-import { CROPS, SEASONS } from "./crops.js?v=20261120211356";
+import { CROPS, SEASONS } from "./crops.js?v=20261120211659";
 
 // Which season is the farmer planning for, given today's month?
 export function upcomingSeason(month = new Date().getMonth() + 1) {

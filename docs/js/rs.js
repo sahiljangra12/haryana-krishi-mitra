@@ -77,7 +77,7 @@ export async function scenesAt(lat, lon, days = 120, maxCloud = 40) {
 export const NASA = {
   modis: { id: "MODIS_Terra_CorrectedReflectance_TrueColor", lvl: 9, ext: "jpg", en: "NASA daily true colour (MODIS Terra, 250 m)", hi: "NASA दैनिक असली रंग (MODIS, 250 मी.)" },
   noaa20: { id: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", lvl: 9, ext: "jpg", en: "NASA daily true colour (VIIRS NOAA-20)", hi: "NASA दैनिक असली रंग (VIIRS)" },
-  fires: { id: "VIIRS_NOAA20_Thermal_Anomalies_375m_All", lvl: 8, ext: "mvt", vector: true, en: "Fires / stubble burning (VIIRS 375 m)", hi: "आग / पराली जलाना (VIIRS 375 मी.)", legend: "fire" },
+  fires: { id: "VIIRS_NOAA20_Thermal_Anomalies_375m_All", vector: true, en: "Fires / stubble burning (VIIRS 375 m)", hi: "आग / पराली जलाना (VIIRS 375 मी.)", legend: "fire" },
   ndvi8: { id: "VIIRS_NOAA20_NDVI_8Day", lvl: 8, ext: "png", period: 8, en: "Crop greenness, 8-day (VIIRS NDVI)", hi: "फसल हरियाली, 8 दिन (VIIRS NDVI)", legend: "ndvi" },
   lst: { id: "MODIS_Terra_Land_Surface_Temp_Day", lvl: 7, ext: "png", en: "Land surface temperature, day (MODIS)", hi: "ज़मीन का तापमान, दिन (MODIS)", legend: "temp" },
   soil: { id: "SMAP_L4_Analyzed_Root_Zone_Soil_Moisture", lvl: 6, ext: "png", lag: 3, en: "Root-zone soil moisture (NASA SMAP)", hi: "जड़ क्षेत्र मिट्टी की नमी (NASA SMAP)", legend: "moist" },
@@ -98,19 +98,37 @@ export function nasaDate(key, chosen) {
   return d.toISOString().slice(0, 10);
 }
 
-// VectorGrid (for NASA fire points) loads only when the fire layer is first switched on
-let vgP = null;
-export function loadVectorGrid() {
-  if (window.L?.vectorGrid) return Promise.resolve();
-  if (!vgP) vgP = new Promise((res, rej) => {
-    // VectorGrid predates Leaflet 1.8, which renamed this helper
-    if (!L.DomEvent.fakeStop) L.DomEvent.fakeStop = L.DomEvent._fakeStop || function () { return true; };
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.min.js";
-    s.onload = () => res(); s.onerror = () => rej(new Error("Could not load fire layer"));
-    document.head.appendChild(s);
-  });
-  return vgP;
+// NASA VIIRS fire detections. GIBS serves these only as vector tiles in the lat/lon grid (EPSG:4326, "500m" set);
+// one level-4 tile (18 x 18 degrees) covers all of Haryana. Decoded in the browser and drawn as points.
+let mvtLibs = null;
+async function libs() {
+  if (!mvtLibs) mvtLibs = Promise.all([
+    import("https://cdn.jsdelivr.net/npm/@mapbox/vector-tile@2.0.3/+esm"),
+    import("https://cdn.jsdelivr.net/npm/pbf@4.0.1/+esm"),
+  ]).then(([vt, pbf]) => ({ VectorTile: vt.VectorTile, Pbf: pbf.default }));
+  return mvtLibs;
+}
+const fireCache = new Map();
+export async function firesOn(date, bbox = [74.4, 27.6, 77.6, 31.0]) {
+  const key = date + bbox.join(",");
+  if (fireCache.has(key)) return fireCache.get(key);
+  const { VectorTile, Pbf } = await libs();
+  const z = 4, deg = 288 / 2 ** z, row = Math.floor((90 - bbox[3]) / deg), col = Math.floor((bbox[0] + 180) / deg);
+  const r = await fetch(`https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/VIIRS_NOAA20_Thermal_Anomalies_375m_All/default/${date}/500m/${z}/${row}/${col}.mvt`);
+  if (r.status === 404 || r.status === 400) { fireCache.set(key, []); return []; }
+  if (!r.ok) throw new Error(r.status + " fires");
+  const vt = new VectorTile(new Pbf(new Uint8Array(await r.arrayBuffer())));
+  const out = [];
+  for (const name of Object.keys(vt.layers)) {
+    const ly = vt.layers[name];
+    for (let i = 0; i < ly.length; i++) {
+      const p = ly.feature(i).properties;
+      const lat = +p.LATITUDE, lon = +p.LONGITUDE;
+      if (lon >= bbox[0] && lon <= bbox[2] && lat >= bbox[1] && lat <= bbox[3]) out.push({ lat, lon, time: p.ACQ_TIME, date: p.ACQ_DATE, frp: p.FRP, conf: p.CONFIDENCE, bright: p.BRIGHT_TI4, dn: p.DAYNIGHT });
+    }
+  }
+  fireCache.set(key, out);
+  return out;
 }
 
 export const LEGENDS = {
