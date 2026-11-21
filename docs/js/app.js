@@ -1,17 +1,17 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120225621";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120225621";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120225621";
-import * as Voice from "./voice.js?v=20261120225621";
-import { ARCGIS_KEY } from "./config.js?v=20261120225621";
-import * as Pheno from "./phenology.js?v=20261120225621";
-import * as Field from "./field.js?v=20261120225621";
-import * as RS from "./rs.js?v=20261120225621";
-import * as src from "./sources.js?v=20261120225621";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120225621";
-import * as card from "./soilcard.js?v=20261120225621";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120225621";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120225621";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120225621";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120225823";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120225823";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120225823";
+import * as Voice from "./voice.js?v=20261120225823";
+import { ARCGIS_KEY } from "./config.js?v=20261120225823";
+import * as Pheno from "./phenology.js?v=20261120225823";
+import * as Field from "./field.js?v=20261120225823";
+import * as RS from "./rs.js?v=20261120225823";
+import * as src from "./sources.js?v=20261120225823";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120225823";
+import * as card from "./soilcard.js?v=20261120225823";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120225823";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120225823";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120225823";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -409,9 +409,12 @@ function renderGuide(sayIt = true) {
   on("fRename", () => {
     const f = currentField(), holder = $("#fName"); if (!f || !holder) return;
     holder.innerHTML = `<input id="fNameIn" type="text" maxlength="30" value="${esc(f.name)}">`;
+    $("#fRename").innerHTML = `${ic("circle-check")}${T2("Save", "सेव करें")}`;
     const inp = $("#fNameIn"); inp.focus(); inp.select();
-    const save = () => { const v = inp.value.trim(); if (v) { f.name = v; storeFields(); } renderGuide(false); };
-    inp.onblur = save; inp.onkeydown = (e) => { if (e.key === "Enter") inp.blur(); };
+    let saved = false;
+    const save = () => { if (saved) return; saved = true; const v = inp.value.trim(); if (v) { f.name = v; storeFields(); } renderGuide(false); };
+    inp.onblur = save; inp.onchange = save; inp.onkeydown = (e) => { if (e.key === "Enter") save(); };
+    $("#fRename").onclick = save;
   });
   $$("#guide [data-ac]").forEach((b) => (b.onclick = () => { $("#acres").value = b.dataset.ac; drawSquare(); renderGuide(false); }));
   setTimeout(() => map.invalidateSize(), 60);
