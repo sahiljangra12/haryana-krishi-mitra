@@ -25,10 +25,13 @@ Village-level addresses in India are patchy in every free database, so the searc
 
 Suggestions appear as you type. A village or PIN is an area, not a field, so the app drops a pin there and asks the farmer to tap the exact field. It then names the nearest village (reverse geocoding) to confirm.
 
-## Design
-- Palette taken from the fields: soil brown `#3A2A1C`, field green `#2F6B3A`, mustard-flower yellow `#F0BE1E`, canal blue `#2D6E8E`.
-- Type: *Tiro Devanagari Hindi* for headings and *Hind* for interface text. Both are built for Devanagari, and Hindi is the default language.
-- The hero is a real satellite image of fields near Karnal. Crops and techniques use openly licensed photos from Wikimedia Commons, credited on the About page (`docs/js/images.js`). Icons are from [Lucide](https://lucide.dev) (ISC), inlined as an SVG sprite. The site uses no emojis.
+## Design (mobile first)
+- Built for phones first. There's a bottom navigation bar within thumb reach, and a full-width satellite map with floating GPS and draw-field buttons. The "Analyse" button stays on screen. Tap targets are 44 px or more, and inputs use 16 px text so phones don't zoom in.
+- The **night theme** (default) gives a satellite-console look: live data readout, satellite pass panel (which satellite, when it passed and cloud cover over the field) and a status row showing which data sources loaded. **Sun mode** is a high-contrast light theme for reading outdoors, one tap from the header.
+- It's **installable** (web app manifest plus service worker): it opens from the home screen and works offline for screens already seen.
+- It **remembers the last field**. **Share on WhatsApp** sends a link (`#poly=…` or `#field=lat,lon,acres`) that reopens the same field.
+- Type: *Hind* for the interface and *Tiro Devanagari Hindi* for display headings, both built for Devanagari; Hindi is the default.
+- Photos come from Wikimedia Commons (credited on the About page, listed in `docs/js/images.js`). Icons are from [Lucide](https://lucide.dev) (ISC licence). The site uses no emojis.
 
 ## How it's built
 
