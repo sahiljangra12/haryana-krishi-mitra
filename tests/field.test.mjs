@@ -48,3 +48,25 @@ test("long text is cut into short pieces for the speech engine", () => {
   assert.equal(parts.length, 3);
   assert.ok(sentences("a, ".repeat(200)).every((p) => p.length <= 181));
 });
+
+import { recommend } from "../docs/js/advisor.js";
+const ctx = { season: "rabi", district: { name: "Karnal", zone: "NE", gw: "stressed" }, soil: { texture: "loam" }, water: "good", risk: "medium", acres: 1, prices: null };
+
+test("recommendation: every rabi crop is ranked with a score between 0 and 100", () => {
+  const r = recommend(ctx);
+  assert.ok(r.length >= 5);
+  assert.ok(r.every((x) => x.score >= 0 && x.score <= 100));
+  assert.ok(r.every((x, i) => i === 0 || r[i - 1].score >= x.score));
+});
+
+test("recommendation: a pulse before helps a cereal, and repeating a crop costs points", () => {
+  const score = (extra, id) => recommend({ ...ctx, ...extra }).find((x) => x.crop.id === id).score;
+  assert.equal(score({ prevCrop: "moong" }, "wheat") - score({}, "wheat"), 3);
+  assert.equal(score({ prevCrop: "wheat" }, "wheat") - score({}, "wheat"), -6);
+  assert.equal(score({ prevCrop: "moong" }, "gram"), score({}, "gram"));
+});
+
+test("recommendation: drip stretches limited water for a crop that needs a fair amount", () => {
+  const score = (extra) => recommend({ ...ctx, water: "limited", ...extra }).find((x) => x.crop.id === "wheat").score;
+  assert.ok(score({ irrigation: "drip" }) > score({}));
+});

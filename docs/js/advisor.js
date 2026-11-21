@@ -1,6 +1,6 @@
 // Recommendation engine: transparent, rule-based scoring. No black box —
 // every score component is shown to the farmer in the UI.
-import { CROPS, SEASONS } from "./crops.js?v=20261120225823";
+import { CROPS, SEASONS } from "./crops.js?v=20261120230624";
 
 // Which season is the farmer planning for, given today's month?
 export function upcomingSeason(month = new Date().getMonth() + 1) {
@@ -65,6 +65,7 @@ const textureGroup = (t = "") => (t.includes("sand") && !t.includes("clay") ? "s
  * Score every crop of the chosen season.
  * ctx: { season, district, soil, water: 'good'|'limited'|'rainfed', acres, prices, ndmi, annualRain, risk: 'low'|'medium'|'high' }
  */
+const PULSES = ["gram", "moong", "moong_summer", "guar"];
 export function recommend(ctx) {
   const crops = CROPS.filter((c) => c.season === ctx.season);
   const rows = crops.map((crop) => {
@@ -104,7 +105,15 @@ export function recommend(ctx) {
     if (water === "rainfed") w = [22, 6, 0][crop.waterNeed - 1];
     if (ctx.district?.gw === "stressed" && crop.waterNeed === 3) { w -= 8; reasons.push({ k: "gwStress" }); }
     if (ctx.district?.gw === "saline" && crop.salinityTol === "low") { w -= 4; reasons.push({ k: "gwSaline" }); }
+    // drip or sprinkler makes limited water go further for crops that need a fair amount
+    if ((ctx.irrigation === "drip" || ctx.irrigation === "sprinkler") && water === "limited" && crop.waterNeed >= 2) { w = Math.min(25, w + 4); reasons.push({ k: "efficient" }); }
     s += Math.max(0, w);
+
+    // rotation (-6 to +3): the same crop again builds up pests and diseases; a pulse leaves nitrogen for the next crop
+    if (ctx.prevCrop) {
+      if (ctx.prevCrop === crop.id) { s -= 6; reasons.push({ k: "sameCrop" }); }
+      else if (PULSES.includes(ctx.prevCrop) && !PULSES.includes(crop.id)) { s += 3; reasons.push({ k: "afterPulse" }); }
+    }
 
     // 4) zone fit (0–10)
     const zone = crop.zones.includes(ctx.district?.zone) ? 10 : 3;
@@ -116,7 +125,7 @@ export function recommend(ctx) {
     if (!crop.msp) reasons.push({ k: "noMsp" });
     if (pp.basis === "reference") reasons.push({ k: "refPrice" });
 
-    return { crop, live, pp, budget: b, score: Math.round(s), parts: { prof, soilFit, w, zone, risk: 5 - riskPenalty }, reasons };
+    return { crop, live, pp, budget: b, score: Math.max(0, Math.round(s)), parts: { prof, soilFit, w, zone, risk: 5 - riskPenalty }, reasons };
   });
   return rows.sort((a, b) => b.score - a.score);
 }
