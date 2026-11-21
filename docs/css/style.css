@@ -549,3 +549,14 @@ details summary .ic { color: var(--green); }
 .pass { margin-top: 0; }
 .report-head { margin-top: 0.6rem; }
 @media print { .stage, .tabhead .say, .say { display: none !important; } }
+
+.filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.7rem; }
+.filters .f { margin: 0; min-width: 0; }
+.filters select { width: 100%; }
+@media (max-width: 760px) { .filters { grid-template-columns: 1fr 1fr; } .filters .f span { font-size: 0.85rem; } }
+details.opts { border: 0; background: var(--paper-2); border-radius: 14px; padding: 0.2rem 0.9rem; margin: 0.8rem 0 0; }
+details.opts summary { padding: 0.6rem 0; font-weight: 600; font-size: 0.95rem; }
+details.opts label { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.5rem 0; border-top: 1px solid var(--line); }
+details.opts input { margin-top: 0.25rem; flex: none; width: 1.2rem; height: 1.2rem; accent-color: var(--green); }
+.leaflet-control-attribution { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100vw; font-size: 10px !important; }
+@media (max-width: 760px) { .imgbadge { bottom: 44px; } .legend { bottom: 80px; } .mapfab { bottom: 44px; } }

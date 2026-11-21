@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20261120214327" />
+  <link rel="stylesheet" href="css/style.css?v=20261120214610" />
 </head>
 <body>
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
@@ -345,20 +345,21 @@
     <section id="tab-advice" class="panel">
       <div class="tabhead"><h2 data-t="tabAdvice"></h2><button class="say big" type="button" data-say="tab" data-tab="advice" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
       <div class="card">
-        <div class="row wrap">
+        <div class="filters">
           <label class="f"><span data-t="water"></span><select id="water"><option value="good" data-t="waterGood"></option><option value="limited" data-t="waterLimited"></option><option value="rainfed" data-t="waterRainfed"></option></select></label>
           <label class="f"><span data-t="risk"></span><select id="risk"><option value="low" data-t="riskLow"></option><option value="medium" data-t="riskMed" selected></option><option value="high" data-t="riskHigh"></option></select></label>
           <label class="f"><span data-t="season"></span><select id="seasonSel"></select></label>
           <label class="f"><span data-t="chooseDistrict"></span><select id="districtSel"></select></label>
         </div>
         <div id="adviceNote" class="notebar"></div>
-        <fieldset class="opts">
-          <legend><svg class="ic"><use href="#i-landmark"/></svg><span data-t="incentivesQ"></span></legend>
+        <details class="opts">
+          <summary><svg class="ic"><use href="#i-landmark"/></svg><span data-t="incentivesQ"></span></summary>
           <label><input type="checkbox" id="optPaddy" /> <span data-t="optPaddy"></span></label>
           <label><input type="checkbox" id="optDsr" /> <span data-t="optDsr"></span></label>
           <label><input type="checkbox" id="optStraw" /> <span data-t="optStraw"></span></label>
-        </fieldset>
+        </details>
       </div>
+      <div id="advice"></div>
       <div class="card" id="compareCard">
         <h2 data-t="compareTitle"></h2>
         <p class="hint" data-t="compareHint"></p>
@@ -369,7 +370,6 @@
         <h2 data-t="calendarTitle"></h2>
         <div class="calwrap"><div id="calendar" class="calendar"></div></div>
       </div>
-      <div id="advice"></div>
       <p class="disclaimer" data-t="disclaimer"></p>
     </section>
 
@@ -468,6 +468,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="js/app.js?v=20261120214327"></script>
+  <script type="module" src="js/app.js?v=20261120214610"></script>
 </body>
 </html>
