@@ -1,13 +1,13 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120211659";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120211659";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120211659";
-import * as RS from "./rs.js?v=20261120211659";
-import * as src from "./sources.js?v=20261120211659";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120211659";
-import * as card from "./soilcard.js?v=20261120211659";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120211659";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120211659";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120211659";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120211850";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120211850";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120211850";
+import * as RS from "./rs.js?v=20261120211850";
+import * as src from "./sources.js?v=20261120211850";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120211850";
+import * as card from "./soilcard.js?v=20261120211850";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120211850";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120211850";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120211850";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -102,7 +102,7 @@ const rs = {
 const ATTR_S2 = "Copernicus Sentinel-2, Microsoft Planetary Computer";
 const ATTR_NASA = "NASA GIBS / Worldview";
 let nasaBase = L.tileLayer(RS.gibsTiles("modis", rs.date), { maxNativeZoom: 9, maxZoom: 19, attribution: ATTR_NASA }).addTo(map);
-let s2Layer = null;
+let s2Layer = null, s2Under = null;
 const esriPhoto = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri, Maxar, Earthstar Geographics" });
 const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, pane: "overlayPane", zIndex: 650 }).addTo(map);
 const nasaOverlays = {};
@@ -285,6 +285,7 @@ function fmtDate(iso) { return new Date(iso).toLocaleDateString(getLang() === "h
 
 async function applyImagery() {
   if (s2Layer) { map.removeLayer(s2Layer); s2Layer = null; }
+  if (s2Under) { map.removeLayer(s2Under); s2Under = null; }
   map.removeLayer(esriPhoto);
   nasaBase.setUrl(RS.gibsTiles("modis", rs.date));
   if (rs.mode === "photo") esriPhoto.addTo(map);
@@ -292,7 +293,12 @@ async function applyImagery() {
     try { rs.mosaic = rs.mosaic || (await RS.latestMosaic(30, 5)); } catch { rs.mosaic = null; }
     if (rs.mosaic && rs.mode === "latest") s2Layer = L.tileLayer(RS.mosaicTiles(rs.mosaic.sid, rs.view), { minZoom: 9, maxNativeZoom: 15, maxZoom: 19, attribution: ATTR_S2 }).addTo(map);
   }
-  if (rs.mode === "scene" && rs.sceneId) s2Layer = L.tileLayer(RS.sceneTiles(rs.sceneId, rs.view), { minZoom: 8, maxNativeZoom: 15, maxZoom: 19, attribution: ATTR_S2 }).addTo(map);
+  if (rs.mode === "scene" && rs.sceneId) {
+    // recent true-colour mosaic underneath, so the area outside this one pass is not blank
+    try { rs.mosaic = rs.mosaic || (await RS.latestMosaic(30, 5)); } catch {}
+    if (rs.mosaic) { s2Under = L.tileLayer(RS.mosaicTiles(rs.mosaic.sid, "true"), { minZoom: 9, maxNativeZoom: 15, maxZoom: 19, opacity: 0.55 }).addTo(map); }
+    s2Layer = L.tileLayer(RS.sceneTiles(rs.sceneId, rs.view), { minZoom: 8, maxNativeZoom: 15, maxZoom: 19, attribution: ATTR_S2 }).addTo(map);
+  }
   if (s2Layer) s2Layer.on("load", () => $("#imgBadge").classList.remove("loading")).on("loading", () => $("#imgBadge").classList.add("loading"));
   await applyNasa();
   labels[rs.names ? "addTo" : "remove"](map);

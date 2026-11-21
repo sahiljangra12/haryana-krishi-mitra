@@ -1,6 +1,6 @@
 // Offline support. Pages and app code: network first (always fresh when online), cached copy when offline.
 // Fonts, map library, icons and photos: cache first. Live data APIs (satellite, weather, prices): never cached here.
-const VERSION = "km-20261120211659";
+const VERSION = "km-20261120211850";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "img/logo.svg", "img/icon-192.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => {
