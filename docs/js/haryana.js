@@ -19,3 +19,18 @@ export function inHaryana(lat, lon) {
 }
 // India, loosely: the map cannot be moved outside this box
 export const INDIA_BOUNDS = [[5.5, 67.0], [37.8, 98.5]];
+// The outline is simplified to about 1 km, so a field right on the state border could fall on the wrong side of it.
+// A point counts as Haryana if it is inside the outline or within `km` of it.
+export function nearHaryana(lat, lon, km = 2.5) {
+  if (inHaryana(lat, lon)) return true;
+  const kx = 111.32 * Math.cos((lat * Math.PI) / 180), ky = 110.57;
+  let best = Infinity;
+  for (let i = 0, j = HARYANA.length - 1; i < HARYANA.length; j = i++) {
+    const ax = (HARYANA[j][0] - lon) * kx, ay = (HARYANA[j][1] - lat) * ky, bx = (HARYANA[i][0] - lon) * kx, by = (HARYANA[i][1] - lat) * ky;
+    const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2)) : 0;
+    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+    if (best <= km) return true;
+  }
+  return false;
+}

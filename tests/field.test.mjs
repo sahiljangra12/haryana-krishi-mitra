@@ -97,3 +97,12 @@ test("Haryana outline: towns inside, neighbours outside", () => {
   for (const [lat, lon] of [[29.69, 76.99], [29.15, 75.72], [28.46, 77.03], [29.53, 75.03], [28.1, 77.0], [30.37, 76.78]]) assert.equal(inHaryana(lat, lon), true);
   for (const [lat, lon] of [[28.61, 77.21], [30.9, 75.85], [26.9, 75.8], [30.73, 76.78], [27.18, 78.0]]) assert.equal(inHaryana(lat, lon), false);
 });
+import { nearHaryana } from "../docs/js/haryana.js";
+test("border fields: within 2.5 km of the outline still counts as Haryana", () => {
+  assert.equal(nearHaryana(29.69, 76.99), true);          // Karnal, well inside
+  assert.equal(nearHaryana(28.61, 77.21), false);         // central Delhi, about 15 km from the line
+  assert.equal(nearHaryana(30.9, 75.85), false);          // Ludhiana
+  // a point 1 km west of the outline's first vertex, and one 6 km west of it
+  assert.equal(nearHaryana(29.815, 74.485 - 1 / 96.6), true);
+  assert.equal(nearHaryana(29.815, 74.485 - 6 / 96.6), false);
+});

@@ -877,3 +877,4 @@ input:focus, select:focus, textarea:focus { outline: 3px solid color-mix(in srgb
 .scen, .money > div, .idx div, .soilgrid > div, .pass > div { border-radius: 12px; }
 table { border-radius: 12px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+#mapVeil.off { opacity: 0; visibility: hidden; }

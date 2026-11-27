@@ -1,19 +1,19 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126202014";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126202014";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126202014";
-import * as Voice from "./voice.js?v=20261126202014";
-import { ARCGIS_KEY } from "./config.js?v=20261126202014";
-import * as Pheno from "./phenology.js?v=20261126202014";
-import { askIntent, cropInText } from "./ask.js?v=20261126202014";
-import { HARYANA, inHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126202014";
-import * as Field from "./field.js?v=20261126202014";
-import * as RS from "./rs.js?v=20261126202014";
-import * as src from "./sources.js?v=20261126202014";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126202014";
-import * as card from "./soilcard.js?v=20261126202014";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126202014";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126202014";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126202014";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126202156";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126202156";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126202156";
+import * as Voice from "./voice.js?v=20261126202156";
+import { ARCGIS_KEY } from "./config.js?v=20261126202156";
+import * as Pheno from "./phenology.js?v=20261126202156";
+import { askIntent, cropInText } from "./ask.js?v=20261126202156";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126202156";
+import * as Field from "./field.js?v=20261126202156";
+import * as RS from "./rs.js?v=20261126202156";
+import * as src from "./sources.js?v=20261126202156";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126202156";
+import * as card from "./soilcard.js?v=20261126202156";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126202156";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126202156";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126202156";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -130,9 +130,10 @@ document.addEventListener("click", (e) => {
    Esri World Imagery has real tiles to zoom 18 in rural Haryana (checked); beyond that it returns a grey
    "no data" tile, so deeper zooms enlarge level 18 instead. Live satellite layers are drawn on top. */
 // The map stays inside India and opens on Haryana. Haryana is sharp; everything around it is blurred.
-const map = L.map("map", { zoomControl: false, maxZoom: 21, minZoom: 5, maxBounds: INDIA_BOUNDS, maxBoundsViscosity: 1 });
+const map = L.map("map", { zoomControl: false, maxZoom: 21, minZoom: 5, zoomSnap: 0.25, maxBounds: INDIA_BOUNDS, maxBoundsViscosity: 1 });
 const HARYANA_LL = HARYANA.map(([x, y]) => [y, x]);
-map.fitBounds(L.latLngBounds(HARYANA_LL), { padding: [8, 8] });
+// the whole state in view, clear of the search bar and the buttons that float on the map
+map.fitBounds(L.latLngBounds(HARYANA_LL), { paddingTopLeft: [10, innerWidth < 761 ? 112 : 20], paddingBottomRight: [innerWidth < 761 ? 10 : 20, 14] });
 map.attributionControl.setPrefix("");
 map.createPane("names"); map.getPane("names").style.zIndex = 450; map.getPane("names").style.pointerEvents = "none";
 const yesterday = () => new Date(Date.now() + 5.5 * 3600e3 - 864e5).toISOString().slice(0, 10);
@@ -197,7 +198,7 @@ function clearShape() {
   vertexLayer.clearLayers();
   state.vertices = []; state.point = null; state.feature = null;
 }
-const outsideHaryana = (lat, lon) => !inHaryana(lat, lon);
+const outsideHaryana = (lat, lon) => !nearHaryana(lat, lon, 2.5);
 const OUTSIDE_MSG = { en: "This app works for fields in Haryana. Choose your field in the clear part of the map.", hi: "यह ऐप हरियाणा के खेतों के लिए है। नक्शे के साफ़ दिख रहे हिस्से में अपना खेत चुनें।" };
 // Frosted veil over everything that is not Haryana: a blurred layer cut to the outline, redrawn as the map moves
 map.createPane("outline"); map.getPane("outline").style.zIndex = 460; map.getPane("outline").style.pointerEvents = "none";
@@ -213,7 +214,8 @@ function cutVeil(pts) {
   for (let i = 0; i < pts.length; i++) d += `${i ? "L" : ""}${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`;
   veil.style.clipPath = veil.style.webkitClipPath = `path(evenodd, "${d}Z")`;
 }
-const drawVeil = () => { veil.style.transition = "none"; cutVeil(HARYANA_LL.map((ll) => map.latLngToContainerPoint(ll))); };
+// At field scale the veil steps aside: the outline is only accurate to about a kilometre, and a border field must stay visible
+const drawVeil = () => { veil.style.transition = "none"; veil.classList.toggle("off", map.getZoom() >= 13); cutVeil(HARYANA_LL.map((ll) => map.latLngToContainerPoint(ll))); };
 map.on("move zoom viewreset resize zoomend moveend", drawVeil);
 // during an animated zoom the tiles glide to their new place; the cut-out glides with them
 map.on("zoomanim", (e) => {
