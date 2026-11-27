@@ -13,5 +13,6 @@ export const READ_ALOUD = false;
 // Shared forum and marketplace board (Supabase, free tier). Both values are public by design: the database rules in
 // supabase/schema.sql decide what this key may do (submit as pending, read approved). The service_role key must NEVER be put here.
 // Empty = the forum and the board stay closed and the app says so.
-export const SUPABASE_URL = "";
-export const SUPABASE_ANON_KEY = "";
+// The key below is the project's "publishable" key (the newer name for the anon public key). Connected on 26 Nov 2026.
+export const SUPABASE_URL = "https://uctoozrsjqpxgpiayduz.supabase.co";
+export const SUPABASE_ANON_KEY = "sb_publishable_3MXKclf0W2UXDHFBt5F7qA_Io4EG6nI";

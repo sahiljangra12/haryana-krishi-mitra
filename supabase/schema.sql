@@ -1,18 +1,21 @@
 -- Krishi Mitra Haryana: shared forum and marketplace board.
--- Run once in the Supabase SQL editor of the project. Safe to run again.
+-- Run once in the Supabase SQL editor of the project. Safe to run again: it only adds what is missing and removes nothing.
 --
 -- The rule behind every policy: the public (role "anon") may SUBMIT a row, which is always stored as 'pending',
 -- and may READ only rows an admin has approved. Only a signed-in admin (listed in public.admins) can approve,
 -- reject, verify a buyer or delete. The public key that sits in the website can do nothing else.
 
-create extension if not exists pgcrypto;
-
 create table if not exists public.admins (user_id uuid primary key references auth.users (id) on delete cascade);
 alter table public.admins enable row level security;
-drop policy if exists "admin sees own row" on public.admins;
-create policy "admin sees own row" on public.admins for select to authenticated using (user_id = auth.uid());
+do $$ begin if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'admins' and policyname = 'admin sees own row') then
+  create policy "admin sees own row" on public.admins for select to authenticated using (user_id = auth.uid());
+end if; end $$;
 create or replace function public.is_admin() returns boolean language sql stable security definer set search_path = public as
 $$ select exists (select 1 from public.admins a where a.user_id = auth.uid()) $$;
+-- Supabase projects created after 30 May 2026 give the API roles no rights on new tables, so every right is granted here by name.
+revoke all on public.admins from anon;
+grant select on public.admins to authenticated;
+grant execute on function public.is_admin() to authenticated;
 
 -- ---------------------------------------------------------------- forum posts
 create table if not exists public.posts (
@@ -29,16 +32,20 @@ create table if not exists public.posts (
 );
 create index if not exists posts_feed on public.posts (status, district, created_at desc);
 alter table public.posts enable row level security;
-drop policy if exists "public reads approved posts" on public.posts;
-create policy "public reads approved posts" on public.posts for select to anon using (status = 'approved');
-drop policy if exists "public submits pending posts" on public.posts;
-create policy "public submits pending posts" on public.posts for insert to anon with check (status = 'pending' and kind = 'personal');
-drop policy if exists "admin manages posts" on public.posts;
-create policy "admin manages posts" on public.posts for all to authenticated using (public.is_admin()) with check (public.is_admin());
+do $$ begin if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'posts' and policyname = 'public reads approved posts') then
+  create policy "public reads approved posts" on public.posts for select to anon using (status = 'approved');
+end if; end $$;
+do $$ begin if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'posts' and policyname = 'public submits pending posts') then
+  create policy "public submits pending posts" on public.posts for insert to anon with check (status = 'pending' and kind = 'personal');
+end if; end $$;
+do $$ begin if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'posts' and policyname = 'admin manages posts') then
+  create policy "admin manages posts" on public.posts for all to authenticated using (public.is_admin()) with check (public.is_admin());
+end if; end $$;
 -- the public never sees the device id or the status column of a row
 revoke all on public.posts from anon;
 grant select (id, created_at, district, crop, topic, body, author, kind) on public.posts to anon;
 grant insert (district, crop, topic, body, author, device) on public.posts to anon;
+grant select, insert, update, delete on public.posts to authenticated;
 
 -- ---------------------------------------------------------------- marketplace board
 create table if not exists public.listings (
@@ -61,15 +68,19 @@ create table if not exists public.listings (
 );
 create index if not exists listings_feed on public.listings (status, kind, district, created_at desc);
 alter table public.listings enable row level security;
-drop policy if exists "public reads approved listings" on public.listings;
-create policy "public reads approved listings" on public.listings for select to anon using (status = 'approved' and expires_at > now());
-drop policy if exists "public submits pending listings" on public.listings;
-create policy "public submits pending listings" on public.listings for insert to anon with check (status = 'pending' and verified = false);
-drop policy if exists "admin manages listings" on public.listings;
-create policy "admin manages listings" on public.listings for all to authenticated using (public.is_admin()) with check (public.is_admin());
+do $$ begin if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'listings' and policyname = 'public reads approved listings') then
+  create policy "public reads approved listings" on public.listings for select to anon using (status = 'approved' and expires_at > now());
+end if; end $$;
+do $$ begin if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'listings' and policyname = 'public submits pending listings') then
+  create policy "public submits pending listings" on public.listings for insert to anon with check (status = 'pending' and verified = false);
+end if; end $$;
+do $$ begin if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'listings' and policyname = 'admin manages listings') then
+  create policy "admin manages listings" on public.listings for all to authenticated using (public.is_admin()) with check (public.is_admin());
+end if; end $$;
 revoke all on public.listings from anon;
 grant select (id, created_at, kind, district, crop, variety, qty_qtl, price, ready_from, name, phone, note, verified) on public.listings to anon;
 grant insert (kind, district, crop, variety, qty_qtl, price, ready_from, name, phone, note, device) on public.listings to anon;
+grant select, insert, update, delete on public.listings to authenticated;
 
 -- ---------------------------------------------------------------- reports from the public
 create table if not exists public.reports (
@@ -81,12 +92,15 @@ create table if not exists public.reports (
   device text not null default '' check (char_length(device) <= 64)
 );
 alter table public.reports enable row level security;
-drop policy if exists "public files a report" on public.reports;
-create policy "public files a report" on public.reports for insert to anon with check (true);
-drop policy if exists "admin manages reports" on public.reports;
-create policy "admin manages reports" on public.reports for all to authenticated using (public.is_admin()) with check (public.is_admin());
+do $$ begin if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'reports' and policyname = 'public files a report') then
+  create policy "public files a report" on public.reports for insert to anon with check (true);
+end if; end $$;
+do $$ begin if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'reports' and policyname = 'admin manages reports') then
+  create policy "admin manages reports" on public.reports for all to authenticated using (public.is_admin()) with check (public.is_admin());
+end if; end $$;
 revoke all on public.reports from anon;
 grant insert (target_table, target_id, reason, device) on public.reports to anon;
+grant select, insert, update, delete on public.reports to authenticated;
 
 -- ---------------------------------------------------------------- limits against flooding
 -- At most 5 submissions a day from one device id, and a ceiling on the waiting queue, for each table.
@@ -103,13 +117,13 @@ begin
   end if;
   return new;
 end $$;
-drop trigger if exists limit_posts on public.posts;
-create trigger limit_posts before insert on public.posts for each row execute function public.limit_submissions();
-drop trigger if exists limit_listings on public.listings;
-create trigger limit_listings before insert on public.listings for each row execute function public.limit_submissions();
-drop trigger if exists limit_reports on public.reports;
-create trigger limit_reports before insert on public.reports for each row execute function public.limit_submissions();
+create or replace trigger limit_posts before insert on public.posts for each row execute function public.limit_submissions();
+create or replace trigger limit_listings before insert on public.listings for each row execute function public.limit_submissions();
+create or replace trigger limit_reports before insert on public.reports for each row execute function public.limit_submissions();
+
+-- tell the Data API that new tables exist
+notify pgrst, 'reload schema';
 
 -- After creating your own user under Authentication > Users, make it the admin (put your email in):
 --   insert into public.admins (user_id) select id from auth.users where email = 'YOUR_EMAIL' on conflict do nothing;
--- Also switch off "Allow new users to sign up" under Authentication > Sign In / Providers.
+-- Keep "Allow new users to sign up" switched off under Authentication > Sign In / Providers.

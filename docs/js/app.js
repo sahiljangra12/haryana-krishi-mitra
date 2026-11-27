@@ -1,25 +1,25 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126223326";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126223326";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126223326";
-import * as Voice from "./voice.js?v=20261126223326";
-import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126223326";
-import * as Pheno from "./phenology.js?v=20261126223326";
-import { askIntent, cropInText } from "./ask.js?v=20261126223326";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126223326";
-import * as Land from "./landtype.js?v=20261126223326";
-import * as Farmer from "./farmer.js?v=20261126223326";
-import * as Remote from "./remote.js?v=20261126223326";
-import * as Dir from "./directory.js?v=20261126223326";
-import * as Planner from "./planner.js?v=20261126223326";
-import * as Doctor from "./doctor.js?v=20261126223326";
-import * as Field from "./field.js?v=20261126223326";
-import * as RS from "./rs.js?v=20261126223326";
-import * as src from "./sources.js?v=20261126223326";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126223326";
-import * as card from "./soilcard.js?v=20261126223326";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126223326";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126223326";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126223326";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126225539";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126225539";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126225539";
+import * as Voice from "./voice.js?v=20261126225539";
+import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126225539";
+import * as Pheno from "./phenology.js?v=20261126225539";
+import { askIntent, cropInText } from "./ask.js?v=20261126225539";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126225539";
+import * as Land from "./landtype.js?v=20261126225539";
+import * as Farmer from "./farmer.js?v=20261126225539";
+import * as Remote from "./remote.js?v=20261126225539";
+import * as Dir from "./directory.js?v=20261126225539";
+import * as Planner from "./planner.js?v=20261126225539";
+import * as Doctor from "./doctor.js?v=20261126225539";
+import * as Field from "./field.js?v=20261126225539";
+import * as RS from "./rs.js?v=20261126225539";
+import * as src from "./sources.js?v=20261126225539";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126225539";
+import * as card from "./soilcard.js?v=20261126225539";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126225539";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126225539";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126225539";
 
 // Reading aloud is switched off (config.js): the speaker buttons, the sound switch and the reading bar are hidden. The microphone stays.
 document.documentElement.classList.toggle("noread", !READ_ALOUD);
@@ -2573,7 +2573,8 @@ const PAGE_RENDER = { home: renderHome, know: renderKnow, market: renderMarket, 
    address is set there, Remote.enabled() is false and each page says it is not open.
    Nothing a farmer sends is public until the owner approves it.
    ===================================================================================== */
-const SERVER_MSG = (e) => /too many/.test(e.message) ? T2("You have sent five today. Try again tomorrow.", "आज आप पाँच बार भेज चुके हैं। कल दोबारा कोशिश करें।") : /waiting list/.test(e.message) ? T2("Too many posts are waiting to be checked. Try again later.", "बहुत सी पोस्ट जांच के इंतज़ार में हैं। बाद में कोशिश करें।") : T2("It could not be sent. Check the internet and try again.", "भेजा नहीं जा सका। इंटरनेट देखकर दोबारा कोशिश करें।");
+const CLOSED_MSG = () => T2("This is not open yet. It will start soon.", "यह अभी शुरू नहीं हुआ है। जल्द शुरू होगा।");
+const SERVER_MSG = (e) => Remote.notReady(e) ? CLOSED_MSG() : /too many/.test(e.message) ? T2("You have sent five today. Try again tomorrow.", "आज आप पाँच बार भेज चुके हैं। कल दोबारा कोशिश करें।") : /waiting list/.test(e.message) ? T2("Too many posts are waiting to be checked. Try again later.", "बहुत सी पोस्ट जांच के इंतज़ार में हैं। बाद में कोशिश करें।") : T2("It could not be sent. Check the internet and try again.", "भेजा नहीं जा सका। इंटरनेट देखकर दोबारा कोशिश करें।");
 const reportBtn = (table, id) => `<button type="button" class="linkbtn rep" data-report="${table}:${id}">${ic("circle-alert")}${T2("Report", "शिकायत करें")}</button>`;
 function wireReports(root) {
   $$("[data-report]", root).forEach((b) => (b.onclick = async () => {
@@ -2592,7 +2593,7 @@ async function renderForumFeed() {
     if (!$("#forumList")) return;
     $("#forumList").innerHTML = rows.length ? rows.map((p) => `<article class="card expnote"><p class="hint">${esc([p.crop, EXP_TOPICS[p.topic] ? L_(EXP_TOPICS[p.topic]) : "", dName(p.district), fmtDate(p.created_at)].filter(Boolean).join(" · "))}</p><p class="exptext">${esc(p.body)}</p><p class="hint">${ic(p.kind === "expert" ? "shield-check" : "user-round")} ${p.kind === "expert" ? T2("Contribution from an expert", "जानकार का योगदान") : T2("Personal experience, not checked by an expert", "निजी अनुभव, किसी जानकार ने जांचा नहीं")}${p.author ? ` · ${esc(p.author)}` : ""}</p>${reportBtn("posts", p.id)}</article>`).join("") : `<div class="card empty"><p>${scope === "district" ? T2("No experience from your district yet. Be the first to write one.", "आपके जिले से अभी कोई अनुभव नहीं आया। पहला अनुभव आप लिखें।") : T2("No experience has been posted yet.", "अभी कोई अनुभव नहीं आया।")}</p></div>`;
     wireReports($("#forumList"));
-  } catch { if ($("#forumList")) $("#forumList").innerHTML = `<p class="hint">${T2("The forum could not be reached. Check the internet.", "मंच तक नहीं पहुँच पाए। इंटरनेट देखें।")}</p>`; }
+  } catch (e) { if ($("#forumList")) $("#forumList").innerHTML = `<p class="hint">${Remote.notReady(e) ? CLOSED_MSG() : T2("The forum could not be reached. Check the internet.", "मंच तक नहीं पहुँच पाए। इंटरनेट देखें।")}</p>`; }
 }
 async function sendExperience() {
   const c = Remote.cleanPost({ district: state.district.name, crop: $("#expCrop").value, topic: state.expTopic || "variety", body: $("#expText").value, author: $("#expAuthor") ? $("#expAuthor").value : "" });
@@ -2641,7 +2642,7 @@ function renderBoard() {
         <p class="hint">${esc(l.name)} · ${dName(l.district)} · ${fmtDate(l.created_at)}${l.note ? `<br>${esc(l.note)}` : ""}</p>
         <div class="row wrap"><a class="btn" href="tel:+91${l.phone}">${ic("phone")}${T2("Call", "फोन करें")}</a><a class="btn line" href="https://wa.me/91${l.phone}" target="_blank" rel="noopener">${ic("share-2")}WhatsApp</a></div>${reportBtn("listings", l.id)}</article>`).join("") : `<div class="card empty"><p>${kind === "sell" ? T2("No farmer has listed this yet.", "अभी किसी किसान ने यह नहीं डाला।") : T2("No buyer has posted a requirement yet.", "अभी किसी खरीदार ने ज़रूरत नहीं डाली।")}</p></div>`;
     wireReports($("#boardList"));
-  }).catch(() => { if ($("#boardList")) $("#boardList").innerHTML = `<p class="hint">${T2("The board could not be reached. Check the internet.", "सूची तक नहीं पहुँच पाए। इंटरनेट देखें।")}</p>`; });
+  }).catch((e) => { if ($("#boardList")) $("#boardList").innerHTML = `<p class="hint">${Remote.notReady(e) ? CLOSED_MSG() : T2("The board could not be reached. Check the internet.", "सूची तक नहीं पहुँच पाए। इंटरनेट देखें।")}</p>`; });
 }
 
 /* ---------------- the owner's page: approve what the public sent ---------------- */
@@ -2652,7 +2653,7 @@ async function renderAdmin() {
   if (!Remote.enabled()) { box.innerHTML = `<div class="card"><p>${T2("The server is not connected yet (config.js has no address).", "सर्वर अभी जुड़ा नहीं है (config.js में पता नहीं है)।")}</p></div>`; return; }
   if (!adminToken) {
     box.innerHTML = `<div class="card"><p>${T2("Only the owner of the app can sign in here.", "यहाँ सिर्फ़ ऐप का मालिक साइन इन कर सकता है।")}</p><form id="adForm"><label class="f"><span>Email</span><input type="email" id="adEmail" autocomplete="username" required></label><label class="f"><span>${T2("Password", "पासवर्ड")}</span><input type="password" id="adPass" autocomplete="current-password" required></label><button class="btn" type="submit">${T2("Sign in", "साइन इन")}</button></form></div>`;
-    $("#adForm").onsubmit = async (e) => { e.preventDefault(); try { const r = await Remote.signIn($("#adEmail").value.trim(), $("#adPass").value); if (!(await Remote.amAdmin(r.access_token))) throw new Error("not admin"); adminToken = r.access_token; renderAdmin(); } catch { toast(T2("Sign-in failed, or this user is not the owner.", "साइन इन नहीं हुआ, या यह उपयोगकर्ता मालिक नहीं है।"), 5000); } };
+    $("#adForm").onsubmit = async (e) => { e.preventDefault(); try { const r = await Remote.signIn($("#adEmail").value.trim(), $("#adPass").value); if (!(await Remote.amAdmin(r.access_token))) throw new Error("not admin"); adminToken = r.access_token; renderAdmin(); } catch (err) { toast(Remote.notReady(err) ? T2("Signed in, but the database tables are missing. Run supabase/schema.sql in the Supabase SQL editor.", "साइन इन हो गया, पर डेटाबेस की टेबल नहीं बनी हैं। Supabase SQL editor में supabase/schema.sql चलाएं।") : err.message === "not admin" ? T2("Signed in, but this user is not listed as the owner (the admins table).", "साइन इन हो गया, पर यह उपयोगकर्ता मालिक की सूची (admins) में नहीं है।") : err.status ? T2("Wrong email or password.", "ईमेल या पासवर्ड ग़लत है।") : T2("The server could not be reached. Check the internet.", "सर्वर तक नहीं पहुँच पाए। इंटरनेट देखें।"), 7000); } };
     return;
   }
   box.innerHTML = `<p class="hint">${T2("Loading", "ला रहे हैं")}</p>`;

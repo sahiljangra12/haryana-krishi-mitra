@@ -2,7 +2,7 @@
 // plain fetch calls to its REST interface, no library. The address and the public ("anon") key come from config.js.
 // That key is meant to be public: the database rules in supabase/schema.sql let it submit rows as 'pending' and read
 // approved rows, nothing else. While config.js has no address, enabled() is false and the app says the forum is not open.
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js?v=20261126223326";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js?v=20261126225539";
 
 export const enabled = () => !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 export const TOPICS = ["variety", "fert", "pest", "water", "cost", "lesson"];
@@ -46,10 +46,12 @@ async function call(url, { method = "GET", body, token, prefer } = {}, ms = 1500
   try {
     const r = await fetch(url, { method, signal: c.signal, headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token || SUPABASE_ANON_KEY}`, ...(body ? { "Content-Type": "application/json" } : {}), ...(prefer ? { Prefer: prefer } : {}) }, body: body ? JSON.stringify(body) : undefined });
     const text = await r.text(); let j = null; try { j = text ? JSON.parse(text) : null; } catch {}
-    if (!r.ok) { const e = new Error((j && (j.message || j.error_description || j.msg)) || `${r.status}`); e.status = r.status; throw e; }
+    if (!r.ok) { const e = new Error((j && (j.message || j.error_description || j.msg)) || `${r.status}`); e.status = r.status; e.code = (j && j.code) || ""; throw e; }
     return j;
   } finally { clearTimeout(timer); }
 }
+// The project answers but its tables are missing: supabase/schema.sql has not been run there yet (PostgREST PGRST205, Postgres 42P01).
+export const notReady = (e) => !!e && (e.code === "PGRST205" || e.code === "42P01");
 const POST_COLS = "id,created_at,district,crop,topic,body,author,kind";
 const LIST_COLS = "id,created_at,kind,district,crop,variety,qty_qtl,price,ready_from,name,phone,note,verified";
 export const listPosts = ({ district, topic } = {}) => call(query("posts", { select: POST_COLS, filters: { district: district ? `eq.${district}` : null, topic: topic ? `eq.${topic}` : null } }));
