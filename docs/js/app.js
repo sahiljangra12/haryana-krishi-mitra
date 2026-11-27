@@ -1,18 +1,19 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126201046";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126201046";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261126201046";
-import * as Voice from "./voice.js?v=20261126201046";
-import { ARCGIS_KEY } from "./config.js?v=20261126201046";
-import * as Pheno from "./phenology.js?v=20261126201046";
-import { askIntent, cropInText } from "./ask.js?v=20261126201046";
-import * as Field from "./field.js?v=20261126201046";
-import * as RS from "./rs.js?v=20261126201046";
-import * as src from "./sources.js?v=20261126201046";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126201046";
-import * as card from "./soilcard.js?v=20261126201046";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126201046";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126201046";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126201046";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126202014";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126202014";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126202014";
+import * as Voice from "./voice.js?v=20261126202014";
+import { ARCGIS_KEY } from "./config.js?v=20261126202014";
+import * as Pheno from "./phenology.js?v=20261126202014";
+import { askIntent, cropInText } from "./ask.js?v=20261126202014";
+import { HARYANA, inHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126202014";
+import * as Field from "./field.js?v=20261126202014";
+import * as RS from "./rs.js?v=20261126202014";
+import * as src from "./sources.js?v=20261126202014";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126202014";
+import * as card from "./soilcard.js?v=20261126202014";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126202014";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126202014";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126202014";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -128,7 +129,10 @@ document.addEventListener("click", (e) => {
 /* ---------------- map: sharp photo base that never shows blank tiles ----------------
    Esri World Imagery has real tiles to zoom 18 in rural Haryana (checked); beyond that it returns a grey
    "no data" tile, so deeper zooms enlarge level 18 instead. Live satellite layers are drawn on top. */
-const map = L.map("map", { zoomControl: false, maxZoom: 21 }).setView([29.2, 76.3], 8);
+// The map stays inside India and opens on Haryana. Haryana is sharp; everything around it is blurred.
+const map = L.map("map", { zoomControl: false, maxZoom: 21, minZoom: 5, maxBounds: INDIA_BOUNDS, maxBoundsViscosity: 1 });
+const HARYANA_LL = HARYANA.map(([x, y]) => [y, x]);
+map.fitBounds(L.latLngBounds(HARYANA_LL), { padding: [8, 8] });
 map.attributionControl.setPrefix("");
 map.createPane("names"); map.getPane("names").style.zIndex = 450; map.getPane("names").style.pointerEvents = "none";
 const yesterday = () => new Date(Date.now() + 5.5 * 3600e3 - 864e5).toISOString().slice(0, 10);
@@ -159,6 +163,7 @@ map.on("click", (e) => {
     renderGuide(false);
     return;
   }
+  if (outsideHaryana(e.latlng.lat, e.latlng.lng)) { toast(L_(OUTSIDE_MSG), 4500); return; }
   // a tap from far away is too rough to mean one field: come closer first
   if (map.getZoom() < 14) { map.setView(e.latlng, Math.min(16, map.getZoom() + 3)); toast(t("zoomMore")); return; }
   setPoint(e.latlng.lat, e.latlng.lng, false);
@@ -192,7 +197,29 @@ function clearShape() {
   vertexLayer.clearLayers();
   state.vertices = []; state.point = null; state.feature = null;
 }
-const outsideHaryana = (lat, lon) => { const b = HARYANA_BBOX; return lat < b.minLat || lat > b.maxLat || lon < b.minLon || lon > b.maxLon; };
+const outsideHaryana = (lat, lon) => !inHaryana(lat, lon);
+const OUTSIDE_MSG = { en: "This app works for fields in Haryana. Choose your field in the clear part of the map.", hi: "यह ऐप हरियाणा के खेतों के लिए है। नक्शे के साफ़ दिख रहे हिस्से में अपना खेत चुनें।" };
+// Frosted veil over everything that is not Haryana: a blurred layer cut to the outline, redrawn as the map moves
+map.createPane("outline"); map.getPane("outline").style.zIndex = 460; map.getPane("outline").style.pointerEvents = "none";
+L.polygon(HARYANA_LL, { pane: "outline", fill: false, color: "#ffffff", weight: 2.5, opacity: 0.95, interactive: false, attribution: "outline © OpenStreetMap" }).addTo(map);
+const veil = document.createElement("div");
+veil.id = "mapVeil";
+// phones with little memory or few cores get a plain veil: a live blur over a moving map is heavy for them
+if ((navigator.deviceMemory || 4) <= 2 || (navigator.hardwareConcurrency || 8) <= 2) veil.classList.add("plain");
+$("#map").appendChild(veil);
+function cutVeil(pts) {
+  const s = map.getSize();
+  let d = `M0 0H${s.x}V${s.y}H0Z M`;
+  for (let i = 0; i < pts.length; i++) d += `${i ? "L" : ""}${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`;
+  veil.style.clipPath = veil.style.webkitClipPath = `path(evenodd, "${d}Z")`;
+}
+const drawVeil = () => { veil.style.transition = "none"; cutVeil(HARYANA_LL.map((ll) => map.latLngToContainerPoint(ll))); };
+map.on("move zoom viewreset resize zoomend moveend", drawVeil);
+// during an animated zoom the tiles glide to their new place; the cut-out glides with them
+map.on("zoomanim", (e) => {
+  try { const off = map._getMapPanePos(); veil.style.transition = "clip-path 0.25s cubic-bezier(0, 0, 0.25, 1), -webkit-clip-path 0.25s cubic-bezier(0, 0, 0.25, 1)"; cutVeil(HARYANA_LL.map((ll) => map._latLngToNewLayerPoint(L.latLng(ll), e.zoom, e.center).add(off))); } catch { /* falls back to the redraw at the end of the zoom */ }
+});
+drawVeil();
 function currentFeature() {
   if (state.vertices.length >= 3) {
     const ring = state.vertices.map(([a, b]) => [b, a]); ring.push(ring[0]);
@@ -245,6 +272,7 @@ function resetField() { clearShape(); state.drawing = false; state.report = null
 /* ---------------- search: PIN code, village, coordinates, voice ---------------- */
 const KIND_LABEL = { exact: { en: "Exact point", hi: "सटीक जगह" }, address: { en: "Address", hi: "पता" }, place: { en: "Village / town", hi: "गाँव / कस्बा" }, road: { en: "Road", hi: "सड़क" }, pin: { en: "PIN area", hi: "पिन क्षेत्र" } };
 function goTo(p) {
+  if (outsideHaryana(p.lat, p.lon)) { toast(L_(OUTSIDE_MSG), 4500); return; }
   $("#searchResults").innerHTML = "";
   if (p.kind === "exact") { setPoint(p.lat, p.lon, false); map.setView([p.lat, p.lon], 18); return; }
   clearShape();
@@ -367,7 +395,7 @@ $("#micBtn").onclick = () => {
 function locateMe() {
   if (!navigator.geolocation) { toast(t("noGps")); return; }
   toast(t("findingYou"));
-  navigator.geolocation.getCurrentPosition((p) => { map.setView([p.coords.latitude, p.coords.longitude], 17); setPoint(p.coords.latitude, p.coords.longitude, false); }, () => toast(t("gpsDenied")), { enableHighAccuracy: true, timeout: 15000 });
+  navigator.geolocation.getCurrentPosition((p) => { if (outsideHaryana(p.coords.latitude, p.coords.longitude)) { toast(T2("You are outside Haryana right now. Search for your village instead.", "आप अभी हरियाणा से बाहर हैं। अपना गाँव खोजकर चुनें।"), 5000); return; } map.setView([p.coords.latitude, p.coords.longitude], 17); setPoint(p.coords.latitude, p.coords.longitude, false); }, () => toast(t("gpsDenied")), { enableHighAccuracy: true, timeout: 15000 });
 }
 $("#fabLocate").onclick = locateMe;
 $("#fabIn").onclick = () => map.zoomIn();

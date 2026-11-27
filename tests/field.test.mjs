@@ -90,3 +90,10 @@ test("a costly crop without MSP does not top the list for a medium-risk farmer",
   const bold = recommend({ ...ctx, risk: "high", today: new Date("2026-11-21T00:00:00Z") });
   assert.ok(bold.find((x) => x.crop.id === "onion_rabi").score > r.find((x) => x.crop.id === "onion_rabi").score);
 });
+
+import { inHaryana, HARYANA } from "../docs/js/haryana.js";
+test("Haryana outline: towns inside, neighbours outside", () => {
+  assert.equal(HARYANA.length, 428);
+  for (const [lat, lon] of [[29.69, 76.99], [29.15, 75.72], [28.46, 77.03], [29.53, 75.03], [28.1, 77.0], [30.37, 76.78]]) assert.equal(inHaryana(lat, lon), true);
+  for (const [lat, lon] of [[28.61, 77.21], [30.9, 75.85], [26.9, 75.8], [30.73, 76.78], [27.18, 78.0]]) assert.equal(inHaryana(lat, lon), false);
+});
