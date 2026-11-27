@@ -20,7 +20,8 @@ export function shares(hist, names) {
   return out;
 }
 
-export function classify({ io = null, wc = null, ndvi = null, waterNow = null, month = null, told = null } = {}) {
+//   yearMax   the highest greenness seen in a year of clear passes (known only once the history has been read)
+export function classify({ io = null, wc = null, ndvi = null, waterNow = null, month = null, told = null, yearMax = null } = {}) {
   const maps = [io, wc].filter((m) => m && m.shares);
   const mean = (k) => (maps.length ? maps.reduce((a, m) => a + (m.shares[k] || 0), 0) / maps.length : 0);
   const least = (k) => (maps.length ? Math.min(...maps.map((m) => m.shares[k] || 0)) : 0);
@@ -30,10 +31,16 @@ export function classify({ io = null, wc = null, ndvi = null, waterNow = null, m
   const wetNow = waterNow != null && waterNow >= 0.5 && !paddyTime && (ndvi == null || ndvi < 0.2);
   if (!maps.length && !wetNow) return out;
   const nonFarm = out.built + out.water;
+  // how far apart the two maps are on "not a field" (0 when there is only one map)
+  const nf = (m) => (m.shares.built || 0) + (m.shares.water || 0);
+  const spread = maps.length === 2 ? Math.abs(nf(maps[0]) - nf(maps[1])) : 0;
   if (out.water >= 0.5 && least("water") >= 0.25) out.kind = "water";
   else if (wetNow && out.water >= 0.15) out.kind = "water";
   else if (out.built >= 0.5 && least("built") >= 0.25 && (ndvi == null || ndvi < 0.45)) out.kind = "built";
   else if (nonFarm >= 0.5 && Math.min(least("built") + least("water"), 1) >= 0.25 && (ndvi == null || ndvi < 0.45)) out.kind = out.built >= out.water ? "built" : "water";
+  // One map says buildings or water, the other says field (often new construction after the older map was made).
+  // A year without any green cover settles it; until that is known, say that the maps disagree.
+  else if (spread >= 0.5) out.kind = yearMax != null && yearMax < 0.25 ? (out.built >= out.water ? "built" : "water") : "unsure";
   else if (wetNow) out.kind = "mixed"; // the satellite sees water today but the map does not: say so, do not block
   else if (nonFarm >= 0.15) out.kind = "mixed";
   else if (out.trees >= 0.5) out.kind = "trees";

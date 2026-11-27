@@ -26,7 +26,13 @@ test("buildings and water are blocked, a field is not (live readings of 27 Nov 2
 test("the maps disagree or the place is green: caution, not a block", () => {
   // one map says buildings, the other says crops
   let r = classify({ io: io({ built: 1 }), wc: wc({ crops: 1 }), ndvi: 0.2 });
-  assert.equal(r.kind, "mixed"); assert.equal(r.block, false);
+  assert.equal(r.kind, "unsure"); assert.equal(r.block, false);
+  // ... and a whole year of clear passes never showed green cover: it is built-up (live case east of Karnal, 27 Nov 2026)
+  r = classify({ io: io({ built: 1 }), wc: wc({ crops: 1 }), ndvi: 0.12, yearMax: 0.18 });
+  assert.equal(r.kind, "built"); assert.equal(r.block, true);
+  // ... but a crop was seen during the year: stay with "the maps disagree"
+  r = classify({ io: io({ built: 1 }), wc: wc({ crops: 1 }), ndvi: 0.12, yearMax: 0.7 });
+  assert.equal(r.kind, "unsure");
   // both say buildings but the satellite sees a dense crop today: the maps are old
   r = classify({ io: io({ built: 0.8, crops: 0.2 }), wc: wc({ built: 0.7, crops: 0.3 }), ndvi: 0.6 });
   assert.equal(r.block, false); assert.equal(r.kind, "mixed");

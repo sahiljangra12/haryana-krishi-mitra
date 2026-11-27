@@ -959,3 +959,4 @@ details.srcs a { color: var(--canal); }
 .guide .row #gBack, .guide .row #gStop { min-height: 46px; font-size: 1rem; }
 .gdel { display: flex; margin: 0.6rem auto 0; min-height: 44px; color: var(--soil-2); }
 .gdel.sure { color: var(--risk); font-weight: 600; }
+#report.blocked #askRow, #report.blocked .rowlink[data-go="farm"], #report.blocked #toCard, #report.blocked #toTech { display: none; }

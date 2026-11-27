@@ -1,21 +1,21 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126211353";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126211353";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126211353";
-import * as Voice from "./voice.js?v=20261126211353";
-import { ARCGIS_KEY } from "./config.js?v=20261126211353";
-import * as Pheno from "./phenology.js?v=20261126211353";
-import { askIntent, cropInText } from "./ask.js?v=20261126211353";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126211353";
-import * as Land from "./landtype.js?v=20261126211353";
-import * as Farmer from "./farmer.js?v=20261126211353";
-import * as Field from "./field.js?v=20261126211353";
-import * as RS from "./rs.js?v=20261126211353";
-import * as src from "./sources.js?v=20261126211353";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126211353";
-import * as card from "./soilcard.js?v=20261126211353";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126211353";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126211353";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126211353";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126211818";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126211818";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126211818";
+import * as Voice from "./voice.js?v=20261126211818";
+import { ARCGIS_KEY } from "./config.js?v=20261126211818";
+import * as Pheno from "./phenology.js?v=20261126211818";
+import { askIntent, cropInText } from "./ask.js?v=20261126211818";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126211818";
+import * as Land from "./landtype.js?v=20261126211818";
+import * as Farmer from "./farmer.js?v=20261126211818";
+import * as Field from "./field.js?v=20261126211818";
+import * as RS from "./rs.js?v=20261126211818";
+import * as src from "./sources.js?v=20261126211818";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126211818";
+import * as card from "./soilcard.js?v=20261126211818";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126211818";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126211818";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126211818";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -446,7 +446,8 @@ const SAY_GUIDE = {
 const step = () => (state.busy ? "load" : state.drawing ? "draw" : state.report && state.reportFor === fieldParam() ? "done" : state.point ? "size" : state.searched ? "tap" : "start");
 let lastSpoken = "";
 function renderGuide(sayIt = true) {
-  const s = step(), [title, text] = G[s][getLang()];
+  const s = step(), notField = s === "done" && blockedLand();
+  const [title, text] = notField ? [T2("This place is not a field", "यह जगह खेत नहीं है"), T2("See why below, or choose another place.", "कारण नीचे देखें, या दूसरी जगह चुनें।")] : G[s][getLang()];
   const n = { start: 1, tap: 2 }[s] || 3;
   const acres = +$("#acres").value || 2, drawn = state.vertices.length >= 3 && !state.drawing;
   let body = "";
@@ -752,7 +753,10 @@ function landOf(r) {
   const waterNow = clear.length >= 2 ? clear.reduce((a, x) => a + x.water, 0) / clear.length : null;
   const io = r.lc?.io ? { year: r.lc.io.year, shares: Land.shares(r.lc.io.hist, Land.IO_CLASS) } : null;
   const wc = r.lc?.wc ? { year: r.lc.wc.year, shares: Land.shares(r.lc.wc.hist, Land.WC_CLASS) } : null;
-  return (r.land = Land.classify({ io, wc, ndvi: latest ? latest.ndvi : null, waterNow, month: latest ? +latest.date.slice(5, 7) : null, told: f && f.isFarm ? "farm" : null }));
+  // a full year of clear passes, once the history is in: the highest greenness seen
+  const yr = r.historyPending ? [] : r.series.filter((x) => isS2(x) && x.cloud <= 0.05 && x.ndvi != null);
+  const yearMax = yr.length >= 6 && (Date.parse(yr[yr.length - 1].date) - Date.parse(yr[0].date)) / 864e5 >= 150 ? Math.max(...yr.map((x) => x.ndvi)) : null;
+  return (r.land = Land.classify({ io, wc, ndvi: latest ? latest.ndvi : null, waterNow, month: latest ? +latest.date.slice(5, 7) : null, told: f && f.isFarm ? "farm" : null, yearMax }));
 }
 // the land finding for the field on screen, when it stops crop advice
 const blockedLand = () => { const r = state.report; return r && state.reportFor === fieldParam() && r.land && r.land.block ? r.land : null; };
@@ -784,6 +788,9 @@ function landVerdict(r, land) {
     text: T2(`The land map of ${yr} shows houses, roads or paved ground on about ${pct(land.built)}% of this place. So no crop advice is given here. Put the pin on your field.`, `${yr} के ज़मीन के नक्शे में इस जगह का लगभग ${pct(land.built)}% हिस्सा मकान, सड़क या पक्की ज़मीन है। इसलिए यहाँ फसल की सलाह नहीं दी जा रही। पिन को अपने खेत पर रखें।`), extra: landButtons() };
   if (land.kind === "water") return { ...base, icon: "waves", level: "bad", big: T2("This is water, not a field", "यहाँ पानी है, खेत नहीं"),
     text: T2(`The land map of ${yr} shows water (a pond, canal or river) on about ${pct(Math.max(land.water, land.waterNow || 0))}% of this place. So no crop advice is given here. Put the pin on your field.`, `${yr} के ज़मीन के नक्शे में इस जगह का लगभग ${pct(Math.max(land.water, land.waterNow || 0))}% हिस्सा पानी है (तालाब, नहर या नदी)। इसलिए यहाँ फसल की सलाह नहीं दी जा रही। पिन को अपने खेत पर रखें।`), extra: landButtons() };
+  if (land.kind === "unsure") return { ...base, icon: "circle-alert", level: "warn", big: T2("Two land maps disagree about this place", "दो नक्शे इस जगह के बारे में अलग-अलग बता रहे हैं"),
+    text: T2("One map shows buildings or water here and the other shows a field. There may be new building here, or one map may be wrong. If this is your field, read the results below. If not, choose another place.", "एक नक्शा यहाँ मकान या पानी दिखाता है और दूसरा खेत। हो सकता है यहाँ नया निर्माण हुआ हो, या एक नक्शा ग़लत हो। अगर यह आपका खेत है तो नीचे के नतीजे पढ़ें। नहीं तो दूसरी जगह चुनें।"),
+    extra: `<div class="vbtns"><button type="button" class="btn line" data-land="else">${ic("map-pin")}${T2("Choose another place", "दूसरी जगह चुनें")}</button></div>` };
   if (land.kind === "mixed") {
     const parts = [land.built >= 0.05 ? T2(`about ${pct(land.built)}% buildings or paved ground`, `लगभग ${pct(land.built)}% मकान या पक्की ज़मीन`) : "", land.water >= 0.05 ? T2(`about ${pct(land.water)}% water`, `लगभग ${pct(land.water)}% पानी`) : ""].filter(Boolean).join(T2(" and ", " और "));
     const drawn = state.vertices.length >= 3;
@@ -1242,7 +1249,15 @@ function renderReport() {
   const latest = r.series[r.series.length - 1], s = r.soil;
   const V = (state.verdicts = verdicts(r));
   // on buildings or water the health colours would mean nothing: show the plain photo
-  if (r.land && r.land.block && state.fpMode !== "sat") state.fpMode = "photo";
+  const blocked = !!(r.land && r.land.block);
+  if (blocked && state.fpMode !== "sat") state.fpMode = "photo";
+  el.classList.toggle("blocked", blocked);
+  // a place that is not a field does not belong in "My fields" (it comes back if the farmer says it is one)
+  if (blocked) { const fb = currentField(); if (fb && !fb.isFarm) { state.fields = state.fields.filter((x) => x.id !== fb.id); storeFields(); renderGuide(false); } }
+  const vcard = (v) => `<article class="verdict ${v.level}">
+        <div class="vhead"><span class="vicon">${ic(v.icon)}</span><div class="vt"><div class="vlabel">${esc(v.title)}</div><div class="vbig">${esc(v.big)}</div></div><button class="say" type="button" data-say="v:${v.key}" aria-label="${t("listen")}">${ic("volume-2")}</button></div>
+        ${v.text ? `<p>${esc(v.text)}</p>` : ""}${v.caution ? `<p class="vcaution">${ic("triangle-alert")}<span>${esc(v.caution)}</span></p>` : ""}${v.extra || ""}${v.confirm ? confirmHTML(v.confirm.key) : ""}${v.foot ? `<p class="vfoot">${esc(v.foot)}</p>` : ""}
+      </article>`;
   const notes = interpretSeries(r.series, lang);
   const idx = latest ? [["NDVI", latest.ndvi, T2("Greenness of the crop", "फसल की हरियाली")], ["NDMI", latest.ndmi, T2("Moisture in crop and soil", "फसल और मिट्टी की नमी")], ["NDRE", latest.ndre, T2("Leaf colour (nitrogen hint)", "पत्तों का रंग (नाइट्रोजन का संकेत)")], ["BSI", latest.bsi, T2("Bare soil showing", "खाली मिट्टी कितनी दिख रही है")]].filter((x) => x[1] != null) : [];
   el.innerHTML = `
@@ -1250,11 +1265,9 @@ function renderReport() {
       <div><h2>${T2("Your field today", "आपके खेत का हाल")}</h2></div>
       <button class="say big" type="button" id="sayAll" data-say="all" aria-label="${t("listen")}">${ic("volume-2")}</button>
     </div>
+    ${blocked ? `<div class="verdicts">${V.filter((v) => v.key === "land").map(vcard).join("")}</div>` : ""}
     ${fieldPicHTML(r)}
-    <div class="verdicts">${V.filter((v) => !v.row).map((v) => `<article class="verdict ${v.level}">
-        <div class="vhead"><span class="vicon">${ic(v.icon)}</span><div class="vt"><div class="vlabel">${esc(v.title)}</div><div class="vbig">${esc(v.big)}</div></div><button class="say" type="button" data-say="v:${v.key}" aria-label="${t("listen")}">${ic("volume-2")}</button></div>
-        ${v.text ? `<p>${esc(v.text)}</p>` : ""}${v.caution ? `<p class="vcaution">${ic("triangle-alert")}<span>${esc(v.caution)}</span></p>` : ""}${v.extra || ""}${v.confirm ? confirmHTML(v.confirm.key) : ""}${v.foot ? `<p class="vfoot">${esc(v.foot)}</p>` : ""}
-      </article>`).join("")}</div>
+    <div class="verdicts">${V.filter((v) => !v.row && !(blocked && v.key === "land")).map(vcard).join("")}</div>
     <div class="card rowlist">${V.filter((v) => v.row).map((v) => `<button type="button" class="rowlink ${v.level}" data-go="${v.go}"><span class="vicon">${ic(v.icon)}</span><span class="rl-t"><small>${esc(v.title)}</small><b>${esc(v.big)}</b></span>${ic("chevron-right")}</button>`).join("")}${currentField() ? `<button type="button" class="rowlink info" data-go="farm"><span class="vicon">${ic("list-checks")}</span><span class="rl-t"><small>${T2("Field diary", "खेत की डायरी")}</small><b>${(currentField().records || []).length ? T2(`${currentField().records.length} entries`, `${currentField().records.length} बातें लिखी हैं`) : T2("Write what you did today", "आज का काम लिखें")}</b></span>${ic("chevron-right")}</button>` : ""}<button type="button" class="rowlink good" id="askRow"><span class="vicon">${ic("mic")}</span><span class="rl-t"><small>${T2("Ask a question", "सवाल पूछें")}</small><b>${T2("When to irrigate? Which crop?", "सिंचाई कब? कौन सी फसल?")}</b></span>${ic("chevron-right")}</button></div>
     <div class="actionsrow noprint">
       <button class="btn mustard" id="shareBtn" type="button">${ic("share-2")}${t("shareReport")}</button>
@@ -2177,7 +2190,7 @@ function renderPlan() {
       html += `<div class="card"><h3>${ic("sprout")}${T2("What can grow between the rows", "कतारों के बीच क्या उग सकता है")}</h3>
         ${u.groups.map((g) => `<p class="grp"><b>${GL[g]}:</b> ${Farmer.UNDER_POPLAR[g][getLang() === "hi" ? "hi" : "en"].join(", ")}</p>`).join("")}
         <p class="hint">${T2("These are the crops the Forest Department lists as grown with poplar in Haryana.", "ये वे फसलें हैं जो वन विभाग के अनुसार हरियाणा में पॉपलर के साथ उगाई जाती हैं।")}</p>
-        ${u.lower ? `<p class="vcaution">${ic("triangle-alert")}<span>${T2("Your trees are big now. In a seven-year CCS HAU trial every crop gave less as the poplar grew older. Winter crops are the safer choice, because the trees are bare then.", "आपके पेड़ अब बड़े हैं। CCS HAU के सात साल के परीक्षण में पॉपलर की उम्र बढ़ने के साथ हर फसल की पैदावार घटी। सर्दी की फसल ज़्यादा ठीक रहती है, क्योंकि तब पेड़ों पर पत्ते नहीं होते।")}</span></p>` : ""}
+        ${u.lower ? `<p class="vcaution">${ic("triangle-alert")}<span>${T2(`Your trees are big now. In a seven-year CCS HAU trial every crop gave less as the poplar grew older.${u.handOnly ? "" : " Winter crops are the safer choice, because the trees are bare then."}`, `आपके पेड़ अब बड़े हैं। CCS HAU के सात साल के परीक्षण में पॉपलर की उम्र बढ़ने के साथ हर फसल की पैदावार घटी।${u.handOnly ? "" : " सर्दी की फसल ज़्यादा ठीक रहती है, क्योंकि तब पेड़ों पर पत्ते नहीं होते।"}`)}</span></p>` : ""}
         ${u.handOnly ? `<p class="vcaution">${ic("triangle-alert")}<span>${T2("A tractor cannot go in, so only crops worked by hand are shown.", "ट्रैक्टर अंदर नहीं जा सकता, इसलिए सिर्फ़ हाथ से होने वाली फसलें दिखाई गई हैं।")}</span></p>` : u.checkTractor ? `<p class="hint">${T2("Before using a tractor, check the gap between rows, the age of the trees and their roots on the spot.", "ट्रैक्टर चलाने से पहले कतारों की दूरी, पेड़ों की उम्र और जड़ें मौके पर देख लें।")}</p>` : ""}
         <p class="hint">${T2("Near a line of poplar (up to about 9 m) crops give less: 10 to 60% less in kharif and 7 to 30% less in rabi, in one ICAR and CCS HAU study.", "पॉपलर की कतार के पास (लगभग 9 मीटर तक) फसल कम होती है: ICAR और CCS HAU के एक अध्ययन में खरीफ में 10 से 60% और रबी में 7 से 30% कम।")}</p>
         <button type="button" class="btn line" data-go="advice">${ic("sprout")}${T2("See season crops for my area", "मेरे इलाके की सीजन वाली फसलें देखें")}</button></div>`;
