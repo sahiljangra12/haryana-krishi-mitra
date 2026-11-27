@@ -170,6 +170,21 @@ Tested in a desktop browser at phone size (375 x 812). Not tested on a real phon
 | Voice reading of the new pages; GPS button on the district step | Not tested (blocked in the test browser) |
 | Facts on the orchard, trees and share pages | Taken from the sources listed on each page; not checked by an agronomist or a lawyer |
 
+## Start screens are required: run 27 November 2026 (IST), live site, commit `0e160b7`
+
+Tested in a desktop browser at phone size. Not tested on a real phone; reading the questions aloud could not be heard in the test browser.
+
+| Check | Result |
+|---|---|
+| First visit: start screens cover the whole window; header, pages and bottom bar are inert; no skip and no close button | Pass |
+| Escape and a tap on the screen edge do not close them | Pass |
+| Four steps in order (language, district, kind of farming, water); Continue and "Start the app" stay disabled until a choice is made; Back keeps earlier answers | Pass |
+| After "Start the app": app opens on My farm, profile saved with all four answers, the water answer is set on the Crops page | Pass |
+| Reload after finishing: no start screens | Pass |
+| Someone with saved data but no answers: start screens shown again | Pass |
+| Shared field link without answers: start screens first, then the field's result on the map page | Pass |
+| "Change" on My farm later: ordinary sheet with a close button, app not locked | Pass |
+
 ## Automated tests
-`npm test` runs 40 unit tests (land check on live readings, fruit order, poplar fit, crops under poplar, land-sharing cautions, stored profile, Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
+`npm test` runs 41 unit tests (start-screen completeness, land check on live readings, fruit order, poplar fit, crops under poplar, land-sharing cautions, stored profile, Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
 

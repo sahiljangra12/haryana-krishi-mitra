@@ -10,7 +10,7 @@ Field (the map and the result), Crops (what to grow), Weather, Mandi, My farm (s
 On the first visit the app asks one thing: listen or read. A saved field opens straight away with its last result and its date, then updates. With no network the last result stays on screen and says which day it is from.
 
 ## The farmer first
-On the first visit the app asks three things, one screen each: language, district, and the kind of farming (seasonal crops, a fruit orchard, or timber trees). The answer is kept on the phone (`km-profile`) and can be changed at any time under My farm. It decides what the My farm page shows first:
+The app starts only after four basic answers, one full screen each: language, district, the kind of farming (seasonal crops, a fruit orchard, or timber trees) and the water for the land (assured, limited, rain only). Until all four are given the start screens cover the whole window; there is no skip and the app behind cannot be reached. This also holds for someone who used the app before the questions existed and for someone who opens a shared field link (the field is shown as soon as they finish). The answers are kept on the phone (`km-profile`) and can be changed at any time under My farm. Water is asked because every crop recommendation depends on it; before this the app silently assumed assured water. It decides what the My farm page shows first:
 
 | Kind of farming | Shown first |
 |---|---|
