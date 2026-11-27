@@ -42,6 +42,12 @@ No free source is both very sharp and recent. The app therefore uses two kinds o
 
 | OpenStreetMap (relation 1942601, via Nominatim) | Haryana state outline: the map veil and the "only in Haryana" check | Simplified to 428 points, about 1 km | Boundary as mapped in November 2026 | Free, ODbL, credited on the map | Tested (unit test: 6 towns inside, 5 neighbouring cities outside) |
 
+| Impact Observatory annual land cover (Planetary Computer `io-lulc-annual-v02`) | Is this place a field, buildings, water or trees | 10 m | Map of 2023, the newest year published | Free, no key | Tested live: Karnal city 98% built, Tilyar lake 92% water, a Karnal field 100% crops |
+| ESA WorldCover (Planetary Computer `esa-worldcover`) | Second opinion for the same check | 10 m | Map of 2021 | Free, no key | Tested live with the above |
+| Sentinel-2 scene classification, class 6 (water) | Water on the field on the newest clear passes | 20 m | Every pass | Free, same request as the cloud check | Tested |
+| NASA GIBS VIIRS NOAA-20 true colour | "Latest picture" from far out (state view) | 250 m | Every day (yesterday's picture) | Free, no key | Tested: tiles for 26 Nov 2026 loaded with no gaps over Haryana |
+| ICAR, CCS HAU, Haryana Forest Department, Haryana Horticulture Department, Haryana Act 23 of 2024 | Orchard, poplar and land-sharing pages | Text sources | See the list on each page and in `docs/js/farmer.js` | Free | Read on 27 Nov 2026; each statement carries its source |
+
 ## Sources still to investigate
 - IMD: an official open service usable from a browser.
 - CGWB / India-WRIS: block-level groundwater categories as an open table.

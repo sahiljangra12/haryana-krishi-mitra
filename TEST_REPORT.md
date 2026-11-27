@@ -139,6 +139,37 @@ Tested in a desktop browser at phone size (375 x 812) and at 1024 x 768. Not tes
 | Search or GPS outside Haryana gives the same message | Code path is the same as the tap; GPS is blocked in the test browser, so not observed |
 | Border accuracy | The outline is simplified to about 1 km, so fields within 2.5 km outside it are accepted. A field in a neighbouring state within that strip is therefore also accepted |
 
+## Land check, farmer profile, latest picture, ways back: run 27 November 2026 (IST), live site, commit `949428e` and after
+
+Tested in a desktop browser at phone size (375 x 812). Not tested on a real phone. GPS and sound are blocked in the test browser.
+
+| Check | Result |
+|---|---|
+| Karnal city centre (29.6857, 76.9905): "This is built-up land, not a field", 98% built, no crop, soil, water or best-crop card; map stays on the photo | Pass |
+| Tilyar lake, Rohtak (28.8830, 76.6370): "This is water, not a field", 92% water | Pass |
+| Karnal field (29.7235, 76.9512): normal four cards, land check silent | Pass |
+| Place east of Karnal where the 2023 map says buildings and the 2021 map says field (29.7235, 76.9860): "two maps disagree", results still shown; the year's greenness reached 0.46, so it is not blocked | Pass |
+| Crops page for the built-up place: ranking hidden, reason shown with two buttons | Pass |
+| "No, this is my field": advice returns (6 crops), finding stays as a note; "Undo" blocks again | Pass |
+| "Choose another place": pin removed, back at step 1 | Pass |
+| A blocked place is not kept in My fields | Pass after the fix in `949428e` |
+| Time to first result with the land check added | 5 to 6.5 s (was about 6 s) |
+| Outline that is partly buildings ("mixed") | Unit test only; no such square was found in a short search |
+| First visit: language, then district, then kind of farming; back works at each step and keeps the answer; Continue is disabled until a kind is chosen; "later" skips | Pass |
+| Profile saved as `km-profile` with farmer_category, district, language | Pass |
+| Seasonal, medium-term and long-term each show their own list on My farm | Pass (all three) |
+| Change the kind from My farm and from More; Escape and the close button leave it unchanged | Pass |
+| Orchard page: Rewari with limited water puts ber, amla, bael, lasoda, pomegranate, date palm first and marks kinnow and guava "only with assured water"; Karnal with assured water puts kinnow and guava first | Pass |
+| Trees page: Rewari assured water "ask locally", limited water "not advised", Yamunanagar assured water "can suit"; young trees with tractor show all four crop groups; grown trees without tractor show only turmeric and ginger | Pass |
+| Land on share: owner with 4 acres, grown trees, no tractor gets three cautions and a message; cultivator gets a different message; "Clear my answers" clears | Pass |
+| Back from share to trees to My farm | Pass |
+| English for all new pages | Pass |
+| Map sheet: "Back: search another place", "Remove pin", "Stop" during reading, "Remove this field from my list" (two taps) | Pass (delete tested by code path, same as My farm) |
+| "Latest picture" from far out: NASA picture of 26 Nov with its date; zoomed in: Sentinel-2 pass of 24 Nov; the choice is remembered | Pass. The first version used MODIS, which had a black gap over Sirsa that day; changed to VIIRS, whose four tiles had no gap |
+| Language and district selection that existed before | Pass (language buttons, district lists on Crops and Weather) |
+| Voice reading of the new pages; GPS button on the district step | Not tested (blocked in the test browser) |
+| Facts on the orchard, trees and share pages | Taken from the sources listed on each page; not checked by an agronomist or a lawyer |
+
 ## Automated tests
-`npm test` runs 30 unit tests (Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
+`npm test` runs 40 unit tests (land check on live readings, fruit order, poplar fit, crops under poplar, land-sharing cautions, stored profile, Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
 

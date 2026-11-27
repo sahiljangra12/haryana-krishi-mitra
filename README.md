@@ -9,6 +9,24 @@ Field (the map and the result), Crops (what to grow), Weather, Mandi, My farm (s
 
 On the first visit the app asks one thing: listen or read. A saved field opens straight away with its last result and its date, then updates. With no network the last result stays on screen and says which day it is from.
 
+## The farmer first
+On the first visit the app asks three things, one screen each: language, district, and the kind of farming (seasonal crops, a fruit orchard, or timber trees). The answer is kept on the phone (`km-profile`) and can be changed at any time under My farm. It decides what the My farm page shows first:
+
+| Kind of farming | Shown first |
+|---|---|
+| Seasonal (wheat, mustard, bajra, vegetables) | Field from the satellite, what to grow this season, soil test, mandi prices, weather |
+| Medium-term (amla, ber, guava, kinnow) | Orchard planning, land from the satellite, season crops beside the orchard, ways to save water, weather |
+| Long-term (poplar, eucalyptus) | Trees and crops between the rows, land on share, land from the satellite, weather |
+
+- **Orchard planning** orders eight fruits by the district's zone and the farmer's water, and says which need assured water. It gives no cost or income figure, because no checked Haryana figures were found.
+- **Trees and crops between the rows** says whether poplar fits the farmer's water and zone, asks the age of the trees and whether a tractor can pass, and lists the crops the Haryana Forest Department names as grown with poplar.
+- **Land on share** helps an owner or a cultivator get ready for a sharing talk: cautions from their own answers, seven things to settle, the name of the Haryana law, and a message they can send themselves. Nothing is listed or published; a marketplace would need a server and identity checks and is not built.
+
+Every statement on these pages names its source on the page. The data and the rules are in `docs/js/farmer.js`.
+
+## Is it a field at all?
+Before any crop advice, the app checks what is on the chosen ground (`docs/js/landtype.js`): two 10 m land-cover maps (Impact Observatory 2023 and ESA WorldCover 2021), the greenness on the newest satellite pass, and the satellite's own water class. On buildings or water it gives no crop, soil or irrigation advice, on the result page, the Crops page and in the assistant; the farmer can overrule it with one tap ("this is my field"). If the outline takes in some buildings or water, or the two maps disagree, it says so and still shows the results.
+
 ## How a farmer uses it (three steps)
 1. **Type the PIN code** (or the village name, or say it with the mic, or press "My location"). A PIN code lists its villages; picking one opens the map at field level, where single fields and their boundaries are clear.
 2. **Tap the field** and pick its size: 1, 2, 3, 5 or 10 acres, or draw the boundary.

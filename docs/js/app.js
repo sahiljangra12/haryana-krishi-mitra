@@ -1,21 +1,21 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126211818";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126211818";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126211818";
-import * as Voice from "./voice.js?v=20261126211818";
-import { ARCGIS_KEY } from "./config.js?v=20261126211818";
-import * as Pheno from "./phenology.js?v=20261126211818";
-import { askIntent, cropInText } from "./ask.js?v=20261126211818";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126211818";
-import * as Land from "./landtype.js?v=20261126211818";
-import * as Farmer from "./farmer.js?v=20261126211818";
-import * as Field from "./field.js?v=20261126211818";
-import * as RS from "./rs.js?v=20261126211818";
-import * as src from "./sources.js?v=20261126211818";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126211818";
-import * as card from "./soilcard.js?v=20261126211818";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126211818";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126211818";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126211818";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126212146";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126212146";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126212146";
+import * as Voice from "./voice.js?v=20261126212146";
+import { ARCGIS_KEY } from "./config.js?v=20261126212146";
+import * as Pheno from "./phenology.js?v=20261126212146";
+import { askIntent, cropInText } from "./ask.js?v=20261126212146";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126212146";
+import * as Land from "./landtype.js?v=20261126212146";
+import * as Farmer from "./farmer.js?v=20261126212146";
+import * as Field from "./field.js?v=20261126212146";
+import * as RS from "./rs.js?v=20261126212146";
+import * as src from "./sources.js?v=20261126212146";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126212146";
+import * as card from "./soilcard.js?v=20261126212146";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126212146";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126212146";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126212146";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -507,7 +507,8 @@ async function applyLayers() {
   else if (ov !== "none") {
     // "Latest picture" from far out: yesterday's NASA picture of the whole state (250 m, new every day).
     // Zoomed in, the newest Sentinel-2 pass (10 m) takes over.
-    if (ov === "true") modisLayer = L.tileLayer(RS.gibsTiles("modis", rs.date), { maxNativeZoom: 9, maxZoom: DAILY_MAX, zIndex: 2, attribution: ATTR_NASA }).addTo(map);
+    // VIIRS is used here because its wide swath leaves no black gaps over Haryana, which the MODIS picture has on some days.
+    if (ov === "true") modisLayer = L.tileLayer(RS.gibsTiles("noaa20", rs.date), { maxNativeZoom: 9, maxZoom: DAILY_MAX, zIndex: 2, attribution: ATTR_NASA }).addTo(map);
     const opacity = ov === "true" || ov === "false" ? 1 : rs.opacity;
     const sc = rs.scene || rs.auto;
     if (sc) s2Layer = L.tileLayer(RS.sceneTiles(sc.id, ov), { minZoom: 8, maxNativeZoom: 15, maxZoom: MAX_SHARP, zIndex: 3, opacity, crossOrigin: "anonymous", attribution: ATTR_S2 });
@@ -1364,7 +1365,9 @@ function sayText(key, el) {
       const msp = CROPS.filter((c) => c.msp && c.season === state.season).slice(0, 4).map((c) => T2(`${c.en}, ${c.msp} rupees.`, `${c.hi}, ${c.msp} रुपये।`)).join(" ");
       return T2("This page shows mandi prices and the government support price, per quintal.", "इस पन्ने पर मंडी के भाव और सरकारी समर्थन मूल्य दिखते हैं, प्रति क्विंटल।") + " " + T2("Support prices.", "सरकारी भाव।") + " " + msp;
     }
-    if (tab === "farm") return T2("This page keeps your fields. For each field you see its last result, and you can open it to see today's condition. In the field diary, write what you do: sowing, irrigation, fertiliser, harvest and sale. Everything stays on this phone.", "इस पन्ने पर आपके खेत रखे हैं। हर खेत का पिछला नतीजा दिखता है, और उसे खोलकर आज का हाल देख सकते हैं। खेत की डायरी में अपना काम लिखें: बुवाई, सिंचाई, खाद, कटाई और बिक्री। यह सब इसी फ़ोन में रहता है।");
+    // pages made of the farmer's own answers are read out as they stand (sources and small print left out)
+    if (tab === "plan" || tab === "share") return $$(`#${tab}Box h3, #${tab}Box .vbig, #${tab}Box .fr-h, #${tab}Box p:not(.hint), #${tab}Box li, #${tab}Box .grp`).filter((e) => !e.closest(".srcs")).map((e) => (e.classList.contains("fr-h") ? [...e.children].map((x) => x.textContent.trim()).join(": ") : e.textContent.trim().replace(/\s+/g, " "))).filter(Boolean).join(". ").slice(0, 1400);
+    if (tab === "farm") return (profile.farmer_category ? T2(`You told us you are a ${Farmer.FARMER_TYPES[profile.farmer_category].en}. The list at the top is made for you. `, `आपने बताया कि आप ${Farmer.FARMER_TYPES[profile.farmer_category].hi} हैं। ऊपर की सूची आपके लिए बनाई गई है। `) : "") + T2("This page keeps your fields. For each field you see its last result, and you can open it to see today's condition. In the field diary, write what you do: sowing, irrigation, fertiliser, harvest and sale. Everything stays on this phone.", "इस पन्ने पर आपके खेत रखे हैं। हर खेत का पिछला नतीजा दिखता है, और उसे खोलकर आज का हाल देख सकते हैं। खेत की डायरी में अपना काम लिखें: बुवाई, सिंचाई, खाद, कटाई और बिक्री। यह सब इसी फ़ोन में रहता है।");
     if (tab === "weather") {
       const fc = state.forecast, al = fc ? weatherAlerts(fc, lang) : [];
       const d = fc?.daily;
