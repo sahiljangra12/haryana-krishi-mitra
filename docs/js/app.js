@@ -1,21 +1,21 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126213235";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126213235";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126213235";
-import * as Voice from "./voice.js?v=20261126213235";
-import { ARCGIS_KEY } from "./config.js?v=20261126213235";
-import * as Pheno from "./phenology.js?v=20261126213235";
-import { askIntent, cropInText } from "./ask.js?v=20261126213235";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126213235";
-import * as Land from "./landtype.js?v=20261126213235";
-import * as Farmer from "./farmer.js?v=20261126213235";
-import * as Field from "./field.js?v=20261126213235";
-import * as RS from "./rs.js?v=20261126213235";
-import * as src from "./sources.js?v=20261126213235";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126213235";
-import * as card from "./soilcard.js?v=20261126213235";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126213235";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126213235";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126213235";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126213406";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126213406";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126213406";
+import * as Voice from "./voice.js?v=20261126213406";
+import { ARCGIS_KEY } from "./config.js?v=20261126213406";
+import * as Pheno from "./phenology.js?v=20261126213406";
+import { askIntent, cropInText } from "./ask.js?v=20261126213406";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126213406";
+import * as Land from "./landtype.js?v=20261126213406";
+import * as Farmer from "./farmer.js?v=20261126213406";
+import * as Field from "./field.js?v=20261126213406";
+import * as RS from "./rs.js?v=20261126213406";
+import * as src from "./sources.js?v=20261126213406";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126213406";
+import * as card from "./soilcard.js?v=20261126213406";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126213406";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126213406";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126213406";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -2116,20 +2116,20 @@ function showWelcome(start = "lang") {
       if (voice) say(`${q} ${why}`, null);
     } else if (page === "type") {
       body.innerHTML = `<div class="welcome typepage">${head(3, L_(TYPE_Q), L_(TYPE_WHY))}${typeCards(pick)}${next("wDone", !!pick)}</div>`;
-      $$("[data-type]", body).forEach((b) => (b.onclick = () => { pick = b.dataset.type; const y = body.parentElement.scrollTop; paint(); body.parentElement.scrollTop = y; }));
+      $$("[data-type]", body).forEach((b) => (b.onclick = () => { pick = b.dataset.type; const y = body.scrollTop; paint(); body.scrollTop = y; }));
       $("#wDone").onclick = () => { if (!pick) return; saveProfile({ farmer_category: pick }); if (single) finish(); else go("water"); };
       if (voice && !pick) say(`${L_(TYPE_Q)} ${Farmer.TYPE_IDS.map((id) => { const k = Farmer.FARMER_TYPES[id]; return `${L_(k)}: ${L_(k.desc)}`; }).join(" ")}`, null);
     } else {
       body.innerHTML = `<div class="welcome typepage">${head(4, L_(WATER_Q), L_(WATER_WHY))}
         <div class="typecards" role="radiogroup" aria-label="${esc(L_(WATER_Q))}">${WATER_CARDS.map(([id, icon, title, sub]) => `<button type="button" role="radio" aria-checked="${water === id}" class="typecard ${water === id ? "on" : ""}" data-water="${id}"><span class="tc-ic">${ic(icon)}</span><span class="tc-t"><b>${L_(title)}</b><span>${L_(sub)}</span></span><span class="tc-check">${ic("circle-check")}</span></button>`).join("")}</div>
         <button class="btn big" type="button" id="wFinish" ${water ? "" : "disabled"}>${ic("circle-check")}${T2("Start the app", "ऐप शुरू करें")}</button></div>`;
-      $$("[data-water]", body).forEach((b) => (b.onclick = () => { water = b.dataset.water; const y = body.parentElement.scrollTop; paint(); body.parentElement.scrollTop = y; }));
+      $$("[data-water]", body).forEach((b) => (b.onclick = () => { water = b.dataset.water; const y = body.scrollTop; paint(); body.scrollTop = y; }));
       $("#wFinish").onclick = () => { if (!water) return; setWater(water); finish(); };
       if (voice && !water) say(`${L_(WATER_Q)} ${WATER_CARDS.map(([, , title, sub]) => `${L_(title)}: ${L_(sub)}`).join(". ")}`, null);
     }
     if ($("#wBack")) $("#wBack").onclick = () => go(steps[steps.indexOf(page) - 1]);
     if ($("#wClose")) $("#wClose").onclick = close;
-    body.parentElement.scrollTop = 0;
+    body.scrollTop = 0;
   };
   setGate(!single);
   paint(); $("#welcome").classList.remove("hidden");

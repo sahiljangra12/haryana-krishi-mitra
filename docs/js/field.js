@@ -2,7 +2,7 @@
 // Sentinel-2 sees the ground in 10 m x 10 m cells. For the newest clear pass and an earlier clear pass this module
 // reads the greenness (NDVI) of every cell inside the field boundary, grades each cell, and compares the two dates
 // to find parts that were cut (harvested), parts that lost greenness and parts that grew.
-import * as src from "./sources.js?v=20261126213235";
+import * as src from "./sources.js?v=20261126213406";
 
 const M = 111320;
 
