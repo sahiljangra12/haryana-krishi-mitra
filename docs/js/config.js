@@ -5,3 +5,7 @@
 // (Content > Krishi Mitra Haryana > Generate API key) and paste it here before then.
 export const ARCGIS_KEY = "AAPTa1UQNDMFVa920HnKa7Eb1pg..hgUyfBxIsk9WBQqzVcdlXjNJzY0w1b9m8RuggnIjtWT6DuGOnIdVkkRibxfSNFhyT4llStuBk-lIGmnmNQt1rO1EqgXhkNHXx4NNs3UWowCCFHN2j4OF7Ewn8XePUtAwX6KWLqT1bQEqj_YEdXS7stzb-8Wd4HwkD5IZKjElO0ij7V3KbdVezsmoNPGhgZLYsVmmQtfXMnLuCMr_239Fj20PfpLg_-LxkQoyN_RNuTWVuPDgqDjBGmfc-quu5w..AT1_f5V2AT02";
 export const ARCGIS_KEY_EXPIRES = "2027-11-19";
+
+// Reading the pages aloud (speaker buttons, the sound switch, the reading bar). Switched off at the owner's request on 27 Nov 2026.
+// Set to true to bring it back; nothing else needs to change. The microphone for asking questions is separate and stays on.
+export const READ_ALOUD = false;

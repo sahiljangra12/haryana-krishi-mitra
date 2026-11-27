@@ -1,22 +1,26 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126215519";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126215519";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126215519";
-import * as Voice from "./voice.js?v=20261126215519";
-import { ARCGIS_KEY } from "./config.js?v=20261126215519";
-import * as Pheno from "./phenology.js?v=20261126215519";
-import { askIntent, cropInText } from "./ask.js?v=20261126215519";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126215519";
-import * as Land from "./landtype.js?v=20261126215519";
-import * as Farmer from "./farmer.js?v=20261126215519";
-import * as Field from "./field.js?v=20261126215519";
-import * as RS from "./rs.js?v=20261126215519";
-import * as src from "./sources.js?v=20261126215519";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126215519";
-import * as card from "./soilcard.js?v=20261126215519";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126215519";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126215519";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126215519";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126220446";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126220446";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126220446";
+import * as Voice from "./voice.js?v=20261126220446";
+import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126220446";
+import * as Pheno from "./phenology.js?v=20261126220446";
+import { askIntent, cropInText } from "./ask.js?v=20261126220446";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126220446";
+import * as Land from "./landtype.js?v=20261126220446";
+import * as Farmer from "./farmer.js?v=20261126220446";
+import * as Planner from "./planner.js?v=20261126220446";
+import * as Doctor from "./doctor.js?v=20261126220446";
+import * as Field from "./field.js?v=20261126220446";
+import * as RS from "./rs.js?v=20261126220446";
+import * as src from "./sources.js?v=20261126220446";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126220446";
+import * as card from "./soilcard.js?v=20261126220446";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126220446";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126220446";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126220446";
 
+// Reading aloud is switched off (config.js): the speaker buttons, the sound switch and the reading bar are hidden. The microphone stays.
+document.documentElement.classList.toggle("noread", !READ_ALOUD);
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -84,9 +88,9 @@ function watchLivePrices() {
 }
 
 /* ---------------- tabs ---------------- */
-const TABS = ["land", "advice", "weather", "prices", "farm", "more", "soilcard", "techniques", "about", "plan", "share"];
+const TABS = ["land", "advice", "weather", "prices", "farm", "more", "soilcard", "techniques", "about", "plan", "share", "year", "exp"];
 // pages that open from another section keep that section lit in the bar
-const PARENT = { soilcard: "more", techniques: "more", about: "more", plan: "farm", share: "farm" };
+const PARENT = { soilcard: "more", techniques: "more", about: "more", plan: "farm", share: "farm", year: "farm", exp: "more" };
 let navDepth = 0; // how many steps the phone's back button can take inside the app
 function showTab(name, push = true) {
   const was = state.tab || "land";
@@ -105,6 +109,8 @@ function showTab(name, push = true) {
   if (name === "more") renderMore();
   if (name === "plan") renderPlan();
   if (name === "share") renderShare();
+  if (name === "year") renderYear();
+  if (name === "exp") renderExp();
   state.tab = name;
   if (push && name !== was) { try { history.pushState({ tab: name }, "", "#" + name); navDepth++; } catch {} }
 }
@@ -401,7 +407,7 @@ function heard(text) {
   const s = Voice.tidyHeard(text);
   $("#q").value = s;
   if (!s) return;
-  if (askIntent(s)) { $("#q").value = ""; openAsk(s); return; }
+  if (askIntent(s) || Doctor.isLeafYellow(s)) { $("#q").value = ""; openAsk(s); return; }
   if (!voiceCommand(s)) runSearch(s);
 }
 $("#micBtn").onclick = () => {
@@ -1008,6 +1014,7 @@ async function answer(kind, text) {
   return T2("I could not understand this question yet. Tap one of the questions above.", "यह सवाल मैं अभी नहीं समझ पाया। ऊपर के सवालों में से कोई एक दबाएं।");
 }
 async function ask(text, kind = null, speak = false) {
+  if (kind === "leaf" || (!kind && Doctor.isLeafYellow(text))) return startLeaf(text);
   const k = kind || askIntent(text);
   state.ask = { q: text, a: T2("Finding the answer", "जवाब ढूंढ रहे हैं") };
   paintAnswer();
@@ -1020,14 +1027,20 @@ async function ask(text, kind = null, speak = false) {
 function paintAnswer() {
   const out = $("#askOut"); if (!out) return;
   out.classList.toggle("hidden", !state.ask);
-  if (state.ask) { $("#askQshown").textContent = state.ask.q; $("#askA").textContent = state.ask.a; }
+  if (!state.ask) return;
+  $("#askQshown").textContent = state.ask.q; $("#askA").textContent = state.ask.a;
+  $(".aska", out).classList.toggle("hidden", !!state.ask.leaf);
+  $("#askExtra").innerHTML = state.ask.leaf ? leafHTML() : "";
+  wireLeaf();
 }
 function askHTML() {
   return `<div class="card askbox" id="askBox">
-    <h3>${ic("mic")}${T2("Ask a question", "सवाल पूछें")}</h3>
-    <div class="askchips">${Object.entries(ASK).map(([k, v]) => `<button type="button" data-ask="${k}">${L_(v)}</button>`).join("")}</div>
+    <button type="button" class="bigmic" id="askMicBig" aria-label="${T2("Speak your problem", "अपनी समस्या बोलें")}">${ic("mic")}</button>
+    <h3 class="bigmic-t">${T2("Tell us your farming problem", "अपनी खेती की समस्या बताओ")}</h3>
+    <p class="hint center">${T2("Press the microphone and speak, or choose a question below.", "माइक दबाकर बोलें, या नीचे से सवाल चुनें।")}</p>
+    <div class="askchips"><button type="button" data-leafstart>${T2("My leaves are turning yellow", "पत्ते पीले हो रहे हैं")}</button>${Object.entries(ASK).map(([k, v]) => `<button type="button" data-ask="${k}">${L_(v)}</button>`).join("")}</div>
     <form id="askForm" class="askform"><input id="askQ" type="text" maxlength="120" placeholder="${T2("Or type your question", "या अपना सवाल लिखें")}"><button type="button" class="sb-mic" id="askMic" aria-label="${T2("Speak your question", "सवाल बोलें")}">${ic("mic")}</button><button class="btn" type="submit">${T2("Ask", "पूछें")}</button></form>
-    <div id="askOut" class="askout hidden"><p class="askq" id="askQshown"></p><div class="aska"><p id="askA"></p><button class="say" type="button" id="askSay" data-say="ask" aria-label="${t("listen")}">${ic("volume-2")}</button></div></div>
+    <div id="askOut" class="askout hidden"><p class="askq" id="askQshown"></p><div class="aska"><p id="askA"></p><button class="say" type="button" id="askSay" data-say="ask" aria-label="${t("listen")}">${ic("volume-2")}</button></div><div id="askExtra"></div></div>
     <p class="hint">${T2("Answers come from this field's satellite, weather and price data, not from an outside AI.", "जवाब इसी खेत के सैटेलाइट, मौसम और भाव के आँकड़ों से बनते हैं, किसी बाहरी AI से नहीं।")}</p>
   </div>`;
 }
@@ -1040,6 +1053,8 @@ function openAsk(thenAsk = null) {
 function wireAsk() {
   if (!$("#askBox")) return;
   $$("#askBox [data-ask]").forEach((b) => (b.onclick = () => ask(L_(ASK[b.dataset.ask]), b.dataset.ask, true)));
+  $("#askMicBig").onclick = () => $("#askMic").click();
+  $("[data-leafstart]", $("#askBox")).onclick = (e) => ask(e.currentTarget.textContent, "leaf");
   $("#askForm").onsubmit = (e) => { e.preventDefault(); const q = $("#askQ").value.trim(); if (q) ask(q); };
   $("#askMic").onclick = () => {
     const b = $("#askMic");
@@ -1134,6 +1149,8 @@ function renderMore() {
   const k = profile.farmer_category ? Farmer.FARMER_TYPES[profile.farmer_category] : null;
   $("#moreBoxPage").innerHTML = `<div class="card rowlist"><button type="button" class="rowlink info" id="moreType"><span class="vicon">${ic("user-round")}</span><span class="rl-t"><b>${T2("My kind of farming", "मेरी खेती का प्रकार")}</b><small>${k ? L_(k) : T2("Not chosen yet", "अभी चुना नहीं")}</small></span>${ic("chevron-right")}</button>` +
     row("plan", "apple", T2("Orchard and tree planning", "बाग और पेड़ की योजना"), T2("Fruit for your area; crops between poplar rows", "आपके इलाके के फल; पॉपलर की कतारों के बीच की फसल")) +
+    row("year", "calendar", T2("Year plan and money", "साल की योजना और हिसाब"), T2("Cost, income and what is left, crop by crop", "हर फसल का खर्च, आमदनी और बचत")) +
+    row("exp", "users", T2("Farmer experience forum", "किसान अनुभव मंच"), T2("Write your own experience; the shared forum is not open yet", "अपना अनुभव लिखें; साझा मंच अभी शुरू नहीं हुआ")) +
     row("share", "handshake", T2("Land on share", "ज़मीन बटाई पर"), T2("Get ready to give or take land for farming", "ज़मीन देने या लेने की बातचीत की तैयारी")) + `</div><div class="card rowlist">` +
     row("soilcard", "flask-conical", T2("Soil Health Card scanner", "मृदा स्वास्थ्य कार्ड स्कैनर"), T2("Take a photo of your card and get a fertiliser plan", "कार्ड की फोटो लें और खाद की योजना पाएं")) +
     row("techniques", "book-open-text", T2("Farming methods and videos", "खेती के तरीके और वीडियो"), T2("Seventeen methods explained, with videos", "17 तरीके, वीडियो के साथ")) +
@@ -1377,6 +1394,7 @@ function sayText(key, el) {
   return "";
 }
 function setVoice(on) {
+  on = on && READ_ALOUD;
   state.voiceOn = on;
   try { localStorage.setItem("km-voice", on ? "1" : "0"); } catch {}
   const b = $("#voiceBtn");
@@ -1406,6 +1424,7 @@ $("#sayStop").onclick = () => { $("#sayBar").classList.remove("failed"); $("#say
 const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 let silentHintShown = false;
 function say(text, btn) {
+  if (!READ_ALOUD) return false;
   $("#sayBar").classList.remove("failed");
   const ok = Voice.speak(text, getLang(), btn);
   if (ok && isApple && !silentHintShown) { silentHintShown = true; toast(T2("No sound? Switch off silent mode and turn the volume up.", "आवाज़ न आए तो फ़ोन का साइलेंट बटन बंद करें और आवाज़ बढ़ाएं।"), 5000); }
@@ -1429,7 +1448,7 @@ for (const [id, k] of [["optPaddy", "leavingPaddy"], ["optDsr", "dsr"], ["optStr
 
 function adviceSoil() {
   const base = state.report?.soil || null;
-  return state.card && Object.keys(state.card).length ? card.cardToSoil(state.card, base || {}) : base;
+  return realCard() ? card.cardToSoil(state.card, base || {}) : base; // the built-in sample never feeds advice
 }
 
 let compareChart = null;
@@ -1440,6 +1459,7 @@ async function renderAdvice() {
   $("#tab-advice").classList.toggle("blocked", !!blk);
   $("#adviceBlock").innerHTML = blk ? `<article class="verdict bad"><div class="vhead"><span class="vicon">${ic(blk.kind === "water" ? "waves" : "building-2")}</span><div class="vt"><div class="vlabel">${T2("Land check", "ज़मीन की जांच")}</div><div class="vbig">${blk.kind === "water" ? T2("This is water, not a field", "यहाँ पानी है, खेत नहीं") : T2("This is built-up land, not a field", "यह खेत नहीं, पक्की जगह है")}</div></div></div><p>${esc(landBlockText(blk))}</p>${landButtons()}</article>` : "";
   if (blk) { wireLand($("#adviceBlock")); return; }
+  $("#soilGate").innerHTML = realCard() ? "" : `<div class="card soilgate"><p>${ic("flask-conical")}<span>${T2("This advice is general for your district. It uses a soil map estimate, not a test of your soil. Add your soil report to make it yours, and to get fertiliser amounts.", "यह सलाह आपके जिले के लिए सामान्य है। इसमें मिट्टी के नक्शे का अंदाज़ा लगा है, आपकी मिट्टी की जांच नहीं। इसे अपने खेत की बनाने और खाद की मात्रा जानने के लिए अपनी मिट्टी की रिपोर्ट जोड़ें।")}</span></p><button type="button" class="btn" data-go="soilcard">${ic("flask-conical")}${T2("Add my soil report", "मेरी मिट्टी की रिपोर्ट जोड़ें")}</button></div>`;
   if (!state.prices) { try { state.prices = await src.mandiPrices(); watchLivePrices(); } catch {} }
   const lang = getLang();
   const r = state.report;
@@ -1666,16 +1686,17 @@ function renderCardTable() {
     const v = inp.value === "" ? null : +inp.value;
     if (v == null) delete state.card[inp.dataset.p]; else state.card[inp.dataset.p] = v;
     if (state.cardFlags) delete state.cardFlags[inp.dataset.p];
-    saveCard();
+    saveCard("typed");
     renderCard();
   }));
 }
-function saveCard() { try { localStorage.setItem("km-card", JSON.stringify(state.card)); } catch {} }
+function saveCard(source) { try { localStorage.setItem("km-card", JSON.stringify(state.card)); } catch {} if (source) noteCardSource(source); }
 
 function renderCard() {
+  renderSoilProfile();
   renderCardTable();
   const lang = getLang();
-  const has = Object.keys(state.card).length > 0;
+  const has = realCard();
   const adv = has ? card.cardAdvice(state.card, lang) : [];
   const icFor = (l) => (l === "high" ? "triangle-alert" : l === "medium" ? "circle-alert" : "info");
   $("#cardAdvice").innerHTML = !has ? `<p class="hint">${t("cardEmpty")}</p>` :
@@ -1692,10 +1713,10 @@ function renderCard() {
 }
 $("#fertCrop").onchange = renderCard;
 $("#fertAcres").oninput = renderCard;
-$("#cardClear").onclick = () => { state.card = {}; state.cardFlags = {}; saveCard(); $("#cardPreview").classList.add("hidden"); $("#ocrText").textContent = ""; renderCard(); };
+$("#cardClear").onclick = () => { state.card = {}; state.cardFlags = {}; saveCard("clear"); $("#cardPreview").classList.add("hidden"); $("#ocrText").textContent = ""; renderCard(); };
 $("#cardSample").onclick = () => {
   const r = card.parseCard(card.SAMPLE_TEXT);
-  state.card = r.values; saveCard();
+  state.card = r.values; saveCard("sample");
   $("#ocrText").textContent = card.SAMPLE_TEXT;
   renderCard();
 };
@@ -1712,7 +1733,7 @@ $("#cardFile").onchange = async (e) => {
     $("#ocrText").textContent = res.text;
     state.card = { ...state.card, ...res.values };
     state.cardFlags = res.flags || {};
-    saveCard();
+    saveCard("scan");
     $(".ptext", pr).textContent = `${res.found} ${t("cardFound")}`;
     $(".bar", pr).style.width = "100%";
     renderCard();
@@ -2091,11 +2112,11 @@ function showWelcome(start = "lang") {
     if (page === "lang") {
       body.innerHTML = `<div class="welcome"><div class="logofull" role="img" aria-label="No Farmers No Food"></div>${head(1, T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है"), T2("Four short questions first. Then the app is set up for your farming.", "पहले चार छोटे सवाल। फिर ऐप आपकी खेती के हिसाब से तैयार हो जाएगा।"))}
         <div class="lang" role="group" aria-label="${T2("Language", "भाषा")}"><button type="button" data-wl="hi" class="${getLang() === "hi" ? "on" : ""}">हिंदी</button><button type="button" data-wl="en" class="${getLang() === "en" ? "on" : ""}">English</button></div>
-        <button class="btn big" type="button" id="wListen">${ic("volume-2")}${T2("Read the questions aloud to me", "सवाल बोलकर सुनाओ")}</button>
-        <button class="btn big line" type="button" id="wRead">${T2("I will read them myself", "मैं खुद पढ़ लूंगा")}${ic("chevron-right")}</button>
+        ${READ_ALOUD ? `<button class="btn big" type="button" id="wListen">${ic("volume-2")}${T2("Read the questions aloud to me", "सवाल बोलकर सुनाओ")}</button>
+        <button class="btn big line" type="button" id="wRead">${T2("I will read them myself", "मैं खुद पढ़ लूंगा")}${ic("chevron-right")}</button>` : `<button class="btn big" type="button" id="wRead">${T2("Continue", "आगे बढ़ें")}${ic("chevron-right")}</button>`}
       </div>`;
       $$("[data-wl]", body).forEach((b) => (b.onclick = () => { $(`.top .lang [data-lang="${b.dataset.wl}"]`).click(); paint(); }));
-      $("#wListen").onclick = () => { voice = true; setVoice(true); go("place"); };
+      if ($("#wListen")) $("#wListen").onclick = () => { voice = true; setVoice(true); go("place"); };
       $("#wRead").onclick = () => { voice = false; Voice.stop(); go("place"); };
     } else if (page === "place") {
       const q = T2("Where is your farming?", "आपकी खेती कहाँ है?"), why = T2("Choose your district. Weather, mandi prices and crop advice will then be for your area.", "अपना जिला चुनें। फिर मौसम, मंडी भाव और फसल की सलाह आपके इलाके की होगी।");
@@ -2135,6 +2156,201 @@ function showWelcome(start = "lang") {
   paint(); $("#welcome").classList.remove("hidden");
 }
 
+/* =====================================================================================
+   Phase 1 of the ecosystem brief: the year's plan and money, the soil profile, the first
+   guided problem in the assistant, and the farmer's own experience notes.
+   Everything here works on the phone alone. What needs a server is said on the page.
+   ===================================================================================== */
+const money = (n) => (n < 0 ? "−" : "") + rupee(Math.abs(n));
+const moneyRange = (r) => (r[0] === r[1] ? money(r[0]) : `${money(r[0])} ${T2("to", "से")} ${money(r[1])}`);
+const HEAD_LABEL = { ...COST_LABELS, transport: { en: "Transport", hi: "ढुलाई" }, other: { en: "Other costs", hi: "दूसरे खर्च" } };
+const PRICE_BASIS = {
+  msp: { en: "Government MSP (official figure)", hi: "सरकारी MSP (पक्का आँकड़ा)" }, market: { en: "Today's mandi price (official data)", hi: "आज का मंडी भाव (सरकारी आँकड़ा)" },
+  blend: { en: "Worked out from MSP and mandi price (estimate)", hi: "MSP और मंडी भाव से निकाला गया (अंदाज़ा)" }, reference: { en: "Reference price (estimate, not a market figure)", hi: "अंदाज़े का भाव (मंडी का आँकड़ा नहीं)" }, mine: { en: "Your own price", hi: "आपका अपना भाव" },
+};
+
+/* ---------------- the year's plan ---------------- */
+let plan = (() => { try { return Planner.cleanPlan(JSON.parse(localStorage.getItem(Planner.PLAN_KEY) || "null")); } catch { return Planner.cleanPlan(null); } })();
+const savePlan = () => { try { localStorage.setItem(Planner.PLAN_KEY, JSON.stringify(plan)); } catch {} };
+const planCrop = (l) => (l.cropId ? CROPS.find((c) => c.id === l.cropId) || null : null);
+const planPrice = (crop) => planningPrice(crop, state.prices ? livePrice(crop, state.prices, state.district.name) : null);
+const lineName = (l) => { const c = planCrop(l); return c ? L_(c) : l.name || T2("Other crop", "दूसरी फसल"); };
+function renderYear() {
+  $("#yearTitle").textContent = T2("Year plan and money", "साल की योजना और हिसाब");
+  if (!state.prices) src.mandiPrices().then((p) => { state.prices = p; watchLivePrices(); if (state.tab === "year") renderYear(); }).catch(() => {});
+  const land = profile.land_size_acres, T = Planner.totals(plan.lines, planCrop, planPrice), over = Planner.overLand(T.acres, land);
+  const seasonOpts = (v) => Object.entries(SEASONS).map(([k, s]) => `<option value="${k}" ${v === k ? "selected" : ""}>${L_(s)}</option>`).join("");
+  const addSeason = state.yearSeason || state.season;
+  let html = `<p class="hint">${T2("Plan the whole year's crops and see the cost and what may be left over. A figure that is the app's estimate and a figure that is your own are always marked. No income is guaranteed.", "पूरे साल की फसलें तय करें और खर्च व बचत का हिसाब देखें। जो आँकड़ा ऐप का अंदाज़ा है और जो आपका अपना है, दोनों पर साफ़ लिखा रहता है। कमाई की कोई गारंटी नहीं है।")}</p>`;
+  if (plan.lines.length) {
+    html += `<div class="card ysum"><div class="money3"><div><small>${T2("Planned cost", "योजना का खर्च")}</small><b>${money(T.cost)}</b></div><div><small>${T2("May come in", "आमदनी हो सकती है")}</small><b>${T.incomplete === plan.lines.length ? "-" : moneyRange(T.revenue)}</b></div><div><small>${T2("May be left over", "बचत हो सकती है")}</small><b class="${T.profit[0] < 0 ? "neg" : ""}">${T.incomplete === plan.lines.length ? "-" : moneyRange(T.profit)}</b></div></div>
+      <p class="hint">${Object.entries(T.acres).map(([s, a]) => `${L_(SEASONS[s]).replace(/\s*\(.*\)/, "")}: ${+a.toFixed(2)} ${t("acres")}`).join(" · ")}${T.spent ? ` · ${T2("Spent so far", "अब तक खर्च")}: ${money(T.spent)}` : ""}${T.anyReceived ? ` · ${T2("Received", "मिला")}: ${money(T.received)}` : ""}</p>
+      ${T.incomplete ? `<p class="vcaution">${ic("circle-alert")}<span>${T2(`${T.incomplete} crop(s) have no yield or price yet, so they are not in the income and left-over figures.`, `${T.incomplete} फसल में पैदावार या भाव नहीं भरा है, इसलिए वह आमदनी और बचत के आँकड़ों में नहीं जुड़ी।`)}</span></p>` : ""}
+      ${over.length ? `<p class="vcaution">${ic("triangle-alert")}<span>${T2(`More land is planned than you have (${land} acres) in: ${over.map((s) => SEASONS[s].en).join(", ")}.`, `इन मौसमों में योजना की ज़मीन आपकी ज़मीन (${land} एकड़) से ज़्यादा है: ${over.map((s) => SEASONS[s].hi.replace(/\s*\(.*\)/, "")).join(", ")}।`)}</span></p>` : ""}</div>`;
+  }
+  html += plan.lines.map((l) => {
+    const crop = planCrop(l), e = Planner.estimate(l, crop, crop ? planPrice(crop) : null), a = Planner.actual(l), open = state.yearOpen === l.id;
+    const per = e.profit && e.acres ? e.profit.map((v) => Math.round(v / e.acres)) : null;
+    return `<article class="card planline" data-id="${l.id}">
+      <div class="fc-head"><div><h3 class="fc-name">${esc(lineName(l))}</h3><p class="hint">${L_(SEASONS[l.season]).replace(/\s*\(.*\)/, "")} · ${+l.acres} ${t("acres")}${crop ? "" : ` · ${T2("your own figures only", "सिर्फ़ आपके अपने आँकड़े")}`}</p></div><div class="fc-tools"><button type="button" class="mf-del" data-del aria-label="${T2("Remove", "हटाएं")}">${ic("trash-2")}</button></div></div>
+      <div class="money3"><div><small>${T2("Cost", "खर्च")}</small><b>${money(e.cost)}</b></div><div><small>${T2("May come in", "आमदनी")}</small><b>${e.revenue ? moneyRange(e.revenue) : "-"}</b></div><div><small>${e.profit && e.profit[1] < 0 ? T2("Loss", "घाटा") : T2("Left over", "बचत")}</small><b class="${e.profit && e.profit[0] < 0 ? "neg" : ""}">${e.profit ? moneyRange(e.profit) : "-"}</b></div></div>
+      ${per ? `<p class="hint">${T2("Per acre left over", "प्रति एकड़ बचत")}: ${moneyRange(per)}${e.breakEven ? ` · ${T2("You break even at", "इस भाव पर खर्च निकल आता है")}: ${rupee(e.breakEven)}/${T2("qtl", "क्विंटल")}` : ""}</p>` : `<p class="vcaution">${ic("circle-alert")}<span>${T2("Enter your expected yield and price below to see income.", "आमदनी देखने के लिए नीचे अपनी पैदावार और भाव भरें।")}</span></p>`}
+      ${a.entries || a.received != null ? `<p class="fc-last ${a.profit != null && a.profit < 0 ? "bad" : "good"}">${ic("list-checks")}<span><b>${T2("Really spent so far", "अब तक असली खर्च")}: ${money(a.spent)}</b><small>${T2("Planned", "योजना")}: ${money(e.cost)}${a.received != null ? ` · ${T2("Received", "मिला")}: ${money(a.received)} · ${T2("Real left over", "असली बचत")}: ${money(a.profit)}` : ""}</small></span></p>` : ""}
+      <details class="pl-d" data-d="est" ${open ? "open" : ""}><summary>${T2("Cost by item, and your own figures", "खर्च का ब्योरा और आपके अपने आँकड़े")}</summary>
+        <table class="pl-t"><thead><tr><th>${T2("Item", "मद")}</th><th>${T2("App estimate", "ऐप का अंदाज़ा")}</th><th>${T2("Your figure (₹)", "आपका आँकड़ा (₹)")}</th><th>${T2("Spent", "खर्च हुआ")}</th></tr></thead><tbody>
+        ${Planner.HEADS.map((h) => `<tr><td>${L_(HEAD_LABEL[h])}</td><td>${e.heads[h].estimate != null ? rupee(e.heads[h].estimate) : `<span class="hint">${T2("none", "नहीं है")}</span>`}</td><td><input type="number" inputmode="numeric" min="0" data-over="${h}" value="${e.heads[h].mine ?? ""}" aria-label="${L_(HEAD_LABEL[h])}"></td><td>${a.byHead[h] ? rupee(a.byHead[h]) : "-"}</td></tr>`).join("")}</tbody></table>
+        <div class="filters"><label class="f"><span>${T2("Yield you expect (qtl per acre)", "आपको कितनी पैदावार की उम्मीद है (क्विंटल प्रति एकड़)")}</span><input type="number" inputmode="decimal" min="0" step="0.5" data-over="yield" value="${l.over.yield ?? ""}" placeholder="${crop ? `${crop.yield[0]}-${crop.yield[1]} (${T2("estimate", "अंदाज़ा")})` : ""}"></label>
+        <label class="f"><span>${T2("Price you expect (₹ per qtl)", "आपको कितने भाव की उम्मीद है (₹ प्रति क्विंटल)")}</span><input type="number" inputmode="numeric" min="0" data-over="price" value="${l.over.price ?? ""}" placeholder="${e.price && e.price.basis !== "mine" ? e.price.price : ""}"></label></div>
+        <p class="hint">${crop ? T2("App estimates are indicative Haryana ranges compiled from CCS HAU and CACP reports, not your field. Transport and other costs have no estimate: enter yours.", "ऐप के अंदाज़े CCS HAU और CACP की रिपोर्टों से लिए गए हरियाणा के सामान्य दायरे हैं, आपके खेत के नहीं। ढुलाई और दूसरे खर्च का कोई अंदाज़ा नहीं है: अपना भरें।") : T2("The app has no checked figures for this crop, so nothing is estimated. Every number here is yours.", "इस फसल के जांचे हुए आँकड़े ऐप के पास नहीं हैं, इसलिए कोई अंदाज़ा नहीं लगाया गया। यहाँ हर आँकड़ा आपका है।")}
+        ${e.price ? ` ${T2("Price used", "इस्तेमाल हुआ भाव")}: ${rupee(e.price.price)}/${T2("qtl", "क्विंटल")}, ${L_(PRICE_BASIS[e.price.basis])}.` : ""}${crop && crop.varieties ? ` ${T2("Recommended varieties", "सुझाई गई किस्में")}: ${esc(crop.varieties)}. ${T2("Seed quantity: ask your KVK; the app has no checked figure.", "बीज की मात्रा: अपने KVK से पूछें; ऐप के पास जांचा हुआ आँकड़ा नहीं है।")}` : ""}</p></details>
+      <details class="pl-d" data-d="act" ${state.yearOpen === l.id + ":act" ? "open" : ""}><summary>${T2("Write down real spending and sale", "असली खर्च और बिक्री लिखें")}</summary>
+        <form class="diaryform pl-add"><select class="aHead" aria-label="${T2("Item", "मद")}">${Planner.HEADS.map((h) => `<option value="${h}">${L_(HEAD_LABEL[h])}</option>`).join("")}</select><input class="aAmt" type="number" inputmode="numeric" min="1" required placeholder="₹"><input class="aDate" type="date" value="${new Date().toISOString().slice(0, 10)}"><button class="btn" type="submit">${ic("plus")}${T2("Add", "जोड़ें")}</button></form>
+        ${(l.actual.costs || []).length ? `<ul class="diarylist">${l.actual.costs.slice().reverse().map((x) => `<li><span><b>${L_(HEAD_LABEL[x.head])}: ${rupee(x.amount)}</b><small>${x.date ? fmtDate(x.date) : ""}</small></span><button type="button" class="linkbtn" data-dropcost="${x.id}" aria-label="${T2("Remove", "हटाएं")}">${ic("x")}</button></li>`).join("")}</ul>` : ""}
+        <div class="filters"><label class="f"><span>${T2("Harvest (quintals)", "कुल पैदावार (क्विंटल)")}</span><input type="number" inputmode="decimal" min="0" data-act="harvestQtl" value="${l.actual.harvestQtl ?? ""}"></label><label class="f"><span>${T2("Money received from sale (₹)", "बिक्री से मिला पैसा (₹)")}</span><input type="number" inputmode="numeric" min="0" data-act="received" value="${l.actual.received ?? ""}"></label></div></details>
+    </article>`;
+  }).join("");
+  const cropsFor = CROPS.filter((c) => c.season === addSeason);
+  html += `<div class="card"><h3>${ic("plus")}${T2("Add a crop to the plan", "योजना में फसल जोड़ें")}</h3><form id="yearAdd" class="filters">
+      <label class="f"><span>${t("season")}</span><select id="yaSeason">${seasonOpts(addSeason)}</select></label>
+      <label class="f"><span>${T2("Crop", "फसल")}</span><select id="yaCrop">${cropsFor.map((c) => `<option value="${c.id}">${L_(c)}</option>`).join("")}<option value="">${T2("Another crop (my own figures)", "दूसरी फसल (अपने आँकड़े)")}</option></select></label>
+      <label class="f hidden" id="yaNameBox"><span>${T2("Name of the crop", "फसल का नाम")}</span><input type="text" id="yaName" maxlength="40" placeholder="${T2("e.g. tomato", "जैसे टमाटर")}"></label>
+      <label class="f"><span>${t("acres")}</span><input type="number" id="yaAcres" inputmode="decimal" min="0.1" max="500" step="0.1" value="1" required></label>
+      <button class="btn" type="submit">${ic("plus")}${T2("Add to plan", "योजना में जोड़ें")}</button></form>
+    <p class="hint">${T2("To compare crops before you choose, add two or three here and look at the per-acre figures, or open the Crops page.", "चुनने से पहले फसलों की तुलना करनी हो तो दो-तीन फसलें यहाँ जोड़कर प्रति एकड़ आँकड़े देखें, या 'फसल' पन्ना खोलें।")}</p>
+    <button type="button" class="btn line" data-go="advice">${ic("sprout")}${T2("Which crop suits my land", "मेरी ज़मीन के लिए कौन सी फसल")}</button></div>
+    ${land ? "" : `<p class="hint">${T2("Tell us how much land you have and the plan will warn you when it goes over:", "अपनी कुल ज़मीन बताएं, तो योजना ज़्यादा होने पर चेतावनी मिलेगी:")} <input type="number" id="yLand" inputmode="decimal" min="0.1" max="5000" step="0.1" class="inl" placeholder="${t("acres")}"></p>`}`;
+  $("#yearBox").innerHTML = html;
+  const rerender = (keep) => { state.yearOpen = keep; savePlan(); renderYear(); };
+  $("#yaSeason").onchange = (e) => { state.yearSeason = e.target.value; renderYear(); };
+  $("#yaCrop").onchange = (e) => $("#yaNameBox").classList.toggle("hidden", !!e.target.value);
+  $("#yearAdd").onsubmit = (ev) => {
+    ev.preventDefault();
+    const cropId = $("#yaCrop").value || null, name = $("#yaName").value.trim(), acres = +$("#yaAcres").value;
+    if (!cropId && !name) { toast(T2("Write the name of the crop.", "फसल का नाम लिखें।")); return; }
+    if (!(acres > 0)) return;
+    const id = Date.now().toString(36);
+    plan.lines.push({ id, season: $("#yaSeason").value, cropId, name: cropId ? "" : name, acres, over: {}, actual: { costs: [], harvestQtl: null, received: null } });
+    rerender(cropId ? null : id);
+  };
+  if ($("#yLand")) $("#yLand").onchange = (e) => { saveProfile({ land_size_acres: +e.target.value || null }); renderYear(); };
+  $$("#yearBox .planline").forEach((el) => {
+    const l = plan.lines.find((x) => x.id === el.dataset.id); if (!l) return;
+    const del = $("[data-del]", el);
+    del.onclick = () => { if (!del.classList.contains("sure")) { del.classList.add("sure"); del.innerHTML = T2("Remove?", "हटाएं?"); setTimeout(() => { if (del.isConnected && del.classList.contains("sure")) renderYear(); }, 4000); return; } plan.lines = plan.lines.filter((x) => x.id !== l.id); rerender(null); };
+    $$("[data-over]", el).forEach((inp) => (inp.onchange = () => { const k = inp.dataset.over; if (inp.value === "" || !(+inp.value >= 0)) delete l.over[k]; else l.over[k] = +inp.value; rerender(l.id); }));
+    $$("[data-act]", el).forEach((inp) => (inp.onchange = () => { l.actual[inp.dataset.act] = inp.value === "" ? null : +inp.value; rerender(l.id + ":act"); }));
+    $(".pl-add", el).onsubmit = (ev) => { ev.preventDefault(); const amt = +$(".aAmt", el).value; if (!(amt > 0)) return; l.actual.costs.push({ id: Date.now().toString(36), head: $(".aHead", el).value, amount: amt, date: $(".aDate", el).value, note: "" }); rerender(l.id + ":act"); };
+    $$("[data-dropcost]", el).forEach((b) => (b.onclick = () => { l.actual.costs = l.actual.costs.filter((x) => x.id !== b.dataset.dropcost); rerender(l.id + ":act"); }));
+  });
+}
+
+/* ---------------- soil profile: where the numbers came from, when, and the reports kept ---------------- */
+let cardMeta = (() => { try { const m = JSON.parse(localStorage.getItem("km-card-meta") || "{}"); return { source: ["scan", "typed", "scan_edited", "sample"].includes(m.source) ? m.source : null, reportDate: typeof m.reportDate === "string" ? m.reportDate.slice(0, 10) : "" }; } catch { return { source: null, reportDate: "" }; } })();
+let cardHistory = (() => { try { const v = JSON.parse(localStorage.getItem("km-cards") || "[]"); return Array.isArray(v) ? v.filter((x) => x && x.values && typeof x.values === "object").slice(0, 10) : []; } catch { return []; } })();
+const saveCardMeta = () => { try { localStorage.setItem("km-card-meta", JSON.stringify(cardMeta)); localStorage.setItem("km-cards", JSON.stringify(cardHistory)); } catch {} };
+// a real report: values are there and they are not the built-in sample
+const realCard = () => Object.keys(state.card || {}).length > 0 && cardMeta.source !== "sample";
+function noteCardSource(source) {
+  if (source === "clear") cardMeta = { source: null, reportDate: "" };
+  else if (source === "typed") cardMeta.source = !cardMeta.source || cardMeta.source === "typed" ? "typed" : cardMeta.source === "sample" ? "typed" : "scan_edited";
+  else if (source) cardMeta.source = source;
+  if (!Object.keys(state.card || {}).length) cardMeta.source = null;
+  saveCardMeta();
+}
+const CARD_SOURCE = {
+  scan: { en: "Read from the photo of your laboratory report", hi: "आपकी लैब रिपोर्ट की फोटो से पढ़ा गया" }, scan_edited: { en: "Read from the photo, then corrected by you", hi: "फोटो से पढ़ा गया, फिर आपने सुधारा" },
+  typed: { en: "Typed in by you", hi: "आपने खुद भरा" }, sample: { en: "A sample, not your report", hi: "यह नमूना है, आपकी रिपोर्ट नहीं" },
+};
+const KCC = "1800-180-1551";
+const noCardHelp = () => `<details class="nocard"><summary>${ic("circle-alert")}${T2("I do not have a Soil Health Card", "मेरे पास मृदा स्वास्थ्य कार्ड नहीं है")}</summary>
+  <p>${T2("A soil test is done at a government soil testing laboratory. Ask at your district agriculture office or your Krishi Vigyan Kendra (KVK) how to give a sample.", "मिट्टी की जांच सरकारी मिट्टी जांच प्रयोगशाला में होती है। नमूना कैसे देना है, यह अपने जिला कृषि कार्यालय या कृषि विज्ञान केंद्र (KVK) से पूछें।")}</p>
+  <p>${T2("You can also ask the Kisan Call Centre. The call is free, 6 in the morning to 10 at night, every day.", "आप किसान कॉल सेंटर से भी पूछ सकते हैं। फोन मुफ़्त है, सुबह 6 से रात 10 बजे तक, हर दिन।")}</p>
+  <div class="row"><a class="btn" href="tel:${KCC.replace(/-/g, "")}">${ic("phone")}${KCC}</a><a class="btn line" href="https://soilhealth.dac.gov.in" target="_blank" rel="noopener">${ic("external-link")}${T2("Soil Health Card portal", "मृदा स्वास्थ्य कार्ड पोर्टल")}</a></div>
+  <p class="hint">${T2("Until you have a report, the app uses a soil map estimate and says so. It does not make up test values.", "जब तक रिपोर्ट नहीं है, ऐप मिट्टी के नक्शे का अंदाज़ा इस्तेमाल करता है और यह बताता भी है। जांच के आँकड़े खुद से नहीं बनाता।")}</p></details>`;
+function renderSoilProfile() {
+  const box = $("#soilProfile"); if (!box) return;
+  const ids = card.PARAMS.map((p) => p.id), filled = ids.filter((id) => state.card[id] != null && !isNaN(state.card[id])), missing = card.PARAMS.filter((p) => !filled.includes(p.id));
+  const age = cardMeta.reportDate ? (Date.now() - Date.parse(cardMeta.reportDate)) / (365.25 * 864e5) : null;
+  let html = `<div class="card"><h3>${ic("flask-conical")}${T2("My soil report", "मेरी मिट्टी की रिपोर्ट")}</h3>`;
+  if (!filled.length) html += `<p>${T2("No soil report is added yet. Take a photo of your card below, or type the values from it. Fertiliser amounts are worked out only from a real report.", "अभी मिट्टी की कोई रिपोर्ट नहीं जुड़ी है। नीचे अपने कार्ड की फोटो लें, या उसके मान खुद भरें। खाद की मात्रा सिर्फ़ असली रिपोर्ट से निकाली जाती है।")}</p>${noCardHelp()}`;
+  else html += `<p class="fc-last ${cardMeta.source === "sample" ? "bad" : "good"}">${ic(cardMeta.source === "sample" ? "triangle-alert" : "circle-check")}<span><b>${L_(CARD_SOURCE[cardMeta.source] || CARD_SOURCE.typed)}</b><small>${T2(`${filled.length} of ${ids.length} values filled`, `${ids.length} में से ${filled.length} मान भरे हैं`)}${cardMeta.reportDate ? ` · ${T2("Report of", "रिपोर्ट की तारीख")} ${fmtDate(cardMeta.reportDate)}` : ""}</small></span></p>
+    ${cardMeta.source === "sample" ? `<p class="vcaution">${ic("triangle-alert")}<span>${T2("These are sample numbers to show how the page works. They are not used for your advice. Press Clear and add your own report.", "ये नमूने के आँकड़े हैं, सिर्फ़ यह दिखाने के लिए कि पन्ना कैसे काम करता है। आपकी सलाह में इनका इस्तेमाल नहीं होता। 'मिटाएं' दबाकर अपनी रिपोर्ट जोड़ें।")}</span></p>` : ""}
+    ${missing.length ? `<p class="hint">${T2("Not filled", "नहीं भरे")}: ${missing.map((p) => L_(p)).join(", ")}. ${T2("Missing values are left out; none is guessed.", "जो मान नहीं भरे, उन्हें छोड़ दिया जाता है; किसी का अंदाज़ा नहीं लगाया जाता।")}</p>` : ""}
+    ${age != null && age > 3 ? `<p class="vcaution">${ic("circle-alert")}<span>${T2(`This report is about ${Math.floor(age)} years old. Soil changes: a fresh test would be better.`, `यह रिपोर्ट लगभग ${Math.floor(age)} साल पुरानी है। मिट्टी बदलती रहती है: नई जांच कराना बेहतर रहेगा।`)}</span></p>` : ""}
+    <div class="filters"><label class="f"><span>${T2("Date on the report", "रिपोर्ट पर लिखी तारीख")}</span><input type="date" id="spDate" value="${cardMeta.reportDate}" max="${new Date().toISOString().slice(0, 10)}"></label></div>
+    ${cardMeta.source === "sample" ? "" : `<button type="button" class="btn line" id="spKeep">${ic("download")}${T2("Keep this report in my list", "इस रिपोर्ट को मेरी सूची में रखें")}</button>`}`;
+  if (cardHistory.length) html += `<h3 class="sub">${T2("Reports kept", "रखी हुई रिपोर्टें")}</h3><ul class="diarylist">${cardHistory.map((h) => `<li><span><b>${h.reportDate ? fmtDate(h.reportDate) : T2("No date", "तारीख नहीं")}</b><small>${L_(CARD_SOURCE[h.source] || CARD_SOURCE.typed)} · ${Object.keys(h.values).length} ${T2("values", "मान")} · ${T2("kept on", "रखी गई")} ${fmtDate(h.savedAt)}</small></span><button type="button" class="linkbtn" data-usecard="${h.id}">${T2("Use", "इस्तेमाल करें")}</button><button type="button" class="linkbtn" data-dropcard="${h.id}" aria-label="${T2("Remove", "हटाएं")}">${ic("x")}</button></li>`).join("")}</ul>`;
+  box.innerHTML = html + `</div>`;
+  if ($("#spDate")) $("#spDate").onchange = (e) => { cardMeta.reportDate = e.target.value; saveCardMeta(); renderSoilProfile(); };
+  if ($("#spKeep")) $("#spKeep").onclick = () => { cardHistory.unshift({ id: Date.now().toString(36), savedAt: new Date().toISOString(), reportDate: cardMeta.reportDate, source: cardMeta.source || "typed", values: { ...state.card } }); cardHistory = cardHistory.slice(0, 10); saveCardMeta(); toast(T2("Report kept.", "रिपोर्ट रख ली गई।")); renderSoilProfile(); };
+  $$("[data-usecard]", box).forEach((b) => (b.onclick = () => { const h = cardHistory.find((x) => x.id === b.dataset.usecard); if (!h) return; state.card = { ...h.values }; state.cardFlags = {}; cardMeta = { source: h.source, reportDate: h.reportDate || "" }; saveCard(); saveCardMeta(); renderCard(); }));
+  $$("[data-dropcard]", box).forEach((b) => (b.onclick = () => { cardHistory = cardHistory.filter((x) => x.id !== b.dataset.dropcard); saveCardMeta(); renderSoilProfile(); }));
+}
+
+/* ---------------- assistant: yellow leaves, asked step by step ---------------- */
+const NUTRIENT = { n: { en: "nitrogen", hi: "नाइट्रोजन" }, mg: { en: "magnesium", hi: "मैग्नीशियम" }, k: { en: "potassium (potash)", hi: "पोटाश" }, s: { en: "sulphur", hi: "गंधक (सल्फर)" }, fe: { en: "iron", hi: "लोहा (आयरन)" } };
+function startLeaf(text) {
+  state.ask = { q: text, a: "", leaf: { step: 0, ans: {}, crop: cropInText(String(text).toLowerCase()) } };
+  paintAnswer();
+  if ($("#askOut")) $("#askOut").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function leafHTML() {
+  const L = state.ask.leaf, q = Doctor.QUESTIONS[L.step];
+  if (q) return `<p class="leafq"><b>${L_(q.q)}</b> <small>${L.step + 1}/${Doctor.QUESTIONS.length}</small></p><div class="askchips">${q.opts.map(([v, lab]) => `<button type="button" data-leaf="${v}">${L_(lab)}</button>`).join("")}</div>${L.step ? `<button type="button" class="linkbtn" data-leafback>${ic("arrow-left")}${T2("Back", "वापस")}</button>` : ""}`;
+  const r = Doctor.leafRead(L.ans), nut = r.nutrient, cropTxt = L.crop ? cropName(L.crop) : T2("your crop", "आपकी फसल");
+  let main, extra = "";
+  if (r.see === "disease") main = T2("Spots or patches usually come from a disease or an insect. That cannot be settled from words. Show the plant, or clear photos of it, to your KVK or agriculture officer.", "धब्बे या चकत्ते अक्सर बीमारी या कीड़े से होते हैं। यह बोलकर या लिखकर पक्का नहीं हो सकता। पौधा या उसकी साफ़ फोटो अपने KVK या कृषि अधिकारी को दिखाएं।");
+  else if (!nut) main = T2("These answers are not enough to say what it is. An expert needs to see the plant.", "इन जवाबों से कारण तय नहीं हो पा रहा। किसी जानकार को पौधा देखना होगा।");
+  else {
+    main = T2(`In ${cropTxt}, this pattern can come from a shortage of ${NUTRIENT[nut].en}. It is not certain: the same yellowing can come from more than one nutrient, and disease or insect damage can look the same.`, `${cropTxt} में ऐसा पीलापन ${NUTRIENT[nut].hi} की कमी से हो सकता है। यह पक्का नहीं है: एक जैसा पीलापन एक से ज़्यादा तत्वों की कमी से आता है, और बीमारी या कीड़े का नुकसान भी ऐसा ही दिख सकता है।`);
+    if (nut === "fe") extra += " " + T2("It is more common on soil with a high pH.", "यह ज़्यादा pH वाली मिट्टी में ज़्यादा होता है।");
+    const v = realCard() ? state.card[nut] : null, rt = v != null ? card.rate(nut, v) : null;
+    if (rt) extra += " " + (rt === "low" ? T2(`Your soil report shows ${NUTRIENT[nut].en} as low, which fits.`, `आपकी मिट्टी की रिपोर्ट में ${NUTRIENT[nut].hi} कम है, जो इस बात से मेल खाता है।`) : T2(`Your soil report does not show ${NUTRIENT[nut].en} as low, so the cause may be something else.`, `आपकी मिट्टी की रिपोर्ट में ${NUTRIENT[nut].hi} कम नहीं है, इसलिए कारण कुछ और भी हो सकता है।`));
+    else if (!realCard()) extra += " " + T2("A soil test would settle it: no soil report is added in the app.", "मिट्टी की जांच से यह पक्का हो जाएगा: ऐप में मिट्टी की कोई रिपोर्ट नहीं जुड़ी है।");
+  }
+  return `<p>${main}${extra}</p>
+    <p>${T2("Look at this first: is water standing in the field, or is the field very dry? Both turn leaves yellow.", "पहले यह देख लें: खेत में पानी खड़ा तो नहीं, या खेत बहुत सूखा तो नहीं? दोनों में पत्ते पीले पड़ते हैं।")}</p>
+    <p class="vcaution">${ic("triangle-alert")}<span>${T2("Do not put any fertiliser or spray on this advice alone. Confirm first with the KVK or the Kisan Call Centre (free, 6 am to 10 pm).", "सिर्फ़ इस सलाह पर कोई खाद या दवा न डालें। पहले KVK या किसान कॉल सेंटर (मुफ़्त, सुबह 6 से रात 10) से पक्का करें।")}</span></p>
+    <div class="row wrap"><a class="btn" href="tel:${KCC.replace(/-/g, "")}">${ic("phone")}${KCC}</a><label class="btn line">${ic("camera")}${T2("Send a photo to an expert", "जानकार को फोटो भेजें")}<input type="file" id="leafPhoto" accept="image/*" hidden></label><button type="button" class="btn line" data-leafagain>${ic("rotate-ccw")}${T2("Start again", "दोबारा शुरू करें")}</button></div>
+    <details class="srcs"><summary>${ic("info")}${T2("Where this comes from", "यह जानकारी कहाँ से है")}</summary><ul>${Doctor.SOURCES.map((s) => `<li><a href="${s.url}" target="_blank" rel="noopener">${esc(s.en)}</a></li>`).join("")}</ul></details>`;
+}
+function wireLeaf() {
+  const box = $("#askExtra"); if (!box || !state.ask || !state.ask.leaf) return;
+  const L = state.ask.leaf;
+  $$("[data-leaf]", box).forEach((b) => (b.onclick = () => { L.ans[Doctor.QUESTIONS[L.step].id] = b.dataset.leaf; L.step++; paintAnswer(); }));
+  if ($("[data-leafback]", box)) $("[data-leafback]", box).onclick = () => { L.step--; paintAnswer(); };
+  if ($("[data-leafagain]", box)) $("[data-leafagain]", box).onclick = () => { L.step = 0; L.ans = {}; paintAnswer(); };
+  if ($("#leafPhoto")) $("#leafPhoto").onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const text = T2(`Photo of my crop (${L_(state.district)} district). Problem: ${state.ask.q}`, `मेरी फसल की फोटो (${L_(state.district)} जिला)। समस्या: ${state.ask.q}`);
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; } } catch (err) { if (err && err.name === "AbortError") return; }
+    toast(T2("This phone cannot send the photo from here. Send it from your gallery on WhatsApp to your KVK.", "यह फ़ोन यहाँ से फोटो नहीं भेज पा रहा। अपनी गैलरी से WhatsApp पर अपने KVK को भेजें।"), 6000);
+  };
+}
+
+/* ---------------- farmer experience notes: kept on the phone, sent by the farmer; the shared forum needs a server ---------------- */
+const EXP_TOPICS = { variety: { en: "Seed and variety", hi: "बीज और किस्म" }, fert: { en: "Fertiliser and manure", hi: "खाद" }, pest: { en: "Pest and disease", hi: "कीट और रोग" }, water: { en: "Water", hi: "पानी" }, cost: { en: "Cost and income", hi: "खर्च और कमाई" }, lesson: { en: "A mistake and what I learnt", hi: "ग़लती और सीख" } };
+let expNotes = (() => { try { const v = JSON.parse(localStorage.getItem("km-exp") || "[]"); return Array.isArray(v) ? v.filter((x) => x && typeof x.text === "string").slice(0, 100) : []; } catch { return []; } })();
+const saveExp = () => { try { localStorage.setItem("km-exp", JSON.stringify(expNotes)); } catch {} };
+function renderExp() {
+  $("#expTitle").textContent = T2("Farmer experience forum", "किसान अनुभव मंच");
+  const topic = state.expTopic || "variety";
+  $("#expBox").innerHTML = `<div class="card"><p class="vcaution">${ic("circle-alert")}<span>${T2("The shared forum is not open yet. Showing other farmers' posts and videos, likes, comments and stopping wrong information all need a server and people to moderate. Until then you can write your experience here, keep it on your phone, and send it yourself.", "साझा मंच अभी शुरू नहीं हुआ है। दूसरे किसानों की पोस्ट और वीडियो दिखाने, पसंद और टिप्पणी, और ग़लत जानकारी रोकने के लिए सर्वर और निगरानी करने वाले लोग चाहिए। तब तक आप अपना अनुभव यहाँ लिखकर फ़ोन में रख सकते हैं और खुद भेज सकते हैं।")}</span></p></div>
+    <div class="card"><h3>${ic("pencil-line")}${T2("Write your experience", "अपना अनुभव लिखें")}</h3>${chipsQ("topic", topic, Object.entries(EXP_TOPICS).map(([k, v]) => [k, L_(v)]))}
+      <form id="expForm"><label class="f"><span>${T2("Crop", "फसल")}</span><input type="text" id="expCrop" maxlength="40" placeholder="${T2("e.g. amla", "जैसे आंवला")}"></label>
+      <label class="f"><span>${T2("What happened, in your words", "क्या हुआ, अपने शब्दों में")}</span><textarea id="expText" rows="4" maxlength="1200" required placeholder="${T2("My land had little water, so I tried this crop...", "मेरी ज़मीन में पानी कम था, इसलिए मैंने यह फसल ट्राई की...")}"></textarea></label>
+      <button class="btn" type="submit">${ic("circle-check")}${T2("Keep it", "रख लें")}</button></form></div>
+    ${expNotes.length ? `<h3 class="sec">${T2("My experiences (on this phone only)", "मेरे अनुभव (सिर्फ़ इस फ़ोन में)")}</h3>` + expNotes.map((n) => `<article class="card expnote" data-id="${n.id}"><p class="hint">${esc([n.crop, EXP_TOPICS[n.topic] ? L_(EXP_TOPICS[n.topic]) : "", n.district, fmtDate(n.date)].filter(Boolean).join(" · "))}</p><p class="exptext">${esc(n.text)}</p><p class="hint">${ic("user-round")} ${T2("Personal experience, not checked by an expert", "निजी अनुभव, किसी जानकार ने जांचा नहीं")}</p><div class="row"><button type="button" class="btn line" data-send>${ic("share-2")}${T2("Send", "भेजें")}</button><button type="button" class="btn line" data-del>${ic("trash-2")}${T2("Remove", "हटाएं")}</button></div></article>`).join("") : ""}`;
+  $$("#expBox [data-q] .chip").forEach((b) => (b.onclick = () => { state.expTopic = b.dataset.v; const c = $("#expCrop").value, tx = $("#expText").value; renderExp(); $("#expCrop").value = c; $("#expText").value = tx; }));
+  $("#expForm").onsubmit = (e) => { e.preventDefault(); const text = $("#expText").value.trim(); if (!text) return; expNotes.unshift({ id: Date.now().toString(36), date: new Date().toISOString(), district: L_(state.district), crop: $("#expCrop").value.trim(), topic, text }); saveExp(); renderExp(); toast(T2("Kept on this phone.", "इस फ़ोन में रख लिया गया।")); };
+  $$("#expBox .expnote").forEach((el) => {
+    const n = expNotes.find((x) => x.id === el.dataset.id); if (!n) return;
+    $("[data-send]", el).onclick = async () => { const text = `${n.crop ? n.crop + ": " : ""}${n.text}\n(${T2("A farmer's own experience", "एक किसान का अपना अनुभव")}, ${n.district})`; if (navigator.share) { try { await navigator.share({ text }); return; } catch (err) { if (err && err.name === "AbortError") return; } } window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener"); };
+    const del = $("[data-del]", el);
+    del.onclick = () => { if (!del.classList.contains("sure")) { del.classList.add("sure"); del.innerHTML = T2("Tap again to remove", "हटाने के लिए दोबारा दबाएं"); setTimeout(() => { if (del.isConnected) renderExp(); }, 4000); return; } expNotes = expNotes.filter((x) => x.id !== n.id); saveExp(); renderExp(); };
+  });
+}
+
 /* ---------------- My farm: the farmer's own page ---------------- */
 const FOR_YOU = {
   seasonal: [
@@ -2164,10 +2380,12 @@ function profileHTML() {
   const k = profile.farmer_category ? Farmer.FARMER_TYPES[profile.farmer_category] : null;
   if (!k) return `<article class="card profile"><h3>${L_(TYPE_Q)}</h3><p class="hint">${L_(TYPE_WHY)}</p>${typeCards(null)}</article>`;
   return `<article class="card profile"><div class="pf-head"><span class="vicon">${ic(k.icon)}</span><div class="pf-t"><small>${T2("Your farming", "आपकी खेती")}</small><b>${L_(k)}</b><small>${esc(L_(state.district))}</small></div><button type="button" class="linkbtn" id="pfEdit">${ic("pencil-line")}${T2("Change", "बदलें")}</button></div></article>
-    <h3 class="sec">${T2("For you", "आपके लिए")}</h3><div class="card rowlist">${FOR_YOU[profile.farmer_category].map(([go, icon, title, sub]) => rowLink(go, icon, L_(title), L_(sub))).join("")}</div>`;
+    <h3 class="sec">${T2("For you", "आपके लिए")}</h3><div class="card rowlist">${FOR_YOU[profile.farmer_category].map(([go, icon, title, sub]) => rowLink(go, icon, L_(title), L_(sub))).join("")}</div>
+    <h3 class="sec">${T2("Plan, ask and learn", "योजना, सवाल और सीख")}</h3><div class="card rowlist">${rowLink("year", "calendar", T2("Year plan and money", "साल की योजना और हिसाब"), T2("Cost, income and what is left, crop by crop", "हर फसल का खर्च, आमदनी और बचत"))}${profile.farmer_category === "seasonal" ? "" : rowLink("soilcard", "flask-conical", T2("My soil report", "मेरी मिट्टी की रिपोर्ट"), "")}<button type="button" class="rowlink info" data-openask><span class="vicon">${ic("mic")}</span><span class="rl-t"><b>${T2("Tell us your farming problem", "अपनी खेती की समस्या बताओ")}</b><small>${T2("Speak or choose a question", "बोलें या सवाल चुनें")}</small></span>${ic("chevron-right")}</button>${rowLink("exp", "users", T2("Farmer experience forum", "किसान अनुभव मंच"), T2("Write your own experience", "अपना अनुभव लिखें"))}</div>`;
 }
 function wireProfile(root) {
   if ($("#pfEdit", root)) $("#pfEdit", root).onclick = () => showWelcome("type");
+  $$("[data-openask]", root).forEach((b) => (b.onclick = () => openAsk()));
   $$("[data-type]", root).forEach((b) => (b.onclick = () => { saveProfile({ farmer_category: b.dataset.type }); renderFarm(); }));
 }
 
