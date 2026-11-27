@@ -1,10 +1,10 @@
 // Offline support. Pages and app code: network first (always fresh when online), cached copy when offline.
 // Fonts, map library, icons and photos: cache first. Live data APIs (satellite, weather, prices): never cached here.
-const VERSION = "km-20261126213406";
+const VERSION = "km-20261126215519";
 const TILES = "km-tiles-1", TILE_LIMIT = 900;
 let puts = 0;
 function trimTiles(c) { if (++puts % 60) return; c.keys().then((ks) => { if (ks.length > TILE_LIMIT) ks.slice(0, ks.length - TILE_LIMIT).forEach((k) => c.delete(k)); }); }
-const SHELL = ["./", "index.html", "manifest.webmanifest", "img/logo.svg", "img/icon-192.png"];
+const SHELL = ["./", "index.html", "manifest.webmanifest", "img/logo-mark.png", "img/logo-full.png", "img/favicon.png", "img/icon-192.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSION && k !== TILES).map((k) => caches.delete(k)))).then(() => self.clients.claim()));

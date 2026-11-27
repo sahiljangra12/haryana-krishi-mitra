@@ -1,21 +1,21 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126213406";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126213406";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126213406";
-import * as Voice from "./voice.js?v=20261126213406";
-import { ARCGIS_KEY } from "./config.js?v=20261126213406";
-import * as Pheno from "./phenology.js?v=20261126213406";
-import { askIntent, cropInText } from "./ask.js?v=20261126213406";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126213406";
-import * as Land from "./landtype.js?v=20261126213406";
-import * as Farmer from "./farmer.js?v=20261126213406";
-import * as Field from "./field.js?v=20261126213406";
-import * as RS from "./rs.js?v=20261126213406";
-import * as src from "./sources.js?v=20261126213406";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126213406";
-import * as card from "./soilcard.js?v=20261126213406";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126213406";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126213406";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126213406";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126215519";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126215519";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126215519";
+import * as Voice from "./voice.js?v=20261126215519";
+import { ARCGIS_KEY } from "./config.js?v=20261126215519";
+import * as Pheno from "./phenology.js?v=20261126215519";
+import { askIntent, cropInText } from "./ask.js?v=20261126215519";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126215519";
+import * as Land from "./landtype.js?v=20261126215519";
+import * as Farmer from "./farmer.js?v=20261126215519";
+import * as Field from "./field.js?v=20261126215519";
+import * as RS from "./rs.js?v=20261126215519";
+import * as src from "./sources.js?v=20261126215519";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126215519";
+import * as card from "./soilcard.js?v=20261126215519";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126215519";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126215519";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126215519";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -1863,7 +1863,7 @@ async function renderWeather() {
 function renderAbout() {
   const hi = getLang() === "hi";
   const credits = `<h3>${t("credits")}</h3><ul class="credits">${Object.values(PHOTOS).map((p) => `<li><a href="${p.page}" target="_blank" rel="noopener">${esc(p.title)}</a>, ${esc(p.author)}, ${esc(p.license)}</li>`).join("")}</ul><p class="hint">${hi ? "आइकन: Lucide (ISC लाइसेंस)। सैटेलाइट चित्र: Esri World Imagery, Copernicus Sentinel-2।" : "Icons: Lucide (ISC licence). Satellite imagery: Esri World Imagery, Copernicus Sentinel-2."}</p>`;
-  $("#aboutBox").innerHTML = hi ? `
+  $("#aboutBox").innerHTML = `<div class="logofull" role="img" aria-label="No Farmers No Food"></div>` + (hi ? `
     <h2>कृषि मित्र हरियाणा क्या है?</h2>
     <p>यह एक मुफ़्त, खुला वेब ऐप है जो हरियाणा के किसानों को खुले सैटेलाइट, मौसम, मिट्टी और मंडी डेटा से फसल योजना बनाने में मदद करता है। कोई लॉगिन नहीं, कोई डेटा इकट्ठा नहीं किया जाता।</p>
     <h3>यह कैसे काम करता है</h3>
@@ -1911,7 +1911,7 @@ function renderAbout() {
       <li><a href="https://enam.gov.in" target="_blank" rel="noopener">e-NAM</a></li>
       <li><a href="https://agmarknet.gov.in" target="_blank" rel="noopener">Agmarknet</a></li>
       <li><a href="https://www.hau.ac.in" target="_blank" rel="noopener">CCS Haryana Agricultural University</a></li>
-    </ul>${credits}`;
+    </ul>${credits}`);
 }
 
 /* ---------------- satellite pass panel ---------------- */
@@ -2089,7 +2089,7 @@ function showWelcome(start = "lang") {
   const paint = () => {
     const body = $("#welcomeBody");
     if (page === "lang") {
-      body.innerHTML = `<div class="welcome"><img class="wlogo" src="img/logo.svg" alt="" width="64" height="64">${head(1, T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है"), T2("Four short questions first. Then the app is set up for your farming.", "पहले चार छोटे सवाल। फिर ऐप आपकी खेती के हिसाब से तैयार हो जाएगा।"))}
+      body.innerHTML = `<div class="welcome"><div class="logofull" role="img" aria-label="No Farmers No Food"></div>${head(1, T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है"), T2("Four short questions first. Then the app is set up for your farming.", "पहले चार छोटे सवाल। फिर ऐप आपकी खेती के हिसाब से तैयार हो जाएगा।"))}
         <div class="lang" role="group" aria-label="${T2("Language", "भाषा")}"><button type="button" data-wl="hi" class="${getLang() === "hi" ? "on" : ""}">हिंदी</button><button type="button" data-wl="en" class="${getLang() === "en" ? "on" : ""}">English</button></div>
         <button class="btn big" type="button" id="wListen">${ic("volume-2")}${T2("Read the questions aloud to me", "सवाल बोलकर सुनाओ")}</button>
         <button class="btn big line" type="button" id="wRead">${T2("I will read them myself", "मैं खुद पढ़ लूंगा")}${ic("chevron-right")}</button>
