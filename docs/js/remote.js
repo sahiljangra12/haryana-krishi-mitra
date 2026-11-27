@@ -2,7 +2,7 @@
 // plain fetch calls to its REST interface, no library. The address and the public ("anon") key come from config.js.
 // That key is meant to be public: the database rules in supabase/schema.sql let it submit rows as 'pending' and read
 // approved rows, nothing else. While config.js has no address, enabled() is false and the app says the forum is not open.
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js?v=20261126230736";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js?v=20261126231807";
 
 export const enabled = () => !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 export const TOPICS = ["variety", "fert", "pest", "water", "cost", "lesson"];

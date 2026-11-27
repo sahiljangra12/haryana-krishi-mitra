@@ -1,25 +1,25 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126230736";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126230736";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126230736";
-import * as Voice from "./voice.js?v=20261126230736";
-import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126230736";
-import * as Pheno from "./phenology.js?v=20261126230736";
-import { askIntent, cropInText } from "./ask.js?v=20261126230736";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126230736";
-import * as Land from "./landtype.js?v=20261126230736";
-import * as Farmer from "./farmer.js?v=20261126230736";
-import * as Remote from "./remote.js?v=20261126230736";
-import * as Dir from "./directory.js?v=20261126230736";
-import * as Planner from "./planner.js?v=20261126230736";
-import * as Doctor from "./doctor.js?v=20261126230736";
-import * as Field from "./field.js?v=20261126230736";
-import * as RS from "./rs.js?v=20261126230736";
-import * as src from "./sources.js?v=20261126230736";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126230736";
-import * as card from "./soilcard.js?v=20261126230736";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126230736";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126230736";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126230736";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126231807";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126231807";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126231807";
+import * as Voice from "./voice.js?v=20261126231807";
+import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126231807";
+import * as Pheno from "./phenology.js?v=20261126231807";
+import { askIntent, cropInText } from "./ask.js?v=20261126231807";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126231807";
+import * as Land from "./landtype.js?v=20261126231807";
+import * as Farmer from "./farmer.js?v=20261126231807";
+import * as Remote from "./remote.js?v=20261126231807";
+import * as Dir from "./directory.js?v=20261126231807";
+import * as Planner from "./planner.js?v=20261126231807";
+import * as Doctor from "./doctor.js?v=20261126231807";
+import * as Field from "./field.js?v=20261126231807";
+import * as RS from "./rs.js?v=20261126231807";
+import * as src from "./sources.js?v=20261126231807";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126231807";
+import * as card from "./soilcard.js?v=20261126231807";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126231807";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126231807";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126231807";
 
 // Reading aloud is switched off (config.js): the speaker buttons, the sound switch and the reading bar are hidden. The microphone stays.
 document.documentElement.classList.toggle("noread", !READ_ALOUD);
@@ -1155,7 +1155,7 @@ function renderMore() {
   $("#moreBoxPage").innerHTML = `<div class="card rowlist"><button type="button" class="rowlink info" id="moreType"><span class="vicon">${ic("user-round")}</span><span class="rl-t"><b>${T2("My kind of farming", "मेरी खेती का प्रकार")}</b><small>${k ? L_(k) : T2("Not chosen yet", "अभी चुना नहीं")}</small></span>${ic("chevron-right")}</button>` +
     row("plan", "apple", T2("Orchard and tree planning", "बाग और पेड़ की योजना"), T2("Fruit for your area; crops between poplar rows", "आपके इलाके के फल; पॉपलर की कतारों के बीच की फसल")) +
     row("year", "calendar", T2("Year plan and money", "साल की योजना और हिसाब"), T2("Cost, income and what is left, crop by crop", "हर फसल का खर्च, आमदनी और बचत")) +
-    row("exp", "users", T2("Farmer experience forum", "किसान अनुभव मंच"), T2("Write your own experience; the shared forum is not open yet", "अपना अनुभव लिखें; साझा मंच अभी शुरू नहीं हुआ")) +
+    row("exp", "users", T2("Farmer experience forum", "किसान अनुभव मंच"), T2("Read what other farmers tried, and write your own", "दूसरे किसानों के अनुभव पढ़ें और अपना लिखें")) +
     row("share", "handshake", T2("Land on share", "ज़मीन बटाई पर"), T2("Get ready to give or take land for farming", "ज़मीन देने या लेने की बातचीत की तैयारी")) + `</div><div class="card rowlist">` +
     row("soilcard", "flask-conical", T2("Soil Health Card scanner", "मृदा स्वास्थ्य कार्ड स्कैनर"), T2("Take a photo of your card and get a fertiliser plan", "कार्ड की फोटो लें और खाद की योजना पाएं")) +
     row("techniques", "book-open-text", T2("Farming methods and videos", "खेती के तरीके और वीडियो"), T2("Seventeen methods explained, with videos", "17 तरीके, वीडियो के साथ")) +
@@ -1889,7 +1889,7 @@ async function renderWeather() {
 function renderAbout() {
   const hi = getLang() === "hi";
   const credits = `<h3>${t("credits")}</h3><ul class="credits">${Object.values(PHOTOS).map((p) => `<li><a href="${p.page}" target="_blank" rel="noopener">${esc(p.title)}</a>, ${esc(p.author)}, ${esc(p.license)}</li>`).join("")}</ul><p class="hint">${hi ? "आइकन: Lucide (ISC लाइसेंस)। सैटेलाइट चित्र: Esri World Imagery, Copernicus Sentinel-2।" : "Icons: Lucide (ISC licence). Satellite imagery: Esri World Imagery, Copernicus Sentinel-2."}</p>`;
-  $("#aboutBox").innerHTML = `<div class="logofull" role="img" aria-label="No Farmers No Food"></div>` + (hi ? `
+  $("#aboutBox").innerHTML = `<img class="logofull" src="img/logo-full.png" width="640" height="517" alt="No Farmers No Food">` + (hi ? `
     <h2>कृषि मित्र हरियाणा क्या है?</h2>
     <p>यह एक मुफ़्त, खुला वेब ऐप है जो हरियाणा के किसानों को खुले सैटेलाइट, मौसम, मिट्टी और मंडी डेटा से फसल योजना बनाने में मदद करता है। कोई लॉगिन नहीं, कोई डेटा इकट्ठा नहीं किया जाता।</p>
     <h3>यह कैसे काम करता है</h3>
@@ -2020,7 +2020,7 @@ function setTheme(th) {
   try { localStorage.setItem("km-theme2", th); } catch {}
   $("#themeBtn").innerHTML = th === "sun" ? ic("moon") : ic("sun");
   $("#themeBtn").setAttribute("aria-label", th === "sun" ? t("nightMode") : t("sunMode"));
-  document.querySelector('meta[name="theme-color"]').content = th === "sun" ? "#ffffff" : "#0d1512";
+  document.querySelector('meta[name="theme-color"]').content = th === "sun" ? "#ffffff" : "#0b0c0a";
   chartTheme();
   const active = $(".tab.active")?.dataset.tab;
   if (state.report) renderReport();
@@ -2116,7 +2116,7 @@ function showWelcome(start = "lang") {
   const paint = () => {
     const body = $("#welcomeBody");
     if (page === "lang") {
-      body.innerHTML = `<div class="welcome"><div class="logofull" role="img" aria-label="No Farmers No Food"></div>${head(1, T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है"), T2("Four short questions first. Then the app is set up for your farming.", "पहले चार छोटे सवाल। फिर ऐप आपकी खेती के हिसाब से तैयार हो जाएगा।"))}
+      body.innerHTML = `<div class="welcome"><img class="logofull" src="img/logo-full.png" width="640" height="517" alt="No Farmers No Food">${head(1, T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है"), T2("Four short questions first. Then the app is set up for your farming.", "पहले चार छोटे सवाल। फिर ऐप आपकी खेती के हिसाब से तैयार हो जाएगा।"))}
         <div class="lang" role="group" aria-label="${T2("Language", "भाषा")}"><button type="button" data-wl="hi" class="${getLang() === "hi" ? "on" : ""}">हिंदी</button><button type="button" data-wl="en" class="${getLang() === "en" ? "on" : ""}">English</button></div>
         ${READ_ALOUD ? `<button class="btn big" type="button" id="wListen">${ic("volume-2")}${T2("Read the questions aloud to me", "सवाल बोलकर सुनाओ")}</button>
         <button class="btn big line" type="button" id="wRead">${T2("I will read them myself", "मैं खुद पढ़ लूंगा")}${ic("chevron-right")}</button>` : `<button class="btn big" type="button" id="wRead">${T2("Continue", "आगे बढ़ें")}${ic("chevron-right")}</button>`}
@@ -2406,12 +2406,12 @@ function renderHome() {
   const L = Dir.ledgerTotals(sales, todayISO());
   if (L.overdueCount) rows.push(["ledger", "indian-rupee", "bad", T2("Payments", "भुगतान"), T2(`${L.overdueCount} payment(s) overdue: ${money(L.overdue)}`, `${L.overdueCount} भुगतान की तारीख निकल चुकी: ${money(L.overdue)}`)]);
   const first = profile.farmer_category === "long_term" ? [tile("plan:trees", "trees", T2("Trees and intercrops", "पेड़ और बीच की फसल")), tile("share", "handshake", T2("Land on share", "ज़मीन बटाई पर"))] : profile.farmer_category === "medium_term" ? [tile("plan:orchard", "apple", T2("Plan my orchard", "बाग की योजना"))] : [];
-  $("#homeBox").innerHTML = `<p class="homewho">${k ? `${L_(k)} · ` : ""}${esc(L_(d))}</p>
+  $("#homeBox").innerHTML = `<div class="mast"><div class="mast-t"><h2>${T2("Namaste", "नमस्ते")}</h2><p class="mast-tags">${k ? `<span>${L_(k)}</span>` : ""}<span>${ic("map-pin")}${esc(L_(d))}</span></p></div><img class="mast-logo" src="img/logo-full.png" width="640" height="517" alt="No Farmers No Food"></div>
     <h3 class="sec">${T2("Today", "आज")}</h3><div class="card rowlist">${rows.map(([go, icon, level, title, text]) => `<button type="button" class="rowlink ${level}" ${go.startsWith("field:") ? `data-field="${go.slice(6)}"` : `data-go="${go}"`}><span class="vicon">${ic(icon)}</span><span class="rl-t"><small>${title}</small><b>${text}</b></span>${ic("chevron-right")}</button>`).join("")}</div>
     <button type="button" class="homeask" data-openask><span class="bigmic sm">${ic("mic")}</span><span><b>${T2("Tell us your farming problem", "अपनी खेती की समस्या बताओ")}</b><small>${T2("Speak or choose a question", "बोलें या सवाल चुनें")}</small></span></button>
-    <h3 class="sec">${T2("My farming", "मेरी खेती")}</h3><div class="tiles">${first.join("")}${tile("land", "satellite", T2("My field from the satellite", "खेत सैटेलाइट से"))}${tile("advice", "sprout", T2("What to grow", "क्या बोएं"))}${tile("year", "calendar", T2("Year plan and money", "साल की योजना"))}${tile("soilcard", "flask-conical", T2("My soil", "मेरी मिट्टी"))}${tile("weather", "cloud-sun", T2("Weather", "मौसम"))}${profile.farmer_category === "seasonal" ? tile("plan", "apple", T2("Orchard and trees", "बाग और पेड़")) : ""}</div>
-    <h3 class="sec">${T2("Sell and earn", "बेचना और कमाई")}</h3><div class="tiles">${tile("prices", "indian-rupee", T2("Mandi prices", "मंडी भाव"))}${tile("sell", "store", T2("Sell my crop", "फसल बेचें"))}${tile("ledger", "list-checks", T2("Sales and payments", "बिक्री और भुगतान"))}${tile("store", "tractor", T2("Transport and storage", "ट्रांसपोर्ट और स्टोरेज"))}</div>
-    <h3 class="sec">${T2("Learn and get help", "सीखें और मदद पाएं")}</h3><div class="tiles">${tile("solve", "search", T2("Find the right help", "सही मदद खोजें"))}${tile("schemes", "landmark", T2("Government schemes", "सरकारी योजनाएं"))}${tile("kvk", "phone", T2("KVK and helpline", "KVK और हेल्पलाइन"))}${tile("techniques", "book-open-text", T2("Farming methods", "खेती के तरीके"))}${tile("exp", "users", T2("Farmer experiences", "किसानों के अनुभव"))}${tile("inst", "landmark", T2("Universities", "विश्वविद्यालय"))}</div>
+    <h3 class="sec">${T2("My farming", "मेरी खेती")}</h3><div class="tiles t-grow">${first.join("")}${tile("land", "satellite", T2("My field from the satellite", "खेत सैटेलाइट से"))}${tile("advice", "sprout", T2("What to grow", "क्या बोएं"))}${tile("year", "calendar", T2("Year plan and money", "साल की योजना"))}${tile("soilcard", "flask-conical", T2("My soil", "मेरी मिट्टी"))}${tile("weather", "cloud-sun", T2("Weather", "मौसम"))}${profile.farmer_category === "seasonal" ? tile("plan", "apple", T2("Orchard and trees", "बाग और पेड़")) : ""}</div>
+    <h3 class="sec">${T2("Sell and earn", "बेचना और कमाई")}</h3><div class="tiles t-sell">${tile("prices", "indian-rupee", T2("Mandi prices", "मंडी भाव"))}${tile("sell", "store", T2("Sell my crop", "फसल बेचें"))}${tile("ledger", "list-checks", T2("Sales and payments", "बिक्री और भुगतान"))}${tile("store", "tractor", T2("Transport and storage", "ट्रांसपोर्ट और स्टोरेज"))}</div>
+    <h3 class="sec">${T2("Learn and get help", "सीखें और मदद पाएं")}</h3><div class="tiles t-learn">${tile("solve", "search", T2("Find the right help", "सही मदद खोजें"))}${tile("schemes", "landmark", T2("Government schemes", "सरकारी योजनाएं"))}${tile("kvk", "phone", T2("KVK and helpline", "KVK और हेल्पलाइन"))}${tile("techniques", "book-open-text", T2("Farming methods", "खेती के तरीके"))}${tile("exp", "users", T2("Farmer experiences", "किसानों के अनुभव"))}${tile("inst", "landmark", T2("Universities", "विश्वविद्यालय"))}</div>
     <div class="homefoot"><button type="button" class="linkbtn" data-go="farm">${ic("user-round")}${T2("Change my details", "मेरी जानकारी बदलें")}</button><button type="button" class="linkbtn" data-go="about">${ic("info")}${T2("About this app", "इस ऐप के बारे में")}</button></div>`;
   $$("#homeBox [data-field]").forEach((b) => (b.onclick = () => { const fl = state.fields.find((x) => x.id === b.dataset.field); showTab("land"); if (fl && fieldParam() !== fl.param) openField(fl); }));
 }
@@ -2421,7 +2421,7 @@ function renderKnow() {
   setTitle("know", "Knowledge centre", "कृषि ज्ञान केंद्र");
   $("#knowBox").innerHTML = `<p class="hint">${T2("Where to learn and who to ask. Every office and scheme here comes from an official page.", "कहाँ से सीखें और किससे पूछें। यहाँ का हर दफ़्तर और हर योजना किसी आधिकारिक पन्ने से ली गई है।")}</p>
     <div class="card rowlist">${rowLink("solve", "search", T2("Find the right help for my problem", "मेरी समस्या के लिए सही मदद खोजें"), T2("Choose the problem, see where to go", "समस्या चुनें, देखें कहाँ जाना है"))}${rowLink("kvk", "phone", T2("KVK, helpline and offices", "KVK, हेल्पलाइन और दफ़्तर"), T2("Your district's Krishi Vigyan Kendra and the Kisan Call Centre", "आपके जिले का कृषि विज्ञान केंद्र और किसान कॉल सेंटर"))}${rowLink("schemes", "landmark", T2("Government schemes", "सरकारी योजनाएं"), T2("What you get, who can apply, where to apply", "क्या मिलता है, कौन ले सकता है, कहाँ आवेदन करें"))}${rowLink("inst", "book-open-text", T2("Universities and research institutes", "विश्वविद्यालय और अनुसंधान संस्थान"), T2("Who works on which problem", "कौन किस समस्या पर काम करता है"))}</div>
-    <div class="card rowlist">${rowLink("techniques", "play", T2("Farming methods and videos", "खेती के तरीके और वीडियो"), T2("Seventeen methods explained", "17 तरीके समझाए गए"))}${rowLink("plan", "apple", T2("Orchard and tree planning", "बाग और पेड़ की योजना"), "")}${rowLink("exp", "users", T2("Farmer experience forum", "किसान अनुभव मंच"), T2("Write your own; the shared forum is not open yet", "अपना लिखें; साझा मंच अभी शुरू नहीं हुआ"))}</div>${kccCard()}`;
+    <div class="card rowlist">${rowLink("techniques", "play", T2("Farming methods and videos", "खेती के तरीके और वीडियो"), T2("Seventeen methods explained", "17 तरीके समझाए गए"))}${rowLink("plan", "apple", T2("Orchard and tree planning", "बाग और पेड़ की योजना"), "")}${rowLink("exp", "users", T2("Farmer experience forum", "किसान अनुभव मंच"), T2("Read what other farmers tried, and write your own", "दूसरे किसानों के अनुभव पढ़ें और अपना लिखें"))}</div>${kccCard()}`;
 }
 function renderKvk() {
   setTitle("kvk", "KVK and helpline", "KVK और हेल्पलाइन");
@@ -2712,7 +2712,7 @@ const FOR_YOU = {
   ],
 };
 const goAttrs = (go) => { const [tab, arg] = go.split(":"); return tab === "plan" ? `data-go="plan" data-plan="${arg}"` : tab === "tech" ? `data-go="techniques" data-tech="${arg}"` : `data-go="${tab}"`; };
-const rowLink = (go, icon, title, sub) => `<button type="button" class="rowlink info" ${goAttrs(go)}><span class="vicon">${ic(icon)}</span><span class="rl-t"><b>${title}</b>${sub ? `<small>${sub}</small>` : ""}</span>${ic("chevron-right")}</button>`;
+const rowLink = (go, icon, title, sub) => `<button type="button" class="rowlink nav" ${goAttrs(go)}><span class="vicon">${ic(icon)}</span><span class="rl-t"><b>${title}</b>${sub ? `<small>${sub}</small>` : ""}</span>${ic("chevron-right")}</button>`;
 function profileHTML() {
   const k = profile.farmer_category ? Farmer.FARMER_TYPES[profile.farmer_category] : null;
   if (!k) return `<article class="card profile"><h3>${L_(TYPE_Q)}</h3><p class="hint">${L_(TYPE_WHY)}</p>${typeCards(null)}</article>`;
