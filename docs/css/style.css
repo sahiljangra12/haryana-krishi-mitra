@@ -1041,3 +1041,46 @@ input.inl { width: 7rem; min-height: 40px; padding: 0 0.5rem; margin-left: 0.3re
 .expnote .row .btn { flex: 1; min-height: 44px; font-size: 0.95rem; }
 .expnote [data-del].sure { color: var(--risk); }
 a.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; }
+
+/* ---------------- home, knowledge centre, market ---------------- */
+@media (max-width: 760px) { .tab { font-size: 0.72rem; } .tab .ic { width: 1.7rem; height: 1.7rem; } }
+#tab-home .tabhead h2, #tab-know .tabhead h2, #tab-market .tabhead h2 { font-size: 2rem; }
+.homewho { margin: -0.5rem 0 0.2rem; color: var(--soil-2); font-size: 1rem; }
+.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+@media (min-width: 761px) { .tiles { grid-template-columns: repeat(4, 1fr); } }
+.tile { display: grid; justify-items: start; align-content: start; gap: 0.45rem; text-align: left; padding: 0.85rem; min-height: 104px; border: 0; border-radius: 16px; background: var(--paper); color: var(--soil); font: inherit; cursor: pointer; }
+.tile:active { background: var(--chip); }
+.tile .t-ic { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; background: var(--green-l); color: var(--green); }
+.tile .t-ic .ic { width: 1.45rem; height: 1.45rem; }
+.tile b { font-size: 1.02rem; font-weight: 600; line-height: 1.25; }
+.tile small { color: var(--soil-2); font-size: 0.82rem; }
+.homeask { display: flex; align-items: center; gap: 0.9rem; width: 100%; margin: 0.9rem 0 0; padding: 0.8rem 1rem; border: 0; border-radius: 18px; background: var(--green); color: var(--on-accent); font: inherit; text-align: left; cursor: pointer; }
+.homeask b { display: block; font-size: 1.12rem; }
+.homeask small { opacity: 0.85; font-size: 0.86rem; }
+.bigmic.sm { width: 52px; height: 52px; margin: 0; flex: none; background: color-mix(in srgb, var(--on-accent) 18%, transparent); color: var(--on-accent); box-shadow: none; }
+.bigmic.sm .ic { width: 1.6rem; height: 1.6rem; }
+.homefoot { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem 1.2rem; margin: 1.2rem 0 0.5rem; }
+.homefoot .linkbtn { margin: 0; min-height: 44px; color: var(--soil-2); }
+.callcard { display: flex; align-items: center; gap: 0.8rem; margin-top: 0.8rem; }
+.callcard .vicon { flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--green-l); color: var(--green); }
+.callcard > div { flex: 1; min-width: 0; display: grid; }
+.callcard b { font-size: 1.02rem; }
+.callcard small { color: var(--soil-2); font-size: 0.84rem; }
+.callcard .btn { min-height: 44px; padding: 0 1.1rem; font-size: 1rem; text-decoration: none; flex: none; }
+#knowBox .card, #marketBox .card, #kvkBox .card, #instBox .card, #schemesBox .card, #solveBox .card, #sellBox .card, #ledgerBox .card, #fpoBox .card, #storeBox .card, #homeBox .card { margin-bottom: 0.8rem; }
+#kvkBox h3, #instBox h3, #schemesBox h3, #solveBox .card h3, #sellBox .card h3, #ledgerBox .card h3, #fpoBox .card h3, #storeBox .card h3 { display: flex; align-items: center; gap: 0.4rem; font-size: 1.08rem; margin: 0.2rem 0 0.4rem; }
+#kvkBox p, #instBox p, #schemesBox p, #solveBox p, #sellBox p, #fpoBox p, #storeBox p, #ledgerBox .card p { margin: 0.3rem 0 0.6rem; }
+.row.wrap { flex-wrap: wrap; }
+#kvkBox .row .btn, #instBox .btn, #schemesBox .card .btn, #solveBox .row .btn, #solveBox .card > .btn, #sellBox .btn, #ledgerBox .btn, #fpoBox .btn, #storeBox .btn { min-height: 46px; font-size: 0.98rem; text-decoration: none; flex: 1 1 9rem; }
+#kvkBox select, #storeBox select, #sellBox select, #sellBox input, #ledgerBox input { width: 100%; padding: 0 0.6rem; }
+#sellBox textarea { width: 100%; padding: 0.7rem; font-size: 1rem; line-height: 1.4; }
+#sellForm, #ldForm { grid-template-columns: 1fr 1fr; align-items: end; }
+#ldForm .btn { grid-column: 1 / -1; min-height: 48px; }
+#schemesBox .chips { margin-bottom: 0.8rem; }
+.scheme .fr-h h3 { margin: 0; }
+.fit.bad { background: var(--risk-l); color: var(--risk); }
+.sale .fr-h h3 { margin: 0; font-size: 1.1rem; }
+label.f.inl { margin: 0; flex: 1 1 9rem; }
+label.f.inl input { width: 100%; padding: 0 0.6rem; }
+.sale [data-del].sure { color: var(--risk); }
+.solveback { margin: 0 0 0.6rem; min-height: 44px; }

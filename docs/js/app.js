@@ -1,23 +1,24 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126220805";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126220805";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126220805";
-import * as Voice from "./voice.js?v=20261126220805";
-import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126220805";
-import * as Pheno from "./phenology.js?v=20261126220805";
-import { askIntent, cropInText } from "./ask.js?v=20261126220805";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126220805";
-import * as Land from "./landtype.js?v=20261126220805";
-import * as Farmer from "./farmer.js?v=20261126220805";
-import * as Planner from "./planner.js?v=20261126220805";
-import * as Doctor from "./doctor.js?v=20261126220805";
-import * as Field from "./field.js?v=20261126220805";
-import * as RS from "./rs.js?v=20261126220805";
-import * as src from "./sources.js?v=20261126220805";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126220805";
-import * as card from "./soilcard.js?v=20261126220805";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126220805";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126220805";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126220805";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126222210";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126222210";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126222210";
+import * as Voice from "./voice.js?v=20261126222210";
+import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126222210";
+import * as Pheno from "./phenology.js?v=20261126222210";
+import { askIntent, cropInText } from "./ask.js?v=20261126222210";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126222210";
+import * as Land from "./landtype.js?v=20261126222210";
+import * as Farmer from "./farmer.js?v=20261126222210";
+import * as Dir from "./directory.js?v=20261126222210";
+import * as Planner from "./planner.js?v=20261126222210";
+import * as Doctor from "./doctor.js?v=20261126222210";
+import * as Field from "./field.js?v=20261126222210";
+import * as RS from "./rs.js?v=20261126222210";
+import * as src from "./sources.js?v=20261126222210";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126222210";
+import * as card from "./soilcard.js?v=20261126222210";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126222210";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126222210";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126222210";
 
 // Reading aloud is switched off (config.js): the speaker buttons, the sound switch and the reading bar are hidden. The microphone stays.
 document.documentElement.classList.toggle("noread", !READ_ALOUD);
@@ -58,6 +59,7 @@ function paintStatic() {
   document.documentElement.lang = getLang();
   $$("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
   $$("[data-tph]").forEach((el) => (el.placeholder = t(el.dataset.tph)));
+  $$("[data-hi]").forEach((el) => (el.textContent = getLang() === "hi" ? el.dataset.hi : el.dataset.en));
   $$(".lang button").forEach((b) => b.classList.toggle("on", b.dataset.lang === getLang()));
   fillSelects();
 }
@@ -88,9 +90,9 @@ function watchLivePrices() {
 }
 
 /* ---------------- tabs ---------------- */
-const TABS = ["land", "advice", "weather", "prices", "farm", "more", "soilcard", "techniques", "about", "plan", "share", "year", "exp"];
+const TABS = ["land", "advice", "weather", "prices", "farm", "more", "soilcard", "techniques", "about", "plan", "share", "year", "exp", "home", "know", "market", "kvk", "inst", "schemes", "solve", "sell", "ledger", "fpo", "store"];
 // pages that open from another section keep that section lit in the bar
-const PARENT = { soilcard: "more", techniques: "more", about: "more", plan: "farm", share: "farm", year: "farm", exp: "more" };
+const PARENT = { advice: "home", weather: "home", more: "home", about: "home", soilcard: "farm", plan: "farm", share: "farm", year: "farm", techniques: "know", exp: "know", kvk: "know", inst: "know", schemes: "know", solve: "know", prices: "market", sell: "market", ledger: "market", fpo: "market", store: "market" };
 let navDepth = 0; // how many steps the phone's back button can take inside the app
 function showTab(name, push = true) {
   const was = state.tab || "land";
@@ -111,13 +113,14 @@ function showTab(name, push = true) {
   if (name === "share") renderShare();
   if (name === "year") renderYear();
   if (name === "exp") renderExp();
+  if (PAGE_RENDER[name]) PAGE_RENDER[name]();
   state.tab = name;
   if (push && name !== was) { try { history.pushState({ tab: name }, "", "#" + name); navDepth++; } catch {} }
 }
 // Back: the arrow at the top of every page and the phone's own back button do the same thing
 function goBack() {
   if (navDepth > 0) history.back();
-  else if (!closeLayerPanel()) showTab("land");
+  else if (!closeLayerPanel()) showTab("home");
 }
 function closeLayerPanel() {
   let closed = false;
@@ -138,11 +141,12 @@ document.addEventListener("keydown", (e) => {
 window.addEventListener("popstate", (e) => {
   navDepth = Math.max(0, navDepth - 1);
   closeLayerPanel();
-  const h = location.hash.slice(1), tab = (e.state && e.state.tab) || (TABS.includes(h) ? h : "land");
+  const h = location.hash.slice(1), tab = (e.state && e.state.tab) || (TABS.includes(h) ? h : "home");
   showTab(tab, false);
 });
 document.addEventListener("click", (e) => {
   if (e.target.closest("[data-back]")) return goBack();
+  if (e.target.closest("[data-openask]")) return openAsk();
   const go = e.target.closest("[data-go]");
   if (go && go.dataset.plan) state.planKind = go.dataset.plan;
   if (go && go.dataset.tech) state.techCat = go.dataset.tech;
@@ -2052,6 +2056,7 @@ $$(".lang button").forEach((b) => (b.onclick = () => {
 }));
 paintStatic();
 setTheme(document.documentElement.dataset.theme || "night");
+const cameWithField = /^(field|poly)=/.test(location.hash.slice(1)); // a shared field opens on the map; otherwise the app opens on Home
 if (restoreField(location.hash.slice(1))) { try { history.replaceState(null, "", location.pathname + location.search); } catch {} } // a shared link is used once; after that the app remembers the field itself
 else { try { restoreField(localStorage.getItem("km-field")); } catch {} }
 // First visit: one question, answered with a tap, which also unlocks speech on phones that need a touch first
@@ -2101,7 +2106,7 @@ function showWelcome(start = "lang") {
     toast(T2("Saved. You can change it any time in My farm.", "सेव हो गया। 'मेरे खेत' में जाकर इसे कभी भी बदल सकते हैं।"), 4000);
     if (single) { if (state.tab === "farm") renderFarm(); else if (state.tab === "more") renderMore(); else if (state.tab === "plan") renderPlan(); return; }
     // a field opened from a link or kept from before is shown at once; otherwise the farmer's own page comes first
-    if (state.point) { showTab("land", false); setTimeout(() => map.invalidateSize(), 80); } else showTab("farm");
+    if (state.point) { showTab("land", false); setTimeout(() => map.invalidateSize(), 80); } else showTab("home");
     if (voice) say(state.point ? L_(SAY_GUIDE[step()]) : T2("This is your page. First, press See my field from the satellite.", "यह आपका पन्ना है। सबसे पहले, अपना खेत सैटेलाइट से देखें दबाएं।"), null);
   };
   const head = (n, title, text) => `${single ? `<button type="button" class="iconbtn sheet-close" id="wClose" aria-label="${T2("Close", "बंद करें")}">${ic("x")}</button>` : `${n > 1 ? `<button type="button" class="backbtn wback" id="wBack" aria-label="${T2("Back", "वापस")}">${ic("arrow-left")}</button>` : ""}<div class="wsteps" role="img" aria-label="${T2(`Step ${n} of 4`, `4 में से ${n}`)}">${steps.map((_, i) => `<i class="${i + 1 === n ? "on" : i + 1 < n ? "done" : ""}"></i>`).join("")}</div>`}<h2>${title}</h2><p>${text}</p>`;
@@ -2351,6 +2356,213 @@ function renderExp() {
   });
 }
 
+/* =====================================================================================
+   Home, knowledge centre and market: Phases 2 to 4 of the ecosystem brief, and the
+   five-item bar (Home, Field, Knowledge, Market, My farm). The directory data and its
+   sources are in directory.js. Nothing on these pages is live and no buyer, transporter,
+   cold store, FPO or expert is invented: where no checked list exists the page says so and
+   sends the farmer to the official body or to a map search that is marked as unchecked.
+   ===================================================================================== */
+const checkedNote = () => `<p class="hint">${T2(`Checked against official pages on ${fmtDate(Dir.CHECKED)}. Offices move and schemes change: confirm on the official site.`, `${fmtDate(Dir.CHECKED)} को आधिकारिक पन्नों से मिलाया गया। दफ़्तर और योजनाएं बदलती रहती हैं: आधिकारिक साइट पर पक्का करें।`)}</p>`;
+const ext = (url, label, cls = "btn line") => `<a class="${cls}" href="${url}" target="_blank" rel="noopener">${ic("external-link")}${label}</a>`;
+const mapBtn = (q, label) => `<a class="btn line" href="${Dir.mapSearch(q)}" target="_blank" rel="noopener">${ic("map-pin")}${label}</a>`;
+const unchecked = () => `<p class="hint">${T2("Map search results are Google's, not checked by this app. Confirm by phone before you travel.", "नक्शे की खोज के नतीजे गूगल के हैं, इस ऐप ने जांचे नहीं हैं। जाने से पहले फोन करके पक्का करें।")}</p>`;
+const kccCard = () => `<div class="card callcard"><span class="vicon">${ic("phone")}</span><div><b>${T2("Kisan Call Centre", "किसान कॉल सेंटर")}: ${Dir.KCC.number}</b><small>${L_(Dir.KCC.hours)}</small></div><a class="btn" href="tel:${Dir.KCC.number.replace(/-/g, "")}">${T2("Call", "फोन करें")}</a></div>`;
+const dName = (n) => { const d = DISTRICTS.find((x) => x.name === n); return d ? L_(d) : n; };
+const todayISO = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+
+// pages that have no markup in index.html: a section with a back arrow, a title and a box
+const PAGE_IDS = ["home", "know", "market", "kvk", "inst", "schemes", "solve", "sell", "ledger", "fpo", "store"];
+for (const id of PAGE_IDS) {
+  if ($("#tab-" + id)) continue;
+  const s = document.createElement("section"); s.id = "tab-" + id; s.className = "panel";
+  s.innerHTML = `<div class="tabhead">${["home", "know", "market"].includes(id) ? "" : `<button class="backbtn" type="button" data-back aria-label="Back">${ic("arrow-left")}</button>`}<h2 id="${id}Title"></h2><span></span></div><div id="${id}Box"></div>`;
+  $("main").appendChild(s);
+}
+const tile = (go, icon, label, sub = "") => `<button type="button" class="tile" ${go === "ask" ? "data-openask" : goAttrs(go)}><span class="t-ic">${ic(icon)}</span><b>${label}</b>${sub ? `<small>${sub}</small>` : ""}</button>`;
+const setTitle = (id, en, hi) => ($("#" + id + "Title").textContent = T2(en, hi));
+
+/* ---------------- Home ---------------- */
+function renderHome() {
+  const k = profile.farmer_category ? Farmer.FARMER_TYPES[profile.farmer_category] : null, d = state.district;
+  setTitle("home", "Namaste", "नमस्ते");
+  // today: weather warning, the saved field, the plan, the soil report
+  const rows = [];
+  if (state.forecast && state.forecastFor && Math.abs(state.forecastFor.lat - d.lat) < 0.6 && Math.abs(state.forecastFor.lon - d.lon) < 0.6) {
+    const al = weatherAlerts(state.forecast, getLang()), top = al.find((a) => a.level === "high") || al.find((a) => a.level === "medium") || al[0];
+    rows.push(["weather", "cloud-sun", top ? "warn" : "good", T2("Weather", "मौसम"), top ? top.text : T2("No weather warning for the coming days.", "आने वाले दिनों के लिए मौसम की कोई चेतावनी नहीं।")]);
+  } else {
+    rows.push(["weather", "cloud-sun", "info", T2("Weather", "मौसम"), T2("Reading the forecast", "पूर्वानुमान देख रहे हैं")]);
+    if (!state.homeFc) { state.homeFc = true; src.forecast(d.lat, d.lon).then((fc) => { state.forecast = fc; state.forecastFor = { lat: d.lat, lon: d.lon, label: L_(d) }; if (state.tab === "home") renderHome(); }).catch(() => {}).finally(() => (state.homeFc = false)); }
+  }
+  const f = state.fields[0], crop = f && f.last ? f.last.cards.find((x) => x.key === "crop" || x.key === "land") : null;
+  rows.push(crop ? ["field:" + f.id, crop.icon, crop.level, esc(f.name), `${esc(crop.big)} · ${fmtDate(f.last.at)}`] : ["land", "satellite", "info", T2("My field", "मेरा खेत"), T2("Choose your field to see its condition from the satellite.", "अपना खेत चुनें और सैटेलाइट से उसका हाल देखें।")]);
+  if (plan.lines.length) { const T = Planner.totals(plan.lines, planCrop, planPrice); rows.push(["year", "calendar", "info", T2("Year plan", "साल की योजना"), T2(`${plan.lines.length} crop(s), planned cost ${money(T.cost)}`, `${plan.lines.length} फसल, योजना का खर्च ${money(T.cost)}`)]); }
+  if (!realCard()) rows.push(["soilcard", "flask-conical", "warn", T2("My soil", "मेरी मिट्टी"), T2("No soil report added yet. Fertiliser advice needs it.", "मिट्टी की रिपोर्ट अभी नहीं जुड़ी। खाद की सलाह के लिए यह ज़रूरी है।")]);
+  const L = Dir.ledgerTotals(sales, todayISO());
+  if (L.overdueCount) rows.push(["ledger", "indian-rupee", "bad", T2("Payments", "भुगतान"), T2(`${L.overdueCount} payment(s) overdue: ${money(L.overdue)}`, `${L.overdueCount} भुगतान की तारीख निकल चुकी: ${money(L.overdue)}`)]);
+  const first = profile.farmer_category === "long_term" ? [tile("plan:trees", "trees", T2("Trees and intercrops", "पेड़ और बीच की फसल")), tile("share", "handshake", T2("Land on share", "ज़मीन बटाई पर"))] : profile.farmer_category === "medium_term" ? [tile("plan:orchard", "apple", T2("Plan my orchard", "बाग की योजना"))] : [];
+  $("#homeBox").innerHTML = `<p class="homewho">${k ? `${L_(k)} · ` : ""}${esc(L_(d))}</p>
+    <h3 class="sec">${T2("Today", "आज")}</h3><div class="card rowlist">${rows.map(([go, icon, level, title, text]) => `<button type="button" class="rowlink ${level}" ${go.startsWith("field:") ? `data-field="${go.slice(6)}"` : `data-go="${go}"`}><span class="vicon">${ic(icon)}</span><span class="rl-t"><small>${title}</small><b>${text}</b></span>${ic("chevron-right")}</button>`).join("")}</div>
+    <button type="button" class="homeask" data-openask><span class="bigmic sm">${ic("mic")}</span><span><b>${T2("Tell us your farming problem", "अपनी खेती की समस्या बताओ")}</b><small>${T2("Speak or choose a question", "बोलें या सवाल चुनें")}</small></span></button>
+    <h3 class="sec">${T2("My farming", "मेरी खेती")}</h3><div class="tiles">${first.join("")}${tile("land", "satellite", T2("My field from the satellite", "खेत सैटेलाइट से"))}${tile("advice", "sprout", T2("What to grow", "क्या बोएं"))}${tile("year", "calendar", T2("Year plan and money", "साल की योजना"))}${tile("soilcard", "flask-conical", T2("My soil", "मेरी मिट्टी"))}${tile("weather", "cloud-sun", T2("Weather", "मौसम"))}${profile.farmer_category === "seasonal" ? tile("plan", "apple", T2("Orchard and trees", "बाग और पेड़")) : ""}</div>
+    <h3 class="sec">${T2("Sell and earn", "बेचना और कमाई")}</h3><div class="tiles">${tile("prices", "indian-rupee", T2("Mandi prices", "मंडी भाव"))}${tile("sell", "store", T2("Sell my crop", "फसल बेचें"))}${tile("ledger", "list-checks", T2("Sales and payments", "बिक्री और भुगतान"))}${tile("store", "tractor", T2("Transport and storage", "ट्रांसपोर्ट और स्टोरेज"))}</div>
+    <h3 class="sec">${T2("Learn and get help", "सीखें और मदद पाएं")}</h3><div class="tiles">${tile("solve", "search", T2("Find the right help", "सही मदद खोजें"))}${tile("schemes", "landmark", T2("Government schemes", "सरकारी योजनाएं"))}${tile("kvk", "phone", T2("KVK and helpline", "KVK और हेल्पलाइन"))}${tile("techniques", "book-open-text", T2("Farming methods", "खेती के तरीके"))}${tile("exp", "users", T2("Farmer experiences", "किसानों के अनुभव"))}${tile("inst", "landmark", T2("Universities", "विश्वविद्यालय"))}</div>
+    <div class="homefoot"><button type="button" class="linkbtn" data-go="farm">${ic("user-round")}${T2("Change my details", "मेरी जानकारी बदलें")}</button><button type="button" class="linkbtn" data-go="about">${ic("info")}${T2("About this app", "इस ऐप के बारे में")}</button></div>`;
+  $$("#homeBox [data-field]").forEach((b) => (b.onclick = () => { const fl = state.fields.find((x) => x.id === b.dataset.field); showTab("land"); if (fl && fieldParam() !== fl.param) openField(fl); }));
+}
+
+/* ---------------- knowledge centre ---------------- */
+function renderKnow() {
+  setTitle("know", "Knowledge centre", "कृषि ज्ञान केंद्र");
+  $("#knowBox").innerHTML = `<p class="hint">${T2("Where to learn and who to ask. Every office and scheme here comes from an official page.", "कहाँ से सीखें और किससे पूछें। यहाँ का हर दफ़्तर और हर योजना किसी आधिकारिक पन्ने से ली गई है।")}</p>
+    <div class="card rowlist">${rowLink("solve", "search", T2("Find the right help for my problem", "मेरी समस्या के लिए सही मदद खोजें"), T2("Choose the problem, see where to go", "समस्या चुनें, देखें कहाँ जाना है"))}${rowLink("kvk", "phone", T2("KVK, helpline and offices", "KVK, हेल्पलाइन और दफ़्तर"), T2("Your district's Krishi Vigyan Kendra and the Kisan Call Centre", "आपके जिले का कृषि विज्ञान केंद्र और किसान कॉल सेंटर"))}${rowLink("schemes", "landmark", T2("Government schemes", "सरकारी योजनाएं"), T2("What you get, who can apply, where to apply", "क्या मिलता है, कौन ले सकता है, कहाँ आवेदन करें"))}${rowLink("inst", "book-open-text", T2("Universities and research institutes", "विश्वविद्यालय और अनुसंधान संस्थान"), T2("Who works on which problem", "कौन किस समस्या पर काम करता है"))}</div>
+    <div class="card rowlist">${rowLink("techniques", "play", T2("Farming methods and videos", "खेती के तरीके और वीडियो"), T2("Seventeen methods explained", "17 तरीके समझाए गए"))}${rowLink("plan", "apple", T2("Orchard and tree planning", "बाग और पेड़ की योजना"), "")}${rowLink("exp", "users", T2("Farmer experience forum", "किसान अनुभव मंच"), T2("Write your own; the shared forum is not open yet", "अपना लिखें; साझा मंच अभी शुरू नहीं हुआ"))}</div>${kccCard()}`;
+}
+function renderKvk() {
+  setTitle("kvk", "KVK and helpline", "KVK और हेल्पलाइन");
+  const name = state.district.name, r = Dir.kvkFor(name, DISTRICTS), dl = L_(state.district);
+  $("#kvkBox").innerHTML = `${kccCard()}<div class="card"><label class="f"><span>${t("chooseDistrict")}</span><select id="kvkDistrict">${districtOpts(name)}</select></label>
+    ${r ? `<h3>${ic("landmark")}${T2("Krishi Vigyan Kendra", "कृषि विज्ञान केंद्र")}${r.own ? "" : `, ${dName(r.kvk.district)}`}</h3>
+      ${r.own ? "" : `<p class="vcaution">${ic("circle-alert")}<span>${T2(`ICAR's list has no KVK for ${name}. The nearest one in the list is in ${r.kvk.district}, about ${r.km} km from the district centre. There may be a newer centre: check the KVK portal.`, `ICAR की सूची में ${dl} का KVK नहीं है। सूची में सबसे पास का केंद्र ${dName(r.kvk.district)} में है, जिले के बीच से लगभग ${r.km} कि.मी.। हो सकता है नया केंद्र बना हो: KVK पोर्टल पर देखें।`)}</span></p>`}
+      <p><b>${esc(r.kvk.addr)}</b><br><small class="hint">${T2("Run by", "चलाने वाला")}: ${esc(r.kvk.host)}</small></p>
+      <p>${T2("The KVK's scientists answer farmers' questions, look at sick crops, test soil in many centres and run trainings. It is free.", "KVK के वैज्ञानिक किसानों के सवालों के जवाब देते हैं, बीमार फसल देखते हैं, कई केंद्रों में मिट्टी जांचते हैं और प्रशिक्षण देते हैं। यह मुफ़्त है।")}</p>
+      <div class="row wrap">${mapBtn("Krishi Vigyan Kendra, " + r.kvk.addr + ", Haryana", T2("Directions", "रास्ता देखें"))}${ext("https://kvk.icar.gov.in", T2("KVK portal (phone numbers)", "KVK पोर्टल (फोन नंबर)"))}</div>` : ""}
+    <p class="hint">${T2("Phone numbers of single centres are not shown here: the lists found were old. The KVK portal has the current ones.", "अलग-अलग केंद्रों के फोन नंबर यहाँ नहीं दिए: जो सूचियाँ मिलीं वे पुरानी थीं। आज के नंबर KVK पोर्टल पर हैं।")}</p></div>
+    <div class="card"><h3>${ic("map-pin")}${T2("Other offices near you", "आपके पास के दूसरे दफ़्तर")}</h3><div class="row wrap">${mapBtn(`Deputy Director Agriculture office ${name} Haryana`, T2("District agriculture office", "जिला कृषि कार्यालय"))}${mapBtn(`soil testing laboratory ${name} Haryana`, T2("Soil testing laboratory", "मिट्टी जांच प्रयोगशाला"))}${mapBtn(`District Horticulture Officer ${name} Haryana`, T2("District horticulture office", "जिला बागवानी कार्यालय"))}</div>${unchecked()}</div>
+    <details class="card srcs"><summary>${ic("list-checks")}${T2("All 18 KVKs in ICAR's list", "ICAR की सूची के सभी 18 KVK")}</summary><ul>${Dir.KVKS.map((x) => `<li><b>${dName(x.district)}</b>: ${esc(x.addr)}</li>`).join("")}</ul><p class="hint"><a href="${Dir.KVK_SOURCE.url}" target="_blank" rel="noopener">${esc(Dir.KVK_SOURCE.en)}</a></p></details>${checkedNote()}`;
+  $("#kvkDistrict").onchange = (e) => { setDistrict(e.target.value); renderKvk(); };
+}
+function renderInst() {
+  setTitle("inst", "Universities and institutes", "विश्वविद्यालय और संस्थान");
+  $("#instBox").innerHTML = Dir.INSTITUTES.map((i) => `<div class="card"><h3>${L_(i)}</h3><p class="hint">${L_(i.place)}</p><p>${L_(i.does)}</p>${ext(i.url, T2("Official site", "आधिकारिक साइट"))}</div>`).join("") +
+    `<div class="card"><h3>${ic("user-round")}${T2("Scientists and professors", "वैज्ञानिक और प्रोफ़ेसर")}</h3><p>${T2("No single scientist's name, phone or email is listed here: no checked public list was found, and private numbers must not be published. The departments and their staff are on each university's official site. For a farmer the direct way to a scientist is the district KVK.", "यहाँ किसी एक वैज्ञानिक का नाम, फोन या ईमेल नहीं दिया गया: कोई जांची हुई सार्वजनिक सूची नहीं मिली, और निजी नंबर छापना ठीक नहीं। विभाग और उनके लोग हर विश्वविद्यालय की आधिकारिक साइट पर हैं। किसान के लिए वैज्ञानिक तक पहुँचने का सीधा रास्ता जिले का KVK है।")}</p><button type="button" class="btn line" data-go="kvk">${ic("phone")}${T2("My district's KVK", "मेरे जिले का KVK")}</button></div>${checkedNote()}`;
+}
+function renderSchemes() {
+  setTitle("schemes", "Government schemes", "सरकारी योजनाएं");
+  const lv = state.schemeLevel || "all", list = Dir.SCHEMES.filter((s) => lv === "all" || s.level === lv);
+  $("#schemesBox").innerHTML = chipsQ("level", lv, [["all", T2("All", "सभी")], ["haryana", T2("Haryana", "हरियाणा")], ["centre", T2("Central", "केंद्र")]]) + list.map((s) => `<div class="card scheme"><div class="fr-h"><h3>${L_(s)}</h3><span class="fit yes">${T2("Running", "चालू")}</span></div>
+      <p><b>${T2("What you get", "क्या मिलता है")}:</b> ${L_(s.gives)}</p><p><b>${T2("Who", "किसे")}:</b> ${L_(s.who)}</p><p><b>${T2("How to apply", "कैसे लें")}:</b> ${L_(s.how)}</p>
+      ${ext(s.url, T2("Official site", "आधिकारिक साइट"))}<p class="hint">${T2("Read from", "कहाँ से पढ़ा")}: ${esc(s.src)} · ${T2("checked", "जांचा")} ${fmtDate(Dir.CHECKED)}</p></div>`).join("") +
+    `<p class="hint">${T2("Amounts and rules change. This page is not updated by itself: the date above says when it was last checked. Never pay anyone to apply for you.", "रकम और नियम बदलते रहते हैं। यह पन्ना अपने आप नहीं बदलता: ऊपर की तारीख बताती है कि इसे आख़िरी बार कब जांचा गया। आवेदन के लिए किसी को पैसे न दें।")}</p>${kccCard()}`;
+  $$("#schemesBox [data-q] .chip").forEach((b) => (b.onclick = () => { state.schemeLevel = b.dataset.v; renderSchemes(); }));
+}
+function renderSolve() {
+  setTitle("solve", "Find the right help", "सही मदद खोजें");
+  const p = Dir.PROBLEMS.find((x) => x.id === state.solveId);
+  if (!p) { $("#solveBox").innerHTML = `<p class="hint">${T2("What is the problem? Choose one.", "समस्या क्या है? एक चुनें।")}</p><div class="card rowlist">${Dir.PROBLEMS.map((x) => `<button type="button" class="rowlink info" data-solve="${x.id}"><span class="vicon">${ic(x.icon)}</span><span class="rl-t"><b>${L_(x)}</b></span>${ic("chevron-right")}</button>`).join("")}</div>`; }
+  else {
+    const r = Dir.kvkFor(state.district.name, DISTRICTS);
+    $("#solveBox").innerHTML = `<button type="button" class="linkbtn solveback" data-solve="">${ic("arrow-left")}${T2("All problems", "सभी समस्याएं")}</button>
+      <div class="card"><h3>${ic(p.icon)}${L_(p)}</h3><p>${L_(p.why)}</p><div class="row wrap">${p.go.map(([go, lab]) => `<button type="button" class="btn" ${go === "ask" ? "data-openask" : goAttrs(go)}>${L_(lab)}</button>`).join("")}</div></div>
+      ${p.inst.length ? `<h3 class="sec">${T2("Who works on this", "इस पर कौन काम करता है")}</h3>` + p.inst.map((id) => { const i = Dir.INSTITUTES.find((x) => x.id === id); return `<div class="card"><h3>${L_(i)}</h3><p class="hint">${L_(i.place)}</p><p>${L_(i.does)}</p>${ext(i.url, T2("Official site", "आधिकारिक साइट"))}</div>`; }).join("") : ""}
+      ${p.schemes.length ? `<h3 class="sec">${T2("Schemes that can help", "काम की योजनाएं")}</h3><div class="card rowlist">${p.schemes.map((id) => { const s = Dir.SCHEMES.find((x) => x.id === id); return `<button type="button" class="rowlink info" data-go="schemes"><span class="vicon">${ic("landmark")}</span><span class="rl-t"><b>${L_(s)}</b><small>${L_(s.gives).slice(0, 90)}</small></span>${ic("chevron-right")}</button>`; }).join("")}</div>` : ""}
+      ${r ? `<h3 class="sec">${T2("Ask in person", "खुद जाकर पूछें")}</h3><div class="card"><p><b>${T2("Krishi Vigyan Kendra", "कृषि विज्ञान केंद्र")}, ${dName(r.kvk.district)}</b><br>${esc(r.kvk.addr)}</p><button type="button" class="btn line" data-go="kvk">${ic("map-pin")}${T2("Directions and other offices", "रास्ता और दूसरे दफ़्तर")}</button></div>` : ""}${kccCard()}`;
+  }
+  $$("#solveBox [data-solve]").forEach((b) => (b.onclick = () => { state.solveId = b.dataset.solve || null; renderSolve(); window.scrollTo(0, 0); }));
+}
+
+/* ---------------- market ---------------- */
+let sales = (() => { try { return Dir.cleanSales(JSON.parse(localStorage.getItem("km-sales") || "[]")); } catch { return []; } })();
+const saveSales = () => { try { localStorage.setItem("km-sales", JSON.stringify(sales)); } catch {} };
+let sellDraft = (() => { try { const v = JSON.parse(localStorage.getItem("km-sell") || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; } })();
+function renderMarket() {
+  setTitle("market", "Mandi and market", "मंडी और बाज़ार");
+  const L = Dir.ledgerTotals(sales, todayISO());
+  $("#marketBox").innerHTML = `<p class="hint">${T2("Know the price, look at more than one way to sell, and keep a record of who paid when.", "भाव जानें, बेचने के एक से ज़्यादा रास्ते देखें, और हिसाब रखें कि किसने कब पैसा दिया।")}</p>
+    <div class="card rowlist">${rowLink("prices", "indian-rupee", T2("Today's mandi prices and MSP", "आज के मंडी भाव और MSP"), T2("Agmarknet prices by mandi and crop", "मंडी और फसल के हिसाब से Agmarknet के भाव"))}${rowLink("sell", "store", T2("Sell my crop: find the right buyer", "फसल बेचो: सही खरीदार खोजो"), T2("Compare with the mandi price, prepare your offer", "मंडी भाव से तुलना करें, अपनी पेशकश तैयार करें"))}${rowLink("ledger", "list-checks", T2("Sales and payments", "बिक्री और भुगतान का हिसाब"), sales.length ? T2(`Pending ${money(L.pending)}${L.overdueCount ? `, overdue ${money(L.overdue)}` : ""}`, `बाकी ${money(L.pending)}${L.overdueCount ? `, तारीख निकली ${money(L.overdue)}` : ""}`) : T2("Who bought, when the money is due, when it came", "किसने खरीदा, पैसा कब मिलना है, कब मिला"))}</div>
+    <div class="card rowlist">${rowLink("fpo", "users", T2("Farmer producer organisations (FPO)", "किसान उत्पादक संगठन (FPO)"), T2("Selling together for a better price", "मिलकर बेचना, बेहतर भाव"))}${rowLink("store", "tractor", T2("Transport and storage", "ट्रांसपोर्ट और स्टोरेज"), T2("What your crop needs and where to look", "आपकी फसल को क्या चाहिए और कहाँ खोजें"))}${rowLink("schemes", "landmark", T2("Price and insurance schemes", "भाव और बीमा की योजनाएं"), "")}</div>`;
+}
+function renderSell() {
+  setTitle("sell", "Sell my crop", "फसल बेचो – सही खरीदार खोजो");
+  const d = sellDraft, crop = CROPS.find((c) => c.id === d.cropId) || null, live = crop && state.prices ? livePrice(crop, state.prices, state.district.name) : null, want = +d.price || null;
+  if (!state.prices) src.mandiPrices().then((p) => { state.prices = p; watchLivePrices(); if (state.tab === "sell") renderSell(); }).catch(() => {});
+  const cName = crop ? L_(crop) : d.name || "";
+  const msg = cName && d.qty ? T2(`For sale: ${cName}${d.variety ? ` (${d.variety})` : ""}, about ${d.qty} quintals${d.grade ? `, quality: ${d.grade}` : ""}. ${d.harvest ? `Ready from ${fmtDate(d.harvest)}. ` : ""}${want ? `Price wanted: ${rupee(want)} a quintal. ` : ""}Place: ${state.district.name} district, Haryana.`, `बिक्री के लिए: ${cName}${d.variety ? ` (${d.variety})` : ""}, लगभग ${d.qty} क्विंटल${d.grade ? `, क्वालिटी: ${d.grade}` : ""}। ${d.harvest ? `${fmtDate(d.harvest)} से तैयार। ` : ""}${want ? `चाहिए: ${rupee(want)} प्रति क्विंटल। ` : ""}जगह: ${L_(state.district)} जिला, हरियाणा।`) : "";
+  $("#sellBox").innerHTML = `<div class="card"><p class="vcaution">${ic("circle-alert")}<span>${T2("No buyers are listed in this app: a real buyer list needs a server and checked buyers, and none is made up. This page helps you know your price and prepare an offer that you send yourself.", "इस ऐप में कोई खरीदार सूची नहीं है: असली सूची के लिए सर्वर और जांचे हुए खरीदार चाहिए, और कोई नकली नाम नहीं बनाया गया। यह पन्ना आपको अपना भाव जानने और पेशकश तैयार करने में मदद करता है, जिसे आप खुद भेजते हैं।")}</span></p>
+    <form id="sellForm" class="filters"><label class="f"><span>${T2("Crop", "फसल")}</span><select id="slCrop"><option value="">${T2("Another crop", "दूसरी फसल")}</option>${CROPS.map((c) => `<option value="${c.id}" ${d.cropId === c.id ? "selected" : ""}>${L_(c)}</option>`).join("")}</select></label>
+      <label class="f ${d.cropId ? "hidden" : ""}"><span>${T2("Name of the crop", "फसल का नाम")}</span><input type="text" id="slName" maxlength="40" value="${esc(d.name || "")}"></label>
+      <label class="f"><span>${T2("Variety", "किस्म")}</span><input type="text" id="slVariety" maxlength="40" value="${esc(d.variety || "")}"></label>
+      <label class="f"><span>${T2("Quantity (quintals)", "मात्रा (क्विंटल)")}</span><input type="number" id="slQty" inputmode="decimal" min="0" step="0.5" value="${d.qty ?? ""}"></label>
+      <label class="f"><span>${T2("Quality (your own word)", "क्वालिटी (आपके शब्दों में)")}</span><input type="text" id="slGrade" maxlength="30" value="${esc(d.grade || "")}" placeholder="${T2("e.g. clean, dry, bold grain", "जैसे साफ़, सूखा, मोटा दाना")}"></label>
+      <label class="f"><span>${T2("Ready from", "कब से तैयार")}</span><input type="date" id="slHarvest" value="${d.harvest || ""}"></label>
+      <label class="f"><span>${T2("Price you want (₹ a quintal)", "आपको कितना भाव चाहिए (₹ प्रति क्विंटल)")}</span><input type="number" id="slPrice" inputmode="numeric" min="0" value="${d.price ?? ""}"></label>
+      <label class="f"><span>${t("chooseDistrict")}</span><select id="slDistrict">${districtOpts(state.district.name)}</select></label></form></div>
+    ${crop ? `<div class="card"><h3>${ic("indian-rupee")}${T2("Prices to compare with", "तुलना के लिए भाव")}</h3>
+      <p>${crop.msp ? `<b>MSP: ${rupee(crop.msp)}</b> ${T2("a quintal (official figure)", "प्रति क्विंटल (सरकारी आँकड़ा)")}` : T2("This crop has no MSP.", "इस फसल का MSP नहीं है।")}</p>
+      <p>${live ? `<b>${T2("Mandi price", "मंडी भाव")}: ${rupee(live.modal)}</b> ${T2("a quintal", "प्रति क्विंटल")} (${rupee(live.min)} ${T2("to", "से")} ${rupee(live.max)}), ${live.scope === "district" ? L_(state.district) : T2("Haryana", "हरियाणा")}, ${live.date ? fmtDate(live.date) : ""}. <small class="hint">Agmarknet</small>` : T2("No mandi price for this crop could be read today. Check the mandi prices page later.", "आज इस फसल का मंडी भाव नहीं मिल पाया। बाद में मंडी भाव का पन्ना देखें।")}</p>
+      ${want && crop.msp && want < crop.msp ? `<p class="vcaution">${ic("triangle-alert")}<span>${T2("The price you want is below the MSP. Ask at the mandi whether government buying is on for this crop.", "आपका भाव MSP से कम है। मंडी में पूछें कि इस फसल की सरकारी खरीद चल रही है या नहीं।")}</span></p>` : ""}
+      ${want && live && want > live.max ? `<p class="hint">${T2("The price you want is above today's highest mandi price here.", "आपका भाव यहाँ के आज के सबसे ऊँचे मंडी भाव से ऊपर है।")}</p>` : ""}
+      <button type="button" class="btn line" data-go="prices">${ic("indian-rupee")}${T2("All mandi prices", "सभी मंडी भाव")}</button></div>` : ""}
+    ${msg ? `<div class="card"><h3>${ic("share-2")}${T2("Your offer", "आपकी पेशकश")}</h3><textarea id="slText" rows="4">${esc(msg)}</textarea><div class="row wrap"><button type="button" class="btn" id="slSend">${ic("share-2")}${T2("Send on WhatsApp", "WhatsApp पर भेजें")}</button><button type="button" class="btn line" id="slCopy">${ic("copy")}${T2("Copy", "कॉपी करें")}</button><button type="button" class="btn line" id="slClear">${ic("trash-2")}${T2("Clear", "मिटाएं")}</button></div><p class="hint">${T2("Send it to buyers, traders or an FPO you know. The app publishes nothing.", "इसे अपने जानने वाले खरीदारों, व्यापारियों या FPO को भेजें। ऐप कुछ नहीं छापता।")}</p></div>` : `<p class="hint">${T2("Fill in the crop and the quantity to see your offer.", "अपनी पेशकश देखने के लिए फसल और मात्रा भरें।")}</p>`}
+    <h3 class="sec">${T2("Ways to reach buyers", "खरीदार तक पहुँचने के रास्ते")}</h3><div class="card"><ul class="plain">
+      <li><b>e-NAM</b>: ${T2("the national online mandi. The Haryana mandi board says 81 of the state's mandis are linked to it. Registration is at your mandi.", "देश की ऑनलाइन मंडी। हरियाणा मंडी बोर्ड के अनुसार राज्य की 81 मंडियाँ इससे जुड़ी हैं। पंजीकरण आपकी मंडी में होता है।")}</li>
+      <li><b>${T2("Government buying at MSP", "MSP पर सरकारी खरीद")}</b>: ${T2("needs registration on Meri Fasal Mera Byora before the season.", "इसके लिए मौसम से पहले 'मेरी फसल मेरा ब्योरा' पर पंजीकरण चाहिए।")}</li>
+      <li><b>FPO</b>: ${T2("a farmers' company that sells for its members.", "किसानों की अपनी कंपनी, जो अपने सदस्यों के लिए बेचती है।")}</li></ul>
+      <div class="row wrap">${ext("https://enam.gov.in", "e-NAM")}${ext("https://fasal.haryana.gov.in", T2("Meri Fasal Mera Byora", "मेरी फसल मेरा ब्योरा"))}<button type="button" class="btn line" data-go="fpo">${ic("users")}FPO</button></div></div>
+    <div class="card rowlist">${rowLink("ledger", "list-checks", T2("After the sale: record the payment", "बिक्री के बाद: भुगतान का हिसाब लिखें"), "")}${rowLink("store", "tractor", T2("Transport and storage", "ट्रांसपोर्ट और स्टोरेज"), "")}</div>`;
+  const keep = () => { sellDraft = { cropId: $("#slCrop").value || null, name: $("#slName").value.trim(), variety: $("#slVariety").value.trim(), qty: +$("#slQty").value || null, grade: $("#slGrade").value.trim(), harvest: $("#slHarvest").value, price: +$("#slPrice").value || null }; try { localStorage.setItem("km-sell", JSON.stringify(sellDraft)); } catch {} };
+  $$("#sellForm input, #sellForm select").forEach((el) => (el.onchange = () => { if (el.id === "slDistrict") setDistrict(el.value); keep(); renderSell(); }));
+  if ($("#slSend")) $("#slSend").onclick = () => window.open(`https://wa.me/?text=${encodeURIComponent($("#slText").value)}`, "_blank", "noopener");
+  if ($("#slCopy")) $("#slCopy").onclick = async () => { try { await navigator.clipboard.writeText($("#slText").value); toast(T2("Copied.", "कॉपी हो गया।")); } catch { $("#slText").select(); } };
+  if ($("#slClear")) $("#slClear").onclick = () => { sellDraft = {}; try { localStorage.removeItem("km-sell"); } catch {} renderSell(); };
+}
+const PAY_WORD = {
+  paid_on_time: ["good", { en: "Paid on time", hi: "समय पर मिला" }], paid: ["good", { en: "Paid", hi: "मिल गया" }], paid_late: ["warn", { en: "Paid late", hi: "देर से मिला" }],
+  due: ["info", { en: "Due", hi: "मिलना बाकी" }], overdue: ["bad", { en: "Overdue", hi: "तारीख निकल गई" }], no_date: ["info", { en: "No date agreed", hi: "तारीख तय नहीं" }],
+};
+function renderLedger() {
+  setTitle("ledger", "Sales and payments", "बिक्री और भुगतान");
+  const today = todayISO(), L = Dir.ledgerTotals(sales, today);
+  $("#ledgerBox").innerHTML = `<p class="hint">${T2("Write down each sale: who bought, how much, and the day the money was promised. The app shows what is late. This record is yours and stays on this phone.", "हर बिक्री लिखें: किसने खरीदा, कितने का, और पैसा किस दिन देने की बात हुई। ऐप बताता है कि क्या देर से चल रहा है। यह हिसाब आपका है और इसी फ़ोन में रहता है।")}</p>
+    ${sales.length ? `<div class="card ysum"><div class="money3"><div><small>${T2("Received", "मिल चुका")}</small><b>${money(L.received)}</b></div><div><small>${T2("Still to come", "अभी बाकी")}</small><b>${money(L.pending)}</b></div><div><small>${T2("Overdue", "तारीख निकली")}</small><b class="${L.overdue ? "neg" : ""}">${money(L.overdue)}</b></div></div></div>` : ""}
+    <div class="card"><h3>${ic("plus")}${T2("Add a sale", "बिक्री जोड़ें")}</h3><form id="ldForm" class="filters">
+      <label class="f"><span>${T2("Buyer", "खरीदार")}</span><input type="text" id="ldBuyer" maxlength="60" required></label><label class="f"><span>${T2("Crop", "फसल")}</span><input type="text" id="ldCrop" maxlength="40"></label>
+      <label class="f"><span>${T2("Quantity (quintals)", "मात्रा (क्विंटल)")}</span><input type="number" id="ldQty" inputmode="decimal" min="0" step="0.5"></label><label class="f"><span>${T2("Total amount (₹)", "कुल रकम (₹)")}</span><input type="number" id="ldAmt" inputmode="numeric" min="1" required></label>
+      <label class="f"><span>${T2("Date of sale", "बिक्री की तारीख")}</span><input type="date" id="ldSale" value="${today}" max="${today}"></label><label class="f"><span>${T2("Payment promised by", "पैसा देने की तय तारीख")}</span><input type="date" id="ldDue"></label>
+      <button class="btn" type="submit">${ic("plus")}${T2("Add", "जोड़ें")}</button></form></div>
+    ${sales.map((s) => { const st = Dir.payStatus(s, today), [lvl, word] = PAY_WORD[st.state], rec = Dir.buyerRecord(sales, s.buyer, today);
+      return `<article class="card sale" data-id="${s.id}"><div class="fr-h"><h3>${esc(s.buyer)}</h3><span class="fit ${lvl === "good" ? "yes" : lvl === "bad" ? "bad" : lvl === "warn" ? "no" : "ok"}">${L_(word)}${st.days ? ` · ${st.days} ${T2("days", "दिन")}` : ""}</span></div>
+        <p><b>${money(s.amount)}</b>${s.crop ? ` · ${esc(s.crop)}` : ""}${s.qty ? ` · ${s.qty} ${T2("qtl", "क्विंटल")}` : ""}</p>
+        <p class="hint">${s.saleDate ? `${T2("Sold", "बिक्री")}: ${fmtDate(s.saleDate)}` : ""}${s.dueDate ? ` · ${T2("Promised", "तय तारीख")}: ${fmtDate(s.dueDate)}` : ""}${s.paidDate ? ` · ${T2("Paid", "मिला")}: ${fmtDate(s.paidDate)}` : ""}</p>
+        ${rec.sales > 1 ? `<p class="hint">${T2(`Your record with this buyer: ${rec.sales} sales, ${rec.late} late.`, `इस खरीदार के साथ आपका हिसाब: ${rec.sales} बिक्री, ${rec.late} बार देर।`)}</p>` : ""}
+        <div class="row wrap">${s.paidDate ? `<button type="button" class="btn line" data-unpaid>${ic("rotate-ccw")}${T2("Not paid yet", "अभी नहीं मिला")}</button>` : `<label class="f inl"><span>${T2("Paid on", "किस दिन मिला")}</span><input type="date" class="ldPaid" value="${today}" max="${today}"></label><button type="button" class="btn" data-paid>${ic("circle-check")}${T2("Money received", "पैसा मिल गया")}</button>`}<button type="button" class="btn line" data-del>${ic("trash-2")}${T2("Remove", "हटाएं")}</button></div></article>`; }).join("")}
+    <p class="hint">${T2("A public rating of buyers is not possible here: it would need real, checked transactions from many farmers on a server. What you see is only your own record.", "खरीदारों की सार्वजनिक रेटिंग यहाँ संभव नहीं: उसके लिए सर्वर पर कई किसानों के असली, जांचे हुए सौदे चाहिए। यहाँ सिर्फ़ आपका अपना हिसाब दिखता है।")}</p>`;
+  $("#ldForm").onsubmit = (e) => { e.preventDefault(); const amt = +$("#ldAmt").value; if (!(amt > 0)) return; sales.unshift({ id: Date.now().toString(36), buyer: $("#ldBuyer").value.trim(), crop: $("#ldCrop").value.trim(), qty: +$("#ldQty").value || null, amount: amt, saleDate: $("#ldSale").value, dueDate: $("#ldDue").value, paidDate: "" }); saveSales(); renderLedger(); };
+  $$("#ledgerBox .sale").forEach((el) => {
+    const s = sales.find((x) => x.id === el.dataset.id); if (!s) return;
+    if ($("[data-paid]", el)) $("[data-paid]", el).onclick = () => { s.paidDate = $(".ldPaid", el).value || today; saveSales(); renderLedger(); };
+    if ($("[data-unpaid]", el)) $("[data-unpaid]", el).onclick = () => { s.paidDate = ""; saveSales(); renderLedger(); };
+    const del = $("[data-del]", el);
+    del.onclick = () => { if (!del.classList.contains("sure")) { del.classList.add("sure"); del.innerHTML = T2("Tap again to remove", "हटाने के लिए दोबारा दबाएं"); setTimeout(() => { if (del.isConnected) renderLedger(); }, 4000); return; } sales = sales.filter((x) => x.id !== s.id); saveSales(); renderLedger(); };
+  });
+}
+function renderFpo() {
+  setTitle("fpo", "Farmer producer organisations", "किसान उत्पादक संगठन (FPO)");
+  const name = state.district.name;
+  $("#fpoBox").innerHTML = `<div class="card"><p>${T2("An FPO is a company or cooperative owned by farmers. Its members sell and buy together.", "FPO किसानों की अपनी कंपनी या सहकारी संस्था है। इसके सदस्य मिलकर बेचते और खरीदते हैं।")}</p><ul class="plain"><li>${T2("Selling together, so buyers deal with a bigger lot.", "मिलकर बेचना, जिससे खरीदार को बड़ा माल मिलता है।")}</li><li>${T2("Buying seed and fertiliser in bulk.", "बीज और खाद थोक में खरीदना।")}</li><li>${T2("A stronger voice on price.", "भाव पर ज़्यादा ताकत से बात करना।")}</li><li>${T2("Shared storage, grading and transport.", "साझा भंडारण, छंटाई और ढुलाई।")}</li></ul></div>
+    <div class="card"><h3>${ic("search")}${T2("Find a real FPO near you", "अपने पास का असली FPO खोजें")}</h3><p class="vcaution">${ic("circle-alert")}<span>${T2("No FPO is listed here by name: the app could not check which ones are active, and an unchecked list could mislead you.", "यहाँ किसी FPO का नाम नहीं दिया गया: ऐप यह नहीं जांच सका कि कौन से चालू हैं, और बिना जांची सूची आपको ग़लत रास्ते पर डाल सकती है।")}</span></p>
+      <ul class="plain"><li>${T2("In Haryana the Small Farmers' Agri-Business Consortium Haryana (SFACH) is the state agency for FPOs. Ask your district horticulture or agriculture office for the FPOs it has registered in your block.", "हरियाणा में FPO की राज्य एजेंसी 'लघु कृषक कृषि व्यापार संघ हरियाणा (SFACH)' है। अपने जिला बागवानी या कृषि कार्यालय से पूछें कि आपके ब्लॉक में कौन से FPO पंजीकृत हैं।")}</li><li>${T2("The central agency SFAC publishes the list of FPOs it has promoted.", "केंद्र की एजेंसी SFAC अपने बनाए FPO की सूची छापती है।")}</li><li>${T2("Your KVK usually knows the working FPOs of the district.", "आपके KVK को अक्सर जिले के चालू FPO पता होते हैं।")}</li></ul>
+      <div class="row wrap">${ext("https://sfacindia.com", "SFAC")}<button type="button" class="btn line" data-go="kvk">${ic("phone")}KVK</button>${mapBtn(`Farmer Producer Organisation FPO ${name} Haryana`, T2("Search on the map", "नक्शे पर खोजें"))}</div>${unchecked()}</div>
+    <div class="card"><h3>${ic("list-checks")}${T2("Before you join, ask", "जुड़ने से पहले पूछें")}</h3><ol class="plain"><li>${T2("Is it registered? Ask to see the certificate.", "क्या यह पंजीकृत है? प्रमाणपत्र दिखाने को कहें।")}</li><li>${T2("Which crops does it sell, and to whom?", "यह कौन सी फसलें बेचता है, और किसे?")}</li><li>${T2("How much is the share money, and what do members get back?", "हिस्से की रकम कितनी है, और सदस्यों को क्या मिलता है?")}</li><li>${T2("When and how are members paid?", "सदस्यों को पैसा कब और कैसे मिलता है?")}</li></ol></div>`;
+}
+function renderStore() {
+  setTitle("store", "Transport and storage", "ट्रांसपोर्ट और स्टोरेज");
+  const kind = state.storeKind || "grain", K = Dir.STORE_KINDS[kind], name = state.district.name;
+  $("#storeBox").innerHTML = `<div class="card"><p class="vcaution">${ic("circle-alert")}<span>${T2("No transporter or store is listed by name: no checked public list was found. The buttons below open a map search for your district; those results are not checked by this app.", "यहाँ किसी ट्रांसपोर्टर या स्टोर का नाम नहीं दिया गया: कोई जांची हुई सार्वजनिक सूची नहीं मिली। नीचे के बटन आपके जिले के लिए नक्शे पर खोज खोलते हैं; वे नतीजे इस ऐप ने जांचे नहीं हैं।")}</span></p>
+      <label class="f"><span>${t("chooseDistrict")}</span><select id="stDistrict">${districtOpts(name)}</select></label></div>
+    <div class="card"><h3>${ic("layers")}${T2("Storage: what is your produce?", "स्टोरेज: आपकी उपज क्या है?")}</h3>${chipsQ("kind", kind, Object.entries(Dir.STORE_KINDS).map(([k, v]) => [k, L_(v)]))}
+      <p><b>${L_(K.need)}</b></p><div class="row wrap">${mapBtn(`${K.q} near ${name}, Haryana`, T2("Search stores on the map", "नक्शे पर स्टोर खोजें"))}${kind === "grain" ? mapBtn(`Haryana State Warehousing Corporation warehouse ${name}`, T2("State warehouses", "राज्य भंडारण निगम के गोदाम")) : ""}</div>
+      ${kind === "fresh" || kind === "potato" ? `<p class="hint">${T2("The Haryana mandi board has set up pre-coolers with small cold stores in some mandis (14, in its 2021 paper). Ask at your mandi whether one is there.", "हरियाणा मंडी बोर्ड ने कुछ मंडियों में प्री-कूलर और छोटे कोल्ड स्टोर लगाए हैं (उसके 2021 के दस्तावेज़ में 14)। अपनी मंडी में पूछें कि वहाँ है या नहीं।")}</p>` : ""}
+      <p class="hint">${T2("Ask before you store: the rent for a quintal a month, the least quantity, who pays for loss, and whether a receipt is given.", "रखने से पहले पूछें: एक क्विंटल का महीने का किराया, कम से कम मात्रा, नुकसान कौन भरेगा, और रसीद मिलेगी या नहीं।")}</p></div>
+    <div class="card"><h3>${ic("tractor")}${T2("Transport", "ट्रांसपोर्ट")}</h3><div class="row wrap">${mapBtn(`tractor trolley transport near ${name}, Haryana`, T2("Tractor trolley", "ट्रैक्टर ट्रॉली"))}${mapBtn(`truck transport service near ${name}, Haryana`, T2("Truck", "ट्रक"))}${mapBtn(`refrigerated truck transport near ${name}, Haryana`, T2("Refrigerated truck", "ठंडी गाड़ी"))}</div>
+      <p class="hint">${T2("Ask the transporter: how many quintals the vehicle carries, the rate (for a quintal or a kilometre), who loads and unloads, who pays if the produce is damaged, and when you pay.", "ट्रांसपोर्टर से पूछें: गाड़ी में कितने क्विंटल आते हैं, भाड़ा क्या है (प्रति क्विंटल या प्रति कि.मी.), लदाई-उतराई कौन करेगा, माल खराब हो तो कौन भरेगा, और पैसा कब देना है।")}</p>${unchecked()}</div>
+    <div class="card rowlist">${rowLink("year", "calendar", T2("Add transport cost to my year plan", "ढुलाई का खर्च साल की योजना में जोड़ें"), "")}${rowLink("fpo", "users", T2("An FPO can share storage and transport", "FPO में भंडारण और ढुलाई साझा हो सकती है"), "")}</div>`;
+  $("#stDistrict").onchange = (e) => { setDistrict(e.target.value); renderStore(); };
+  $$("#storeBox [data-q] .chip").forEach((b) => (b.onclick = () => { state.storeKind = b.dataset.v; renderStore(); }));
+}
+const PAGE_RENDER = { home: renderHome, know: renderKnow, market: renderMarket, kvk: renderKvk, inst: renderInst, schemes: renderSchemes, solve: renderSolve, sell: renderSell, ledger: renderLedger, fpo: renderFpo, store: renderStore };
+
 /* ---------------- My farm: the farmer's own page ---------------- */
 const FOR_YOU = {
   seasonal: [
@@ -2385,7 +2597,6 @@ function profileHTML() {
 }
 function wireProfile(root) {
   if ($("#pfEdit", root)) $("#pfEdit", root).onclick = () => showWelcome("type");
-  $$("[data-openask]", root).forEach((b) => (b.onclick = () => openAsk()));
   $$("[data-type]", root).forEach((b) => (b.onclick = () => { saveProfile({ farmer_category: b.dataset.type }); renderFarm(); }));
 }
 
@@ -2522,9 +2733,10 @@ setVoice(savedVoice);
 renderGuide(false);
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 const initial = location.hash.slice(1);
+const startTab = TABS.includes(initial) ? initial : cameWithField ? "land" : "home";
 state.tab = "land";
-try { history.replaceState({ tab: TABS.includes(initial) ? initial : "land" }, ""); } catch {}
-if (TABS.includes(initial) && initial !== "land") showTab(initial, false);
+try { history.replaceState({ tab: startTab }, ""); } catch {}
+if (startTab !== "land") showTab(startTab, false);
 refreshMapDates();
 // A saved or shared field is checked straight away, so the farmer opens the app and sees today's condition
 // The app starts only once the four basic answers are in. This holds for a first visit, for someone who used the app

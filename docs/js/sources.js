@@ -1,4 +1,4 @@
-import { DISTRICTS } from "./districts.js?v=20261126220805";
+import { DISTRICTS } from "./districts.js?v=20261126222210";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
@@ -6,7 +6,7 @@ import { DISTRICTS } from "./districts.js?v=20261126220805";
 //  - Climate history: NASA POWER
 //  - Mandi prices: data/prices.json, refreshed daily by a GitHub Action from data.gov.in (Agmarknet)
 
-import { ARCGIS_KEY } from "./config.js?v=20261126220805";
+import { ARCGIS_KEY } from "./config.js?v=20261126222210";
 const STAC = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
 const PCDATA = "https://planetarycomputer.microsoft.com/api/data/v1";
 
