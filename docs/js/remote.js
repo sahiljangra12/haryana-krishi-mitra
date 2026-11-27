@@ -2,7 +2,7 @@
 // plain fetch calls to its REST interface, no library. The address and the public ("anon") key come from config.js.
 // That key is meant to be public: the database rules in supabase/schema.sql let it submit rows as 'pending' and read
 // approved rows, nothing else. While config.js has no address, enabled() is false and the app says the forum is not open.
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js?v=20261126225539";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js?v=20261126230736";
 
 export const enabled = () => !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 export const TOPICS = ["variety", "fert", "pest", "water", "cost", "lesson"];
@@ -66,3 +66,18 @@ export const adminList = (table, token, status = "pending") => call(query(table,
 export const adminSet = (table, id, patch, token) => call(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", body: patch, token, prefer: "return=minimal" });
 export const adminDelete = (table, id, token) => call(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, { method: "DELETE", token, prefer: "return=minimal" });
 export const amAdmin = async (token) => { const r = await call(query("admins", { select: "user_id", order: null, limit: 1 }), { token }); return Array.isArray(r) && r.length > 0; };
+
+// What the owner may do to an entry depends on where it is now. Kept here, apart from the page, so it can be tested.
+// Returns [action, English label, Hindi label, main button?] in the order the buttons are shown.
+export function adminActions(view, table, row = {}) {
+  const del = ["delete", "Delete", "मिटाएं", false];
+  if (view === "approved") return [["rejected", "Hide from everyone", "सबसे छिपाएं", true],
+    table === "listings" ? (row.verified ? ["unverified", "Remove the checked mark", "जांचा हुआ निशान हटाएं", false] : ["verified", "Mark as checked", "जांचा हुआ मानें", false])
+      : (row.kind === "expert" ? ["personal", "Mark as personal experience", "निजी अनुभव मानें", false] : ["expert", "Mark as expert", "जानकार मानें", false]), del];
+  if (view === "rejected") return [["approved", "Show to everyone", "सबको दिखाएं", true], del];
+  return [["approved", "Approve", "मंज़ूर", true], table === "listings" ? ["verified", "Approve as checked", "जांचा हुआ मानकर मंज़ूर", false] : ["expert", "Approve as expert", "जानकार के रूप में मंज़ूर", false], ["rejected", "Reject", "नामंज़ूर", false], del];
+}
+// The change each action makes to the row; null means the row is removed.
+export function adminPatch(act) {
+  return { delete: null, dismiss: null, expert: { status: "approved", kind: "expert" }, personal: { kind: "personal" }, verified: { status: "approved", verified: true }, unverified: { verified: false }, approved: { status: "approved" }, rejected: { status: "rejected" }, pending: { status: "pending" } }[act];
+}

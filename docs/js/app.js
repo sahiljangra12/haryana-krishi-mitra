@@ -1,25 +1,25 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126225539";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126225539";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126225539";
-import * as Voice from "./voice.js?v=20261126225539";
-import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126225539";
-import * as Pheno from "./phenology.js?v=20261126225539";
-import { askIntent, cropInText } from "./ask.js?v=20261126225539";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126225539";
-import * as Land from "./landtype.js?v=20261126225539";
-import * as Farmer from "./farmer.js?v=20261126225539";
-import * as Remote from "./remote.js?v=20261126225539";
-import * as Dir from "./directory.js?v=20261126225539";
-import * as Planner from "./planner.js?v=20261126225539";
-import * as Doctor from "./doctor.js?v=20261126225539";
-import * as Field from "./field.js?v=20261126225539";
-import * as RS from "./rs.js?v=20261126225539";
-import * as src from "./sources.js?v=20261126225539";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126225539";
-import * as card from "./soilcard.js?v=20261126225539";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126225539";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126225539";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126225539";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126230736";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126230736";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126230736";
+import * as Voice from "./voice.js?v=20261126230736";
+import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126230736";
+import * as Pheno from "./phenology.js?v=20261126230736";
+import { askIntent, cropInText } from "./ask.js?v=20261126230736";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126230736";
+import * as Land from "./landtype.js?v=20261126230736";
+import * as Farmer from "./farmer.js?v=20261126230736";
+import * as Remote from "./remote.js?v=20261126230736";
+import * as Dir from "./directory.js?v=20261126230736";
+import * as Planner from "./planner.js?v=20261126230736";
+import * as Doctor from "./doctor.js?v=20261126230736";
+import * as Field from "./field.js?v=20261126230736";
+import * as RS from "./rs.js?v=20261126230736";
+import * as src from "./sources.js?v=20261126230736";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126230736";
+import * as card from "./soilcard.js?v=20261126230736";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126230736";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126230736";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126230736";
 
 // Reading aloud is switched off (config.js): the speaker buttons, the sound switch and the reading bar are hidden. The microphone stays.
 document.documentElement.classList.toggle("noread", !READ_ALOUD);
@@ -2656,25 +2656,33 @@ async function renderAdmin() {
     $("#adForm").onsubmit = async (e) => { e.preventDefault(); try { const r = await Remote.signIn($("#adEmail").value.trim(), $("#adPass").value); if (!(await Remote.amAdmin(r.access_token))) throw new Error("not admin"); adminToken = r.access_token; renderAdmin(); } catch (err) { toast(Remote.notReady(err) ? T2("Signed in, but the database tables are missing. Run supabase/schema.sql in the Supabase SQL editor.", "साइन इन हो गया, पर डेटाबेस की टेबल नहीं बनी हैं। Supabase SQL editor में supabase/schema.sql चलाएं।") : err.message === "not admin" ? T2("Signed in, but this user is not listed as the owner (the admins table).", "साइन इन हो गया, पर यह उपयोगकर्ता मालिक की सूची (admins) में नहीं है।") : err.status ? T2("Wrong email or password.", "ईमेल या पासवर्ड ग़लत है।") : T2("The server could not be reached. Check the internet.", "सर्वर तक नहीं पहुँच पाए। इंटरनेट देखें।"), 7000); } };
     return;
   }
+  const view = ["pending", "approved", "rejected"].includes(state.adminView) ? state.adminView : "pending";
   box.innerHTML = `<p class="hint">${T2("Loading", "ला रहे हैं")}</p>`;
   try {
-    const [posts, listings, reports] = await Promise.all([Remote.adminList("posts", adminToken), Remote.adminList("listings", adminToken), Remote.adminList("reports", adminToken)]);
-    const acts = (table, id, extra = "") => `<div class="row wrap"><button type="button" class="btn" data-ad="${table}:${id}:approved">${T2("Approve", "मंज़ूर")}</button>${extra}<button type="button" class="btn line" data-ad="${table}:${id}:rejected">${T2("Reject", "नामंज़ूर")}</button><button type="button" class="btn line" data-ad="${table}:${id}:delete">${ic("trash-2")}${T2("Delete", "मिटाएं")}</button></div>`;
+    const [posts, listings, reports] = await Promise.all([Remote.adminList("posts", adminToken, view), Remote.adminList("listings", adminToken, view), Remote.adminList("reports", adminToken)]);
+    const acts = (table, r) => `<div class="row wrap">${Remote.adminActions(view, table, r).map(([act, en, hi, solid]) => `<button type="button" class="btn${solid ? "" : " line"}" data-ad="${table}:${r.id}:${act}">${act === "delete" ? ic("trash-2") : ""}${T2(en, hi)}</button>`).join("")}</div>`;
+    const none = `<p class="hint">${T2("None.", "कोई नहीं।")}</p>`;
+    const where = { pending: T2("waiting", "इंतज़ार में"), approved: T2("shown to everyone", "सबको दिख रही हैं"), rejected: T2("rejected or hidden", "नामंज़ूर या छिपाई गई") }[view];
+    const badge = (on, en, hi) => on ? ` <span class="fit yes">${T2(en, hi)}</span>` : "";
     box.innerHTML = `<div class="row"><button type="button" class="btn line" id="adOut">${T2("Sign out", "साइन आउट")}</button><button type="button" class="btn line" id="adReload">${ic("refresh-cw")}${T2("Reload", "दोबारा लाएं")}</button></div>
-      <h3 class="sec">${T2("Forum posts waiting", "मंच की पोस्ट, इंतज़ार में")} (${posts.length})</h3>${posts.map((p) => `<article class="card"><p class="hint">${esc([p.district, p.crop, p.topic, fmtDate(p.created_at), p.author].filter(Boolean).join(" · "))}</p><p class="exptext">${esc(p.body)}</p>${acts("posts", p.id, `<button type="button" class="btn line" data-ad="posts:${p.id}:expert">${T2("Approve as expert", "जानकार के रूप में मंज़ूर")}</button>`)}</article>`).join("") || `<p class="hint">${T2("None.", "कोई नहीं।")}</p>`}
-      <h3 class="sec">${T2("Marketplace entries waiting", "बाज़ार की सूचनाएं, इंतज़ार में")} (${listings.length})</h3>${listings.map((l) => `<article class="card"><p><b>${l.kind === "buy" ? T2("BUY", "खरीद") : T2("SELL", "बिक्री")}: ${esc(l.crop)}</b> · ${+l.qty_qtl} qtl${l.price ? ` · ₹${+l.price}` : ""}</p><p class="hint">${esc([l.name, l.phone, l.district, fmtDate(l.created_at), l.note].filter(Boolean).join(" · "))}</p>${acts("listings", l.id, `<button type="button" class="btn line" data-ad="listings:${l.id}:verified">${T2("Approve as checked", "जांचा हुआ मानकर मंज़ूर")}</button>`)}</article>`).join("") || `<p class="hint">${T2("None.", "कोई नहीं।")}</p>`}
-      <h3 class="sec">${T2("Reports from the public", "लोगों की शिकायतें")} (${reports.length})</h3>${reports.map((r) => `<article class="card"><p class="hint">${esc(r.target_table)} · ${esc(r.target_id)} · ${fmtDate(r.created_at)}</p><div class="row wrap"><button type="button" class="btn line" data-ad="${r.target_table}:${r.target_id}:rejected">${T2("Hide the reported entry", "शिकायत वाली सूचना छिपाएं")}</button><button type="button" class="btn line" data-ad="reports:${r.id}:delete">${T2("Dismiss", "शिकायत हटाएं")}</button></div></article>`).join("") || `<p class="hint">${T2("None.", "कोई नहीं।")}</p>`}`;
+      ${chipsQ("adview", view, [["pending", T2("Waiting", "इंतज़ार में")], ["approved", T2("Shown to everyone", "सबको दिख रही")], ["rejected", T2("Rejected", "नामंज़ूर")]])}
+      <h3 class="sec">${T2("Forum posts", "मंच की पोस्ट")}, ${where} (${posts.length})</h3>${posts.map((p) => `<article class="card"><p class="hint">${esc([p.district, p.crop, p.topic, fmtDate(p.created_at), p.author].filter(Boolean).join(" · "))}${badge(p.kind === "expert", "Expert", "जानकार")}</p><p class="exptext">${esc(p.body)}</p>${acts("posts", p)}</article>`).join("") || none}
+      <h3 class="sec">${T2("Marketplace entries", "बाज़ार की सूचनाएं")}, ${where} (${listings.length})</h3>${listings.map((l) => `<article class="card"><p><b>${l.kind === "buy" ? T2("BUY", "खरीद") : T2("SELL", "बिक्री")}: ${esc(l.crop)}</b> · ${+l.qty_qtl} qtl${l.price ? ` · ₹${+l.price}` : ""}${badge(l.verified, "Checked", "जांचा हुआ")}</p><p class="hint">${esc([l.name, l.phone, l.district, fmtDate(l.created_at), l.note].filter(Boolean).join(" · "))}${new Date(l.expires_at) < new Date() ? ` · ${T2("expired, no longer shown", "समय पूरा, अब नहीं दिखती")}` : ""}</p>${acts("listings", l)}</article>`).join("") || none}
+      <h3 class="sec">${T2("Reports from the public", "लोगों की शिकायतें")} (${reports.length})</h3>${reports.map((r) => `<article class="card"><p class="hint">${esc(r.target_table)} · ${esc(r.target_id)} · ${fmtDate(r.created_at)}</p><div class="row wrap"><button type="button" class="btn line" data-ad="${r.target_table}:${r.target_id}:rejected">${T2("Hide the reported entry", "शिकायत वाली सूचना छिपाएं")}</button><button type="button" class="btn line" data-ad="reports:${r.id}:dismiss">${T2("Dismiss", "शिकायत हटाएं")}</button></div></article>`).join("") || none}`;
     $("#adOut").onclick = () => { adminToken = null; renderAdmin(); };
     $("#adReload").onclick = renderAdmin;
+    $$("[data-q='adview'] .chip", box).forEach((b) => (b.onclick = () => { state.adminView = b.dataset.v; renderAdmin(); }));
     $$("[data-ad]", box).forEach((b) => (b.onclick = async () => {
       const [table, id, act] = b.dataset.ad.split(":");
+      // deleting cannot be undone, so it takes a second tap
+      if (act === "delete" && !b.classList.contains("sure")) { b.classList.add("sure"); b.innerHTML = `${ic("trash-2")}${T2("Tap again to delete for good", "हमेशा के लिए मिटाने को दोबारा दबाएं")}`; return; }
+      b.disabled = true;
       try {
-        if (act === "delete") await Remote.adminDelete(table, id, adminToken);
-        else if (act === "expert") await Remote.adminSet(table, id, { status: "approved", kind: "expert" }, adminToken);
-        else if (act === "verified") await Remote.adminSet(table, id, { status: "approved", verified: true }, adminToken);
-        else await Remote.adminSet(table, id, { status: act }, adminToken);
+        const patch = Remote.adminPatch(act);
+        if (patch === undefined) return;
+        if (patch === null) await Remote.adminDelete(table, id, adminToken); else await Remote.adminSet(table, id, patch, adminToken);
         renderAdmin();
-      } catch (e) { toast(e.status === 401 ? T2("Signed out. Sign in again.", "साइन आउट हो गया। दोबारा साइन इन करें।") : T2("That did not work.", "यह नहीं हो पाया।"), 4000); if (e.status === 401) { adminToken = null; renderAdmin(); } }
+      } catch (e) { b.disabled = false; toast(e.status === 401 ? T2("Signed out. Sign in again.", "साइन आउट हो गया। दोबारा साइन इन करें।") : T2("That did not work.", "यह नहीं हो पाया।"), 4000); if (e.status === 401) { adminToken = null; renderAdmin(); } }
     }));
   } catch { box.innerHTML = `<p class="hint">${T2("Could not load. Check the internet and reload.", "ला नहीं पाए। इंटरनेट देखकर दोबारा कोशिश करें।")}</p>`; }
 }

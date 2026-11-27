@@ -1099,3 +1099,7 @@ label.check input { width: 22px !important; height: 22px; min-height: 0; flex: n
 #bdAdd > summary { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-weight: 600; color: var(--green); min-height: 40px; }
 #boardBox .sale .row .btn, #adminBox .row .btn { flex: 1 1 8rem; min-height: 44px; font-size: 0.95rem; text-decoration: none; }
 #expForm #expSend { margin-bottom: 0.5rem; }
+
+/* owner's page: a delete button waiting for its second tap */
+#adminBox .btn.sure { background: var(--risk); border-color: var(--risk); color: #fff; }
+#adminBox .chips { margin: 0.75rem 0 0.25rem; }

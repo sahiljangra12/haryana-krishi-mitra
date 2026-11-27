@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanPost, cleanListing, query, enabled, notReady } from "../docs/js/remote.js";
+import { cleanPost, cleanListing, query, enabled, notReady, adminActions, adminPatch } from "../docs/js/remote.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../docs/js/config.js";
 
 test("a forum post is checked on the phone with the database's own limits", () => {
@@ -37,4 +37,31 @@ test("only a public key may sit in config.js, and missing tables read as 'not op
   assert.equal(notReady({ code: "42P01" }), true);
   assert.equal(notReady({ status: 401, code: "" }), false);
   assert.equal(notReady(null), false);
+});
+
+test("the owner's buttons fit where an entry is: waiting, shown to everyone, or rejected", () => {
+  const names = (v, t, r) => adminActions(v, t, r).map((a) => a[0]);
+  assert.deepEqual(names("pending", "posts"), ["approved", "expert", "rejected", "delete"]);
+  assert.deepEqual(names("pending", "listings"), ["approved", "verified", "rejected", "delete"]);
+  assert.deepEqual(names("approved", "posts", { kind: "personal" }), ["rejected", "expert", "delete"]);
+  assert.deepEqual(names("approved", "posts", { kind: "expert" }), ["rejected", "personal", "delete"]);
+  assert.deepEqual(names("approved", "listings", { verified: true }), ["rejected", "unverified", "delete"]);
+  assert.deepEqual(names("approved", "listings", { verified: false }), ["rejected", "verified", "delete"]);
+  assert.deepEqual(names("rejected", "posts"), ["approved", "delete"]);
+  // every view lets the owner delete, and exactly one button is the main one
+  for (const v of ["pending", "approved", "rejected"]) for (const t of ["posts", "listings"]) {
+    const a = adminActions(v, t, {});
+    assert.equal(a.at(-1)[0], "delete");
+    assert.equal(a.filter((x) => x[3]).length, 1);
+    for (const x of a) assert.notEqual(adminPatch(x[0]), undefined, x[0]);
+  }
+});
+test("each owner action changes only what it says", () => {
+  assert.equal(adminPatch("delete"), null);
+  assert.equal(adminPatch("dismiss"), null);
+  assert.deepEqual(adminPatch("rejected"), { status: "rejected" });
+  assert.deepEqual(adminPatch("verified"), { status: "approved", verified: true });
+  assert.deepEqual(adminPatch("unverified"), { verified: false });
+  assert.deepEqual(adminPatch("personal"), { kind: "personal" });
+  assert.equal(adminPatch("drop table"), undefined);
 });
