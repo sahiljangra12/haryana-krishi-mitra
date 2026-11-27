@@ -122,6 +122,23 @@ There are no automated tests, lint rules or type checks in the repository. `node
 | No network | Pass (simulated) | With every request made to fail, the saved result stayed, with "The internet did not connect. This is the result of ...". Not tried on a real phone in a real dead zone. |
 | Sowing dates in Hindi | Pass | Crop cards show the Hindi wording. |
 
+## India and Haryana map, iOS-style interface: run 27 November 2026 (IST), live site, commit `96b6a8a`
+
+Tested in a desktop browser at phone size (375 x 812) and at 1024 x 768. Not tested on a real iPhone or Android phone.
+
+| Check | Result |
+|---|---|
+| Map opens on the whole of Haryana, clear of the search bar and buttons | Pass (phone and desktop) |
+| Map cannot leave India: moved to London, the map came back inside the India box; zoom-out stops at level 5 | Pass |
+| Haryana sharp, everything else blurred and dimmed; the cut-out follows pan and zoom | Pass by eye. The blur needs `backdrop-filter`; phones with 2 GB of memory or less get a plain dim veil instead (not tested on such a phone) |
+| Veil removed at zoom 13 and above so border fields stay visible | Pass |
+| Tap in central Delhi: message "this app works for fields in Haryana", no field made | Pass |
+| Full flow in Karnal: tap, 2 acres, result in 6 s with four cards | Pass |
+| All six sections open, no sideways scrolling, no console errors | Pass |
+| Light and night themes | Pass by eye |
+| Search or GPS outside Haryana gives the same message | Code path is the same as the tap; GPS is blocked in the test browser, so not observed |
+| Border accuracy | The outline is simplified to about 1 km, so fields within 2.5 km outside it are accepted. A field in a neighbouring state within that strip is therefore also accepted |
+
 ## Automated tests
-`npm test` runs 28 unit tests (change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `6e76ad0`.
+`npm test` runs 30 unit tests (Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
 

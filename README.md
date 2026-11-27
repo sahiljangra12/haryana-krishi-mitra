@@ -86,7 +86,8 @@ Suggestions appear as you type. A village or PIN is an area, not a field, so the
 
 ## Design (mobile first)
 - The first screen is the map, edge to edge, with a white sheet at the bottom that shows one step at a time. A bottom bar switches between the six sections.
-- One typeface, *Anek Devanagari*, for Hindi and English. Leaf green for actions, marigold for the field outline and the speaker buttons, and green, amber, red and blue only to grade a result.
+- Interface in the iOS design language: the phone's own system font (San Francisco on Apple devices, Roboto and Noto Sans Devanagari on Android), so no font is downloaded; grouped white lists on a grey ground, translucent bars, segmented controls and bottom sheets. Green for actions, orange for the field outline and the speaker buttons, and green, orange, red and blue only to grade a result.
+- The map cannot leave India and opens on the whole of Haryana. Haryana is sharp; everything else sits behind a frosted veil cut to the state outline (OpenStreetMap). A field can be chosen only in Haryana (within 2.5 km of the outline, because the outline is simplified). At field scale (zoom 13 and above) the veil is removed.
 - Light theme by default (readable in sunlight) with a night theme.
 - It's **installable** (web app manifest plus service worker): it opens from the home screen and works offline for screens already seen.
 - It **remembers the last field**. **Share on WhatsApp** sends a link (`#poly=…` or `#field=lat,lon,acres`) that reopens the same field.

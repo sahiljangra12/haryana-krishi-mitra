@@ -40,6 +40,8 @@ No free source is both very sharp and recent. The app therefore uses two kinds o
 | Esri World Geocoder, OpenStreetMap Nominatim, Photon | Village and address search | Village | Varies | Free tiers | Tested |
 | Copernicus DEM 30 m (Planetary Computer) | Elevation of the field | 30 m | Static | Free | In use |
 
+| OpenStreetMap (relation 1942601, via Nominatim) | Haryana state outline: the map veil and the "only in Haryana" check | Simplified to 428 points, about 1 km | Boundary as mapped in November 2026 | Free, ODbL, credited on the map | Tested (unit test: 6 towns inside, 5 neighbouring cities outside) |
+
 ## Sources still to investigate
 - IMD: an official open service usable from a browser.
 - CGWB / India-WRIS: block-level groundwater categories as an open table.
