@@ -185,6 +185,28 @@ Tested in a desktop browser at phone size. Not tested on a real phone; reading t
 | Shared field link without answers: start screens first, then the field's result on the map page | Pass |
 | "Change" on My farm later: ordinary sheet with a close button, app not locked | Pass |
 
+## Ecosystem Phase 1 and reading aloud switched off: run 27 November 2026 (IST), live site, commit `a559731` and after
+
+Tested in a desktop browser at phone size. Not tested on a real phone. The microphone cannot be tested in the test browser.
+
+| Check | Result |
+|---|---|
+| No speaker button, sound switch or reading bar anywhere; start screen has one Continue button | Pass |
+| Year plan: wheat on 2 acres gives cost ₹54,000 and income ₹1,06,740 to ₹1,38,060 (34 to 46 qtl at MSP ₹2,610 plus straw) | Pass, matches hand calculation |
+| Own figures (transport ₹3,000, price ₹2,700) change the totals and stay marked as the farmer's | Pass |
+| Tomato as a custom crop: nothing estimated, "none" in every estimate cell, income only after the farmer's own yield and price | Pass |
+| Planned 3.5 acres in rabi with 3 acres of land: warning shown | Pass |
+| Real spending added and removed; sale entered; "real left over" shown; plan survives reload (stored as `km-plan`) | Pass |
+| Soil page with no report: says so, shows no-card help with tel:18001801551 | Pass |
+| Sample values: marked as a sample, no fertiliser plan, not used by the Crops page | Pass |
+| Typed values (pH, N, K): marked "typed by you", 9 missing values listed, report of 2021 gets the old-report warning, kept in the list, cleared and brought back | Pass |
+| Crops page: notice when there is no soil report, gone when there is one | Pass |
+| Assistant: the sentence from the brief about yellow wheat leaves starts the two questions; Back works; old leaves and whole leaf gives "may be nitrogen, not certain", agrees with the typed report (N low); spots sends the farmer to an expert; no chemical is named; five sources listed | Pass |
+| The eight earlier questions still answer (rain tested) | Pass |
+| Experience note written, kept, shown as personal experience, removed with two taps | Pass |
+| New rows on My farm and More open the right pages | Pass |
+| Photo share and WhatsApp send | Not tested (need a phone) |
+
 ## Automated tests
-`npm test` runs 41 unit tests (start-screen completeness, land check on live readings, fruit order, poplar fit, crops under poplar, land-sharing cautions, stored profile, Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
+`npm test` runs 47 unit tests (year-plan arithmetic, stored plan, yellow-leaf reading, start-screen completeness, land check on live readings, fruit order, poplar fit, crops under poplar, land-sharing cautions, stored profile, Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
 

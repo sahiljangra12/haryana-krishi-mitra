@@ -10,7 +10,7 @@ Written 21 November 2026, after the audit in `PROJECT_AUDIT.md`. Nothing here is
 | 2 Land cover and likely crop | **First version built.** Rule-based, confidence never above medium, farmer can correct. Not validated against known fields. |
 | 3 Health and harvest timeline | **Partly built**: field story from well-seen seasons, possible-harvest with confirmation, standing-water check. |
 | 4 Soil, water, weather | **Partly built**: source labels, elevation. Block-level groundwater and IMD not started. |
-| 12/13 Tests and checks | **Started**: 41 unit tests and a compatibility check on every push. `app.js` not yet split. |
+| 12/13 Tests and checks | **Started**: 47 unit tests and a compatibility check on every push. `app.js` not yet split. |
 | 5 Recommendation engine | **Built and verified**: plain reasons, last crop and irrigation method, sowing calendar (a crop whose sowing has closed is marked late), costly no-MSP crops ranked down unless the farmer picks high risk, duration, water, yield, general fertiliser dose, assumptions, label check before any spray. **Missing: seed rate per crop** (no verified CCS HAU figures found yet) and Hindi wording of the sowing dates. |
 | 8 Mandi | Text corrected. Waiting for the India phone test. |
 | 10 Farm history | **Built and verified**: saved fields, crop per season, harvest answers, a diary per field (sowing, irrigation, fertiliser, spray, harvest, sale) and a backup file. Kept on the phone only. |
@@ -21,6 +21,34 @@ Written 21 November 2026, after the audit in `PROJECT_AUDIT.md`. Nothing here is
 | 10 Farmer profile | **Built and verified (27 Nov)**: the app starts only after four basic answers (language, district, kind of farming, water); stored profile, personal My farm page, orchard planning, crops between poplar rows, land-on-share preparation. Open points: no Haryanvi (Hindi and English only); no cost or income figures for fruit or timber; eucalyptus guidance missing; the land-sharing marketplace needs a server and is not built. |
 | 1 Imagery (latest picture) | **Changed (27 Nov)**: the "Latest picture" button now works from far out too (NASA daily picture, 250 m) and switches to the newest Sentinel-2 pass when zoomed in. A sharp picture that is new every day does not exist free of charge. |
 | 7 Crop doctor, 9 Schemes | Not started |
+
+## Ecosystem brief of 27 November 2026: where each module stands
+
+The app is a static site: there is no server, no login and no database. That decides what could be built honestly in Phase 1 and what could not.
+
+### Phase 1 (built, with limits)
+
+| Module | Built and working now | Needs an outside API | Needs a server (backend) | Needs government or institutional data | Left for later |
+|---|---|---|---|---|---|
+| Year plan and money (Module 2) | Add crops by season and acres; cost by item, production, income and left-over as ranges; the farmer's own figure replaces any estimate and is marked; custom crops with the farmer's own figures only; real spending and sale recorded against the plan; warning when planned land exceeds the farmer's land; saved on the phone | Live mandi prices already come from Agmarknet when it answers | No | Checked per-acre costs for vegetables and fruit (the data has 15 field crops; nothing is estimated for tomato and the like); seed quantity per crop | Storage and transport costs by crop; market-demand information; plan synced across devices (server) |
+| Soil profile (Module 5) | Photo scan or typed values; shows where the values came from and the report date; missing values are left out, never guessed; old-report warning; reports kept and switched; no-card help with the Kisan Call Centre number and the Soil Health Card portal; the built-in sample is marked and never feeds advice; the Crops page says when advice is not based on a soil report | No | No | A list of soil testing laboratories with addresses (Phase 2 directory) | Hard block of all crop advice without a card was not done: farmers without a card would get nothing. Fertiliser amounts are already given only from a real report |
+| Assistant (Module 4) | Large microphone with "अपनी खेती की समस्या बताओ"; speech to text on phones that support it; eight field questions as before; one guided problem (yellow leaves) with two follow-up questions, a cautious reading, a cross-check against the farmer's soil report, no chemical named, call button for the Kisan Call Centre, and a photo passed to the phone's share sheet | A language model for free-form questions and a vision model to read crop photos: both are paid services | Yes: the API key must sit on a server, never in the page | KVK contact list (Phase 2) | More guided problems (pests, wilting, poor germination); Haryanvi speech; photo diagnosis. It is not an AI and is not called one |
+| Farmer experience forum (Module 3) | The page exists and says plainly that the shared forum is not open; a farmer can write an experience with crop and topic, keep it on the phone, send it through WhatsApp or the share sheet, and remove it; each note is marked as personal experience | Video storage and delivery | Yes: accounts, a database, file storage, likes, comments, follows, district feeds, reporting and moderation all need it | No | Everything social. Also a decision by the owner: who moderates, and the legal duties of hosting the public's posts and videos |
+| Reading aloud | Switched off at the owner's request (`READ_ALOUD = false` in `config.js`); the microphone stays | | | | Can be switched back with one line |
+
+### Phases 2 to 5 (not started)
+
+| Module | What it needs before it can be real |
+|---|---|
+| Knowledge centre, universities, experts (6) | Research and entry of official pages and contacts; no private phone numbers. Can be a static directory: no server |
+| Schemes (6D) | Official sources per scheme with a "last checked" date; someone has to keep it current |
+| KVK and helpline directory (7) | The official KVK list for Haryana's 22 districts with addresses; can be static |
+| Marketplace, buyers, offers (8) | Server, login, roles for farmers and buyers, moderation. No buyer or price may be invented |
+| Payment transparency (9) | Real transactions on the platform, so it comes after the marketplace |
+| Transport and storage (10) | A verified list of providers and cold stores; no open data source found yet |
+| FPO discovery (11) | The official FPO registers (SFAC, NABARD); each entry checked before it is shown |
+| Home screen and six-item navigation (13) | A design decision: the present bar has Field, Crops, Weather, Mandi, My farm, More |
+| Haryanvi | A reviewed translation of every screen by a native speaker; phones have no Haryanvi voice |
 
 ## Ground rules for every phase
 - Work inside the existing app. No rewrite.

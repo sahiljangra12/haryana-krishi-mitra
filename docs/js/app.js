@@ -1,23 +1,23 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126220446";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126220446";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126220446";
-import * as Voice from "./voice.js?v=20261126220446";
-import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126220446";
-import * as Pheno from "./phenology.js?v=20261126220446";
-import { askIntent, cropInText } from "./ask.js?v=20261126220446";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126220446";
-import * as Land from "./landtype.js?v=20261126220446";
-import * as Farmer from "./farmer.js?v=20261126220446";
-import * as Planner from "./planner.js?v=20261126220446";
-import * as Doctor from "./doctor.js?v=20261126220446";
-import * as Field from "./field.js?v=20261126220446";
-import * as RS from "./rs.js?v=20261126220446";
-import * as src from "./sources.js?v=20261126220446";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126220446";
-import * as card from "./soilcard.js?v=20261126220446";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126220446";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126220446";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126220446";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126220805";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126220805";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126220805";
+import * as Voice from "./voice.js?v=20261126220805";
+import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126220805";
+import * as Pheno from "./phenology.js?v=20261126220805";
+import { askIntent, cropInText } from "./ask.js?v=20261126220805";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126220805";
+import * as Land from "./landtype.js?v=20261126220805";
+import * as Farmer from "./farmer.js?v=20261126220805";
+import * as Planner from "./planner.js?v=20261126220805";
+import * as Doctor from "./doctor.js?v=20261126220805";
+import * as Field from "./field.js?v=20261126220805";
+import * as RS from "./rs.js?v=20261126220805";
+import * as src from "./sources.js?v=20261126220805";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126220805";
+import * as card from "./soilcard.js?v=20261126220805";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126220805";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126220805";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126220805";
 
 // Reading aloud is switched off (config.js): the speaker buttons, the sound switch and the reading bar are hidden. The microphone stays.
 document.documentElement.classList.toggle("noread", !READ_ALOUD);
@@ -2197,7 +2197,7 @@ function renderYear() {
       ${per ? `<p class="hint">${T2("Per acre left over", "प्रति एकड़ बचत")}: ${moneyRange(per)}${e.breakEven ? ` · ${T2("You break even at", "इस भाव पर खर्च निकल आता है")}: ${rupee(e.breakEven)}/${T2("qtl", "क्विंटल")}` : ""}</p>` : `<p class="vcaution">${ic("circle-alert")}<span>${T2("Enter your expected yield and price below to see income.", "आमदनी देखने के लिए नीचे अपनी पैदावार और भाव भरें।")}</span></p>`}
       ${a.entries || a.received != null ? `<p class="fc-last ${a.profit != null && a.profit < 0 ? "bad" : "good"}">${ic("list-checks")}<span><b>${T2("Really spent so far", "अब तक असली खर्च")}: ${money(a.spent)}</b><small>${T2("Planned", "योजना")}: ${money(e.cost)}${a.received != null ? ` · ${T2("Received", "मिला")}: ${money(a.received)} · ${T2("Real left over", "असली बचत")}: ${money(a.profit)}` : ""}</small></span></p>` : ""}
       <details class="pl-d" data-d="est" ${open ? "open" : ""}><summary>${T2("Cost by item, and your own figures", "खर्च का ब्योरा और आपके अपने आँकड़े")}</summary>
-        <table class="pl-t"><thead><tr><th>${T2("Item", "मद")}</th><th>${T2("App estimate", "ऐप का अंदाज़ा")}</th><th>${T2("Your figure (₹)", "आपका आँकड़ा (₹)")}</th><th>${T2("Spent", "खर्च हुआ")}</th></tr></thead><tbody>
+        <table class="pl-t"><thead><tr><th>${T2("Item", "मद")}</th><th>${T2("App estimate", "ऐप का अंदाज़ा")}</th><th>${T2("Your figure (₹, whole area)", "आपका आँकड़ा (₹, पूरी ज़मीन का)")}</th><th>${T2("Spent", "खर्च हुआ")}</th></tr></thead><tbody>
         ${Planner.HEADS.map((h) => `<tr><td>${L_(HEAD_LABEL[h])}</td><td>${e.heads[h].estimate != null ? rupee(e.heads[h].estimate) : `<span class="hint">${T2("none", "नहीं है")}</span>`}</td><td><input type="number" inputmode="numeric" min="0" data-over="${h}" value="${e.heads[h].mine ?? ""}" aria-label="${L_(HEAD_LABEL[h])}"></td><td>${a.byHead[h] ? rupee(a.byHead[h]) : "-"}</td></tr>`).join("")}</tbody></table>
         <div class="filters"><label class="f"><span>${T2("Yield you expect (qtl per acre)", "आपको कितनी पैदावार की उम्मीद है (क्विंटल प्रति एकड़)")}</span><input type="number" inputmode="decimal" min="0" step="0.5" data-over="yield" value="${l.over.yield ?? ""}" placeholder="${crop ? `${crop.yield[0]}-${crop.yield[1]} (${T2("estimate", "अंदाज़ा")})` : ""}"></label>
         <label class="f"><span>${T2("Price you expect (₹ per qtl)", "आपको कितने भाव की उम्मीद है (₹ प्रति क्विंटल)")}</span><input type="number" inputmode="numeric" min="0" data-over="price" value="${l.over.price ?? ""}" placeholder="${e.price && e.price.basis !== "mine" ? e.price.price : ""}"></label></div>

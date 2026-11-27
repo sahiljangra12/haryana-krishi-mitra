@@ -24,6 +24,15 @@ The app starts only after four basic answers, one full screen each: language, di
 
 Every statement on these pages names its source on the page. The data and the rules are in `docs/js/farmer.js`.
 
+## Plan, soil, problems, experience (Phase 1 of the ecosystem brief)
+- **Year plan and money** (`docs/js/planner.js`): crops by season and acres, cost by item, income and left-over as ranges, the farmer's own figures in place of any estimate, real spending and sale against the plan. Crops without checked data (tomato and other vegetables) take the farmer's figures only.
+- **Soil profile**: scanned or typed values with their source and date, reports kept on the phone, help for farmers without a card. Missing values are never guessed.
+- **Assistant**: a large microphone, the eight field questions, and a first guided problem (yellow leaves) in `docs/js/doctor.js`. It is rule-based, not an AI.
+- **Farmer experience forum**: personal notes kept on the phone and sent by the farmer. The shared forum needs a server and is not open.
+- **Reading aloud** is switched off in `docs/js/config.js` (`READ_ALOUD`).
+
+`DEVELOPMENT_ROADMAP.md` lists, module by module, what works, what needs an API, a server or official data, and what is left.
+
 ## Is it a field at all?
 Before any crop advice, the app checks what is on the chosen ground (`docs/js/landtype.js`): two 10 m land-cover maps (Impact Observatory 2023 and ESA WorldCover 2021), the greenness on the newest satellite pass, and the satellite's own water class. On buildings or water it gives no crop, soil or irrigation advice, on the result page, the Crops page and in the assistant; the farmer can overrule it with one tap ("this is my field"). If the outline takes in some buildings or water, or the two maps disagree, it says so and still shows the results.
 

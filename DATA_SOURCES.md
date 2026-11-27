@@ -48,6 +48,9 @@ No free source is both very sharp and recent. The app therefore uses two kinds o
 | NASA GIBS VIIRS NOAA-20 true colour | "Latest picture" from far out (state view) | 250 m | Every day (yesterday's picture) | Free, no key | Tested: tiles for 26 Nov 2026 loaded with no gaps over Haryana |
 | ICAR, CCS HAU, Haryana Forest Department, Haryana Horticulture Department, Haryana Act 23 of 2024 | Orchard, poplar and land-sharing pages | Text sources | See the list on each page and in `docs/js/farmer.js` | Free | Read on 27 Nov 2026; each statement carries its source |
 
+| Kisan Call Centre, 1800-180-1551 (mkisan.gov.in; Lok Sabha answers) | Call button on the soil page and in the assistant | Text source | Free call, 6 am to 10 pm every day, as stated by the Ministry | Free | Number checked against mkisan.gov.in on 27 Nov 2026; the call itself not tested |
+| TNAU Agritech, ICAR Indian Farming, Univ. of Maryland, Cornell | The yellow-leaf questions in the assistant | Text sources | Listed in `docs/js/doctor.js` and on the answer | Free | Read on 27 Nov 2026; not reviewed by an agronomist |
+
 ## Sources still to investigate
 - IMD: an official open service usable from a browser.
 - CGWB / India-WRIS: block-level groundwater categories as an open table.

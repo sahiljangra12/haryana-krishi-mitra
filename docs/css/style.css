@@ -987,7 +987,13 @@ html.noread .say, html.noread #voiceBtn, html.noread #sayBar { display: none !im
 .money3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0.6rem 0 0.4rem; }
 .money3 > div { background: var(--paper-2); border-radius: 12px; padding: 0.55rem 0.6rem; min-width: 0; }
 .money3 small { display: block; font-size: 0.76rem; color: var(--soil-2); }
-.money3 b { display: block; font-size: 0.98rem; line-height: 1.25; overflow-wrap: anywhere; }
+.money3 b { display: block; font-size: 0.98rem; line-height: 1.25; }
+@media (max-width: 560px) {
+  .money3 { grid-template-columns: 1fr; gap: 0.35rem; }
+  .money3 > div { display: flex; justify-content: space-between; align-items: baseline; gap: 0.8rem; }
+  .money3 small { font-size: 0.86rem; flex: none; }
+  .money3 b { text-align: right; }
+}
 .money3 b.neg, .neg { color: var(--risk); }
 .ysum .money3 b { font-size: 1.05rem; }
 .planline .fc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; }
