@@ -2,7 +2,7 @@
 
 Written 21 November 2026, after the audit in `PROJECT_AUDIT.md`. Nothing here is built yet. Work starts after the owner approves Phase 1.
 
-## Status on 21 November 2026
+## Status on 27 November 2026
 
 | Phase | Status |
 |---|---|
@@ -15,7 +15,8 @@ Written 21 November 2026, after the audit in `PROJECT_AUDIT.md`. Nothing here is
 | 8 Mandi | Text corrected. Waiting for the India phone test. |
 | 10 Farm history | **Built and verified**: saved fields, crop per season, harvest answers, a diary per field (sowing, irrigation, fertiliser, spray, harvest, sale) and a backup file. Kept on the phone only. |
 | 6 Assistant | **Built and verified**: eight questions (what to grow, is my field right for a crop, when to irrigate, rain, why weaker, fertiliser, when to harvest, which mandi) answered from the field's own data by tap, typing or voice, in Hindi and English. No outside AI service. Other questions get "not understood yet". Haryanvi not done. |
-| 7 Crop doctor, 9 Schemes, 11 Six-item navigation | Not started |
+| 11 Interface | **Built and verified (27 Nov)**: six sections (Field, Crops, Weather, Mandi, My farm, More); soil card, methods and About under More; the assistant opens from the header on every page; first-visit "listen or read" choice; a saved field opens at once with its last result and keeps it when there is no network; sowing dates in Hindi. "Crop Doctor" is not a section yet because Phase 7 is not built. |
+| 7 Crop doctor, 9 Schemes | Not started |
 
 ## Ground rules for every phase
 - Work inside the existing app. No rewrite.

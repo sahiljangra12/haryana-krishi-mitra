@@ -4,6 +4,11 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 
 **Live site:** https://sahiljangra12.github.io/haryana-krishi-mitra/
 
+## The six sections
+Field (the map and the result), Crops (what to grow), Weather, Mandi, My farm (saved fields, their last result, diary, backup) and More (Soil Health Card scanner, farming methods and videos, About). A mic button in the header opens the question box on every page.
+
+On the first visit the app asks one thing: listen or read. A saved field opens straight away with its last result and its date, then updates. With no network the last result stays on screen and says which day it is from.
+
 ## How a farmer uses it (three steps)
 1. **Type the PIN code** (or the village name, or say it with the mic, or press "My location"). A PIN code lists its villages; picking one opens the map at field level, where single fields and their boundaries are clear.
 2. **Tap the field** and pick its size: 1, 2, 3, 5 or 10 acres, or draw the boundary.

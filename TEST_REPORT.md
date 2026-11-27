@@ -108,6 +108,20 @@ There are no automated tests, lint rules or type checks in the repository. `node
 | Place names are not taken as questions | Pass | Unit tests: "Mandi Dabwali", "बैरसाल करनाल", "132001" are not questions. |
 | Young crop wording | Pass | In sowing weeks a thin green cover now reads "crop is small or just coming up", not "crop is weak". |
 
+## Phase 11 (interface): run 27 November 2026 (IST), live site, commit `e9e65ba`
+
+| Check | Result | Detail |
+|---|---|---|
+| Six sections in the bottom bar | Pass | Field, Crops, Weather, Mandi, My farm, More. No sideways scroll at 375 px. |
+| More page | Pass | Soil card scanner, methods and videos, About. Opening one keeps "More" lit; its back arrow returns to More. |
+| First visit | Pass | Welcome sheet with language choice and two buttons. "Explain it to me aloud" switched the voice on and speech started. Not shown again afterwards. |
+| Assistant from the header | Pass | Opens as a sheet on any page; the phone's back button and the close button both close it and leave the page as it was. |
+| My farm page | Pass | Field card with name, place, area in three units, last result and its date; rename, two-tap delete; diary entry added and kept; backup buttons present. |
+| Diary feeds the assistant | Pass | With sowing written as 12 Nov and the crop told as wheat, "when to harvest" answered "around 6 April 2027" (12 Nov + 145 days). |
+| Saved field opens at once | Pass | The last result was on screen 0.4 s after the app loaded, marked with its date, and was replaced by the fresh result. |
+| No network | Pass (simulated) | With every request made to fail, the saved result stayed, with "The internet did not connect. This is the result of ...". Not tried on a real phone in a real dead zone. |
+| Sowing dates in Hindi | Pass | Crop cards show the Hindi wording. |
+
 ## Automated tests
 `npm test` runs 28 unit tests (change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `6e76ad0`.
 
