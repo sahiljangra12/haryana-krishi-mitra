@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=20261120231740" />
+  <link rel="stylesheet" href="css/style.css?v=20261126201046" />
 </head>
 <body>
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
@@ -303,18 +303,17 @@
     <div class="top-actions">
       <button id="voiceBtn" class="iconbtn" type="button" aria-label="Voice guide"><svg class="ic"><use href="#i-volume-x"/></svg></button>
       <button id="themeBtn" class="iconbtn" type="button" aria-label="Theme"><svg class="ic"><use href="#i-moon"/></svg></button>
-      <button id="aboutBtn" class="iconbtn mobile-only" type="button" aria-label="About"><svg class="ic"><use href="#i-info"/></svg></button>
+      <button id="askBtn" class="iconbtn ask" type="button" aria-label="Ask a question"><svg class="ic"><use href="#i-mic"/></svg><span data-t="askShort"></span></button>
       <div class="lang" role="group" aria-label="Language"><button data-lang="hi">हिंदी</button><button data-lang="en">EN</button></div>
     </div>
   </header>
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="land"><svg class="ic"><use href="#i-map-pin"/></svg><span class="long" data-t="tabLand"></span><span class="short" data-t="navLand"></span></button>
     <button class="tab" data-tab="advice"><svg class="ic"><use href="#i-sprout"/></svg><span class="long" data-t="tabAdvice"></span><span class="short" data-t="navAdvice"></span></button>
-    <button class="tab" data-tab="soilcard"><svg class="ic"><use href="#i-flask-conical"/></svg><span class="long" data-t="tabCard"></span><span class="short" data-t="navCard"></span></button>
-    <button class="tab" data-tab="techniques"><svg class="ic"><use href="#i-book-open-text"/></svg><span class="long" data-t="tabTech"></span><span class="short" data-t="navTech"></span></button>
-    <button class="tab" data-tab="prices"><svg class="ic"><use href="#i-indian-rupee"/></svg><span class="long" data-t="tabPrices"></span><span class="short" data-t="navPrices"></span></button>
     <button class="tab" data-tab="weather"><svg class="ic"><use href="#i-cloud-sun"/></svg><span class="long" data-t="tabWeather"></span><span class="short" data-t="navWeather"></span></button>
-    <button class="tab" data-tab="about"><svg class="ic"><use href="#i-info"/></svg><span class="long" data-t="tabAbout"></span><span class="short" data-t="navAbout"></span></button>
+    <button class="tab" data-tab="prices"><svg class="ic"><use href="#i-indian-rupee"/></svg><span class="long" data-t="tabPrices"></span><span class="short" data-t="navPrices"></span></button>
+    <button class="tab" data-tab="farm"><svg class="ic"><use href="#i-list-checks"/></svg><span class="long" data-t="tabFarm"></span><span class="short" data-t="navFarm"></span></button>
+    <button class="tab" data-tab="more"><svg class="ic"><use href="#i-layers"/></svg><span class="long" data-t="tabMore"></span><span class="short" data-t="navMore"></span></button>
   </nav>
   <main>
     <section id="tab-land" class="panel active">
@@ -465,11 +464,23 @@
       </div>
     </section>
 
+    <section id="tab-farm" class="panel">
+      <div class="tabhead"><button class="backbtn" type="button" data-back aria-label="Back"><svg class="ic"><use href="#i-arrow-left"/></svg></button><h2 data-t="tabFarm"></h2><button class="say big" type="button" data-say="tab" data-tab="farm" aria-label="Listen"><svg class="ic"><use href="#i-volume-2"/></svg></button></div>
+      <div id="farmBox"></div>
+    </section>
+    <section id="tab-more" class="panel">
+      <div class="tabhead"><button class="backbtn" type="button" data-back aria-label="Back"><svg class="ic"><use href="#i-arrow-left"/></svg></button><h2 data-t="tabMore"></h2><span></span></div>
+      <div id="moreBoxPage"></div>
+    </section>
     <section id="tab-about" class="panel">
       <div class="tabhead"><button class="backbtn" type="button" data-back aria-label="Back"><svg class="ic"><use href="#i-arrow-left"/></svg></button><h2 data-t="tabAbout"></h2><span></span></div>
       <div class="card prose" id="aboutBox"></div>
     </section>
   </main>
+  <div id="askSheet" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-card"><button type="button" class="iconbtn sheet-close" id="askClose" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button><div id="askSheetBody"></div></div>
+  </div>
+  <div id="welcome" class="sheet hidden" role="dialog" aria-modal="true"><div class="sheet-card" id="welcomeBody"></div></div>
   <div id="sayBar" class="saybar hidden" role="status" aria-live="polite">
     <span class="sayic"><svg class="ic"><use href="#i-volume-2"/></svg></span>
     <div class="saybody"><p id="sayNote" class="saynote hidden"></p><p id="sayNow"></p></div>
@@ -483,6 +494,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="js/app.js?v=20261120231740"></script>
+  <script type="module" src="js/app.js?v=20261126201046"></script>
 </body>
 </html>

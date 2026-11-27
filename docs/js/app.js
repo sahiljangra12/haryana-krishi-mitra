@@ -1,18 +1,18 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261120231740";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261120231740";
-import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261120231740";
-import * as Voice from "./voice.js?v=20261120231740";
-import { ARCGIS_KEY } from "./config.js?v=20261120231740";
-import * as Pheno from "./phenology.js?v=20261120231740";
-import { askIntent, cropInText } from "./ask.js?v=20261120231740";
-import * as Field from "./field.js?v=20261120231740";
-import * as RS from "./rs.js?v=20261120231740";
-import * as src from "./sources.js?v=20261120231740";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261120231740";
-import * as card from "./soilcard.js?v=20261120231740";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261120231740";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261120231740";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261120231740";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126201046";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126201046";
+import { DISTRICTS, nearestDistrict, HARYANA_BBOX } from "./districts.js?v=20261126201046";
+import * as Voice from "./voice.js?v=20261126201046";
+import { ARCGIS_KEY } from "./config.js?v=20261126201046";
+import * as Pheno from "./phenology.js?v=20261126201046";
+import { askIntent, cropInText } from "./ask.js?v=20261126201046";
+import * as Field from "./field.js?v=20261126201046";
+import * as RS from "./rs.js?v=20261126201046";
+import * as src from "./sources.js?v=20261126201046";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126201046";
+import * as card from "./soilcard.js?v=20261126201046";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126201046";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126201046";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126201046";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -81,11 +81,12 @@ function watchLivePrices() {
 }
 
 /* ---------------- tabs ---------------- */
-const TABS = ["land", "advice", "soilcard", "techniques", "prices", "weather", "about"];
+const TABS = ["land", "advice", "weather", "prices", "farm", "more", "soilcard", "techniques", "about"];
+const UNDER_MORE = ["soilcard", "techniques", "about"];
 let navDepth = 0; // how many steps the phone's back button can take inside the app
 function showTab(name, push = true) {
   const was = state.tab || "land";
-  $$(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+  $$(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === (UNDER_MORE.includes(name) ? "more" : name)));
   $$(".panel").forEach((p) => p.classList.toggle("active", p.id === "tab-" + name));
   Voice.stop();
   window.scrollTo(0, 0);
@@ -96,6 +97,8 @@ function showTab(name, push = true) {
   if (name === "about") renderAbout();
   if (name === "soilcard") renderCard();
   if (name === "techniques") renderTechniques();
+  if (name === "farm") renderFarm();
+  if (name === "more") renderMore();
   state.tab = name;
   if (push && name !== was) { try { history.pushState({ tab: name }, "", "#" + name); navDepth++; } catch {} }
 }
@@ -105,10 +108,10 @@ function goBack() {
   else if (!closeLayerPanel()) showTab("land");
 }
 function closeLayerPanel() {
-  const p = $("#layerPanel");
-  if (!p || p.classList.contains("hidden")) return false;
-  p.classList.add("hidden");
-  return true;
+  let closed = false;
+  for (const id of ["layerPanel", "askSheet"]) { const p = $("#" + id); if (p && !p.classList.contains("hidden")) { p.classList.add("hidden"); closed = true; } }
+  if (closed) Voice.stop();
+  return closed;
 }
 window.addEventListener("popstate", (e) => {
   navDepth = Math.max(0, navDepth - 1);
@@ -116,7 +119,11 @@ window.addEventListener("popstate", (e) => {
   const h = location.hash.slice(1), tab = (e.state && e.state.tab) || (TABS.includes(h) ? h : "land");
   showTab(tab, false);
 });
-document.addEventListener("click", (e) => { if (e.target.closest("[data-back]")) goBack(); });
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-back]")) return goBack();
+  const go = e.target.closest("[data-go]");
+  if (go && !go.closest("#report")) showTab(go.dataset.go);
+});
 
 /* ---------------- map: sharp photo base that never shows blank tiles ----------------
    Esri World Imagery has real tiles to zoom 18 in rural Haryana (checked); beyond that it returns a grey
@@ -343,7 +350,7 @@ function heard(text) {
   const s = Voice.tidyHeard(text);
   $("#q").value = s;
   if (!s) return;
-  if (askIntent(s) && state.report) { $("#q").value = ""; $("#askBox")?.scrollIntoView({ behavior: "smooth" }); ask(s, null, true); return; }
+  if (askIntent(s)) { $("#q").value = ""; openAsk(s); return; }
   if (!voiceCommand(s)) runSearch(s);
 }
 $("#micBtn").onclick = () => {
@@ -570,7 +577,8 @@ async function analyse(opts = {}) {
   if (outsideHaryana(lat, lon) && !auto) toast(t("outside"));
   state.busy = true; state.feature = feature; state.areaAcres = areaAcres(feature);
   if (!auto) state.fpMode = null;
-  saveField(); rememberField(); renderGuide(!auto); progress(0, 0);
+  saveField(); const fSaved = rememberField(); renderGuide(!auto); progress(0, 0);
+  if (fSaved && fSaved.last && state.reportFor !== fieldParam()) { state.report = null; renderCached(fSaved, false); }
   // Quick answer first: newest satellite passes, soil wetness, land use and forecast. History, soil map and climate fill in after.
   const soilP = src.soilProfile(lat, lon), climP = src.climateHistory(lat, lon), histP = src.fieldHistory(feature, (d, n) => { const h = $("#histNote"); if (h && run === analyseRun) h.textContent = `${T2("Reading older images", "पुरानी तस्वीरें पढ़ रहे हैं")} ${d}/${n}`; });
   [soilP, climP, histP].forEach((p) => p.catch(() => {}));
@@ -585,6 +593,13 @@ async function analyse(opts = {}) {
   settled.forEach((s, i) => (R[keys[i]] = s.status === "fulfilled" ? s.value : { error: s.reason?.message || String(s.reason) }));
   const ok = (k) => (R[k] && !R[k].error ? R[k] : null);
   const series = R.sat?.series || [];
+  // nothing came back at all: no network. Keep showing the saved result, and say so.
+  if (!series.length && !ok("fc") && !ok("wet") && !ok("lulc")) {
+    state.busy = false; state.report = null; state.reportFor = "";
+    renderGuide(false);
+    if (!renderCached(fSaved, true)) toast(T2("The internet did not connect. Try again when the network is back.", "इंटरनेट नहीं जुड़ा। नेटवर्क आने पर दोबारा कोशिश करें।"), 6000);
+    return;
+  }
   const r = (state.report = { lat, lon, series, px: ok("px"), scenesFound: R.sat?.scenesFound, newestPass: R.sat?.newestPass, satError: R.sat?.error, soil: ok("soil"), soilPending: !ok("soil"), historyPending: true, climate: null, wet: ok("wet"), lulc: ok("lulc"), neighbour: null, photo: null, at: new Date(), checkedAt: Date.now() });
   state.reportFor = fieldParam();
   if (ok("fc")) { state.forecast = R.fc; state.forecastFor = { lat, lon, label: L_(state.district) }; }
@@ -884,6 +899,12 @@ function askHTML() {
     <p class="hint">${T2("Answers come from this field's satellite, weather and price data, not from an outside AI.", "जवाब इसी खेत के सैटेलाइट, मौसम और भाव के आँकड़ों से बनते हैं, किसी बाहरी AI से नहीं।")}</p>
   </div>`;
 }
+function openAsk(thenAsk = null) {
+  const sheet = $("#askSheet");
+  if (!$("#askBox")) { $("#askSheetBody").innerHTML = askHTML(); wireAsk(); }
+  if (sheet.classList.contains("hidden")) { sheet.classList.remove("hidden"); try { history.pushState({ tab: state.tab || "land", sheet: true }, ""); navDepth++; } catch {} }
+  if (thenAsk) ask(thenAsk, null, true);
+}
 function wireAsk() {
   if (!$("#askBox")) return;
   $$("#askBox [data-ask]").forEach((b) => (b.onclick = () => ask(L_(ASK[b.dataset.ask]), b.dataset.ask, true)));
@@ -899,34 +920,63 @@ function wireAsk() {
 
 /* ---------------- field diary: the farmer's own record for each field, kept on the phone ---------------- */
 const DIARY_TYPES = { sow: { en: "Sowing", hi: "बुवाई" }, water: { en: "Irrigation", hi: "सिंचाई" }, fert: { en: "Fertiliser", hi: "खाद" }, spray: { en: "Spray", hi: "छिड़काव" }, harvest: { en: "Harvest", hi: "कटाई" }, sale: { en: "Sale", hi: "बिक्री" }, note: { en: "Other", hi: "अन्य" } };
-function diaryHTML() {
-  const f = currentField();
-  if (!f) return "";
+function diaryHTML(f) {
   const list = (f.records || []).slice().sort((a, b) => b.date.localeCompare(a.date));
   const today = new Date().toISOString().slice(0, 10);
-  return `<details class="card diary" id="diaryBox" ${state.diaryOpen ? "open" : ""}><summary>${ic("list-checks")}${T2("Field diary", "खेत की डायरी")} <span class="count">${list.length}</span></summary>
-    <p class="hint">${T2("Write down what you do in this field. It stays on this phone.", "इस खेत में जो काम करें, यहाँ लिख लें। यह इसी फ़ोन में रहता है।")}</p>
-    <form id="diaryForm" class="diaryform">
-      <select id="dType" aria-label="${T2("Kind of work", "काम")}">${Object.entries(DIARY_TYPES).map(([k, v]) => `<option value="${k}">${L_(v)}</option>`).join("")}</select>
-      <input id="dDate" type="date" value="${today}" max="${today}" aria-label="${T2("Date", "तारीख़")}">
-      <input id="dNote" type="text" maxlength="80" placeholder="${T2("Detail, e.g. 2 bags urea, 18 quintals, ₹2,600 a quintal", "ब्योरा, जैसे 2 बोरी यूरिया, 18 क्विंटल, ₹2,600 प्रति क्विंटल")}">
+  return `<details class="diary" data-fid="${f.id}" ${state.diaryOpen === f.id ? "open" : ""}><summary>${ic("list-checks")}${T2("Field diary", "खेत की डायरी")} <span class="count">${list.length}</span></summary>
+    <form class="diaryform">
+      <select class="dType" aria-label="${T2("Kind of work", "काम")}">${Object.entries(DIARY_TYPES).map(([k, v]) => `<option value="${k}">${L_(v)}</option>`).join("")}</select>
+      <input class="dDate" type="date" value="${today}" max="${today}" aria-label="${T2("Date", "तारीख़")}">
+      <input class="dNote" type="text" maxlength="80" placeholder="${T2("Detail, e.g. 2 bags urea, 18 quintals, ₹2,600 a quintal", "ब्योरा, जैसे 2 बोरी यूरिया, 18 क्विंटल, ₹2,600 प्रति क्विंटल")}">
       <button class="btn" type="submit">${ic("plus")}${T2("Add", "जोड़ें")}</button>
     </form>
-    ${list.length ? `<ul class="diarylist">${list.map((e) => `<li><span class="dd">${fmtDate(e.date)}</span><b>${L_(DIARY_TYPES[e.type] || DIARY_TYPES.note)}</b><span class="dn">${esc(e.note || "")}</span><button type="button" class="linkbtn" data-drop="${e.id}" aria-label="${T2("Remove", "हटाएं")}">${ic("x")}</button></li>`).join("")}</ul>` : ""}
-    <div class="row backup"><button class="btn line" type="button" id="backupBtn">${ic("download")}${T2("Save a backup file", "बैकअप फ़ाइल सेव करें")}</button><label class="btn line">${ic("upload")}${T2("Load a backup", "बैकअप खोलें")}<input type="file" id="restoreFile" accept="application/json,.json" hidden></label></div>
+    ${list.length ? `<ul class="diarylist">${list.map((e) => `<li><span class="dd">${fmtDate(e.date)}</span><b>${L_(DIARY_TYPES[e.type] || DIARY_TYPES.note)}</b><span class="dn">${esc(e.note || "")}</span><button type="button" class="linkbtn" data-drop="${e.id}" aria-label="${T2("Remove", "हटाएं")}">${ic("x")}</button></li>`).join("")}</ul>` : `<p class="hint">${T2("Nothing written yet.", "अभी कुछ नहीं लिखा।")}</p>`}
   </details>`;
 }
-function wireDiary() {
-  const box = $("#diaryBox"); if (!box) return;
-  box.addEventListener("toggle", () => (state.diaryOpen = box.open));
-  $("#diaryForm").onsubmit = (e) => {
-    e.preventDefault();
-    const f = rememberField(); if (!f) return;
-    f.records = f.records || [];
-    f.records.push({ id: Date.now().toString(36), type: $("#dType").value, date: $("#dDate").value || new Date().toISOString().slice(0, 10), note: $("#dNote").value.trim() });
-    storeFields(); state.diaryOpen = true; refreshReport();
-  };
-  $$("#diaryBox [data-drop]").forEach((b) => (b.onclick = () => { const f = currentField(); if (!f) return; f.records = (f.records || []).filter((x) => x.id !== b.dataset.drop); storeFields(); state.diaryOpen = true; refreshReport(); }));
+/* ---------------- My farm: every saved field with its last result and its diary ---------------- */
+function renderFarm() {
+  const box = $("#farmBox");
+  if (!state.fields.length) {
+    box.innerHTML = `<div class="card empty"><p>${T2("No field is saved yet. Choose your field on the map and it will be kept here.", "अभी कोई खेत सेव नहीं है। नक्शे पर अपना खेत चुनें, वह यहाँ रख लिया जाएगा।")}</p><button class="btn big" type="button" data-go="land">${ic("map-pin")}${T2("Choose my field", "अपना खेत चुनें")}</button></div>`;
+    return;
+  }
+  const sNow = Pheno.seasonOf(new Date().toISOString().slice(0, 10));
+  box.innerHTML = `<p class="hint">${T2("Your fields, their last result and your diary. Everything here stays on this phone.", "आपके खेत, उनका पिछला नतीजा और आपकी डायरी। यह सब इसी फ़ोन में रहता है।")}</p>` + state.fields.map((f) => {
+    const crop = f.last ? f.last.cards.find((x) => x.key === "crop") : null, told = f.crop ? f.crop[`${sNow.id}-${sNow.year}`] : null;
+    return `<article class="card farmcard" data-fid="${f.id}">
+      <div class="fc-head"><div><h3 class="fc-name">${esc(f.name)}</h3><p class="hint">${esc([f.place, f.acres ? areaText(f.acres) : ""].filter(Boolean).join(" · "))}</p></div>
+        <div class="fc-tools"><button type="button" class="linkbtn" data-rename>${ic("pencil-line")}${T2("Rename", "नाम बदलें")}</button><button type="button" class="mf-del" data-del aria-label="${T2("Delete", "मिटाएं")}">${ic("trash-2")}</button></div></div>
+      ${crop ? `<p class="fc-last ${crop.level}">${ic(crop.icon)}<span><b>${esc(crop.big)}</b><small>${T2("Checked", "जांच")}: ${fmtDate(f.last.at)}</small></span></p>` : ""}
+      ${told && told !== "none" ? `<p class="hint">${T2("Crop this season", "इस मौसम की फसल")}: <b>${esc(cropName(told))}</b></p>` : ""}
+      <button class="btn big" type="button" data-open>${ic("satellite")}${T2("See today's condition", "आज का हाल देखें")}</button>
+      ${diaryHTML(f)}
+    </article>`;
+  }).join("") + `<div class="row backup"><button class="btn line" type="button" id="backupBtn">${ic("download")}${T2("Save a backup file", "बैकअप फ़ाइल सेव करें")}</button><label class="btn line">${ic("upload")}${T2("Load a backup", "बैकअप खोलें")}<input type="file" id="restoreFile" accept="application/json,.json" hidden></label></div>`;
+  $$("#farmBox .farmcard").forEach((el) => {
+    const f = state.fields.find((x) => x.id === el.dataset.fid); if (!f) return;
+    $("[data-open]", el).onclick = () => { showTab("land"); openField(f); };
+    const del = $("[data-del]", el);
+    del.onclick = () => {
+      if (!del.classList.contains("sure")) { del.classList.add("sure"); del.innerHTML = T2("Delete?", "मिटाएं?"); setTimeout(() => { if (del.isConnected && del.classList.contains("sure")) renderFarm(); }, 4000); return; }
+      state.fields = state.fields.filter((x) => x.id !== f.id); storeFields(); renderFarm(); renderGuide(false);
+    };
+    $("[data-rename]", el).onclick = (ev) => {
+      const h3 = $(".fc-name", el), btn = ev.currentTarget;
+      h3.innerHTML = `<input type="text" maxlength="30" value="${esc(f.name)}">`;
+      const inp = $("input", h3); inp.focus(); inp.select(); btn.innerHTML = `${ic("circle-check")}${T2("Save", "सेव करें")}`;
+      let saved = false; const save = () => { if (saved) return; saved = true; const v = inp.value.trim(); if (v) { f.name = v; storeFields(); } renderFarm(); renderGuide(false); };
+      inp.onblur = save; inp.onchange = save; inp.onkeydown = (e) => { if (e.key === "Enter") save(); }; btn.onclick = save;
+    };
+    const d = $(".diary", el);
+    d.addEventListener("toggle", () => { if (d.open) state.diaryOpen = f.id; else if (state.diaryOpen === f.id) state.diaryOpen = null; });
+    $(".diaryform", el).onsubmit = (e) => {
+      e.preventDefault();
+      f.records = f.records || [];
+      f.records.push({ id: Date.now().toString(36), type: $(".dType", el).value, date: $(".dDate", el).value || new Date().toISOString().slice(0, 10), note: $(".dNote", el).value.trim() });
+      storeFields(); state.diaryOpen = f.id; renderFarm();
+    };
+    $$("[data-drop]", el).forEach((b) => (b.onclick = () => { f.records = (f.records || []).filter((x) => x.id !== b.dataset.drop); storeFields(); state.diaryOpen = f.id; renderFarm(); }));
+  });
   // backup: every saved field with its diary, as one file the farmer keeps
   $("#backupBtn").onclick = () => {
     const blob = new Blob([JSON.stringify({ app: "krishi-mitra-haryana", saved: new Date().toISOString(), fields: state.fields }, null, 2)], { type: "application/json" });
@@ -940,9 +990,37 @@ function wireDiary() {
       // add fields that are not here yet; never overwrite what is on the phone
       const have = new Set(state.fields.map((x) => x.param)); let added = 0;
       list.forEach((x) => { if (!have.has(x.param)) { state.fields.push({ id: String(x.id || Date.now().toString(36) + added), name: String(x.name).slice(0, 30), param: x.param, acres: +x.acres || undefined, place: typeof x.place === "string" ? x.place : "", created: x.created || "", crop: x.crop && typeof x.crop === "object" ? x.crop : {}, events: x.events && typeof x.events === "object" ? x.events : {}, records: Array.isArray(x.records) ? x.records.filter((r) => r && r.date).map((r) => ({ id: String(r.id || ""), type: String(r.type || "note"), date: String(r.date).slice(0, 10), note: String(r.note || "").slice(0, 80) })) : [] }); added++; } });
-      storeFields(); toast(T2(`${added} field(s) added from the backup.`, `बैकअप से ${added} खेत जोड़े गए।`), 4000); renderGuide(false);
+      storeFields(); toast(T2(`${added} field(s) added from the backup.`, `बैकअप से ${added} खेत जोड़े गए।`), 4000); renderFarm(); renderGuide(false);
     } catch { toast(T2("This file is not a Krishi Mitra backup.", "यह कृषि मित्र की बैकअप फ़ाइल नहीं है।"), 4000); }
   };
+}
+// "More": the pages a farmer needs less often
+function renderMore() {
+  const row = (go, icon, title, sub) => `<button type="button" class="rowlink info" data-go="${go}"><span class="vicon">${ic(icon)}</span><span class="rl-t"><b>${title}</b><small>${sub}</small></span>${ic("chevron-right")}</button>`;
+  $("#moreBoxPage").innerHTML = `<div class="card rowlist">` +
+    row("soilcard", "flask-conical", T2("Soil Health Card scanner", "मृदा स्वास्थ्य कार्ड स्कैनर"), T2("Take a photo of your card and get a fertiliser plan", "कार्ड की फोटो लें और खाद की योजना पाएं")) +
+    row("techniques", "book-open-text", T2("Farming methods and videos", "खेती के तरीके और वीडियो"), T2("Seventeen methods explained, with videos", "17 तरीके, वीडियो के साथ")) +
+    row("about", "info", T2("About this app and its data", "इस ऐप और इसके आँकड़ों के बारे में"), T2("Where every number comes from", "हर आँकड़ा कहाँ से आता है")) + `</div>`;
+}
+/* ---------------- last result kept with the field: the app opens with it at once, and it is there without a network ---------------- */
+function cacheResult(V, latest) {
+  const f = currentField();
+  if (!f || !V.length) return;
+  f.last = { at: new Date().toISOString(), image: latest ? latest.date : null, cards: V.map(({ key, icon, level, title, big, text, foot, row, go }) => ({ key, icon, level, title, big, text, foot: foot || "", row: !!row, go: go || "" })) };
+  storeFields();
+}
+function renderCached(f, offline) {
+  if (!f || !f.last) return false;
+  const el = $("#report"), V = (state.verdicts = f.last.cards);
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <div class="result-head"><div><h2>${T2("Your field", "आपके खेत का हाल")}</h2></div><button class="say big" type="button" id="sayAll" data-say="all" aria-label="${t("listen")}">${ic("volume-2")}</button></div>
+    <p class="cachednote ${offline ? "off" : ""}">${ic(offline ? "wifi-off" : "refresh-cw")}<span>${offline ? T2(`The internet did not connect. This is the result of ${fmtDate(f.last.at)}. Press See result again when the network is back.`, `इंटरनेट नहीं जुड़ा। यह ${fmtDate(f.last.at)} का नतीजा है। नेटवर्क आने पर 'नतीजा देखें' दोबारा दबाएं।`) : T2(`This is the result of ${fmtDate(f.last.at)}. Today's result is loading.`, `यह ${fmtDate(f.last.at)} का नतीजा है। आज का नतीजा आ रहा है।`)}</span></p>
+    <div class="verdicts">${V.filter((v) => !v.row).map((v) => `<article class="verdict ${v.level}">
+        <div class="vhead"><span class="vicon">${ic(v.icon)}</span><div class="vt"><div class="vlabel">${esc(v.title)}</div><div class="vbig">${esc(v.big)}</div></div><button class="say" type="button" data-say="v:${v.key}" aria-label="${t("listen")}">${ic("volume-2")}</button></div>
+        ${v.text ? `<p>${esc(v.text)}</p>` : ""}${v.foot ? `<p class="vfoot">${esc(v.foot)}</p>` : ""}
+      </article>`).join("")}</div>`;
+  return true;
 }
 // "Did this really happen?" The farmer's answer is kept with the field and shown from then on.
 function confirmHTML(key) {
@@ -951,6 +1029,11 @@ function confirmHTML(key) {
   if (ans === false) return `<p class="vtold">${ic("circle-alert")}${T2("You told us: not harvested.", "आपने बताया: कटाई नहीं हुई।")}</p>`;
   return `<div class="vconfirm"><span>${T2("Was it harvested?", "क्या कटाई हुई है?")}</span><button type="button" class="btn ghost" data-confirm="${key}" data-ans="1">${T2("Yes", "हाँ")}</button><button type="button" class="btn ghost" data-confirm="${key}" data-ans="0">${T2("No", "नहीं")}</button></div>`;
 }
+const SOW_HI = {
+  wheat: "1 से 25 नवंबर (समय पर); पछेती किस्में 15 दिसंबर तक", mustard: "1 से 31 अक्टूबर (सबसे अच्छा 10 से 25 अक्टूबर); नवंबर के बीच तक देर से बोने पर उपज घटती है", gram: "10 अक्टूबर से 5 नवंबर (बारानी में अक्टूबर का पहला पखवाड़ा)", barley: "25 अक्टूबर से 25 नवंबर", potato: "1 से 25 अक्टूबर", onion_rabi: "नर्सरी अक्टूबर-नवंबर, रोपाई दिसंबर से जनवरी के बीच तक",
+  paddy: "रोपाई 15 जून से (राज्य का नियम); नर्सरी 15 मई से", basmati: "रोपाई 1 से 20 जुलाई", cotton: "15 अप्रैल से 15 मई", bajra: "1 से 20 जुलाई (मानसून के साथ)", maize: "25 जून से 15 जुलाई", moong: "खरीफ: 1 से 15 जुलाई। गर्मी की मूंग: गेहूं के बाद 15 मार्च से 15 अप्रैल", guar: "1 से 20 जुलाई", sugarcane: "बसंत: फरवरी-मार्च। शरद: अक्टूबर", moong_summer: "15 मार्च से 15 अप्रैल, गेहूं कटते ही",
+};
+const sowText = (k) => (getLang() === "hi" && SOW_HI[k.id] ? SOW_HI[k.id] : k.sowWindow);
 const FP_MODES = { health: { en: "Health", hi: "सेहत" }, change: { en: "What changed", hi: "क्या बदला" }, sat: { en: "Latest image", hi: "ताज़ा तस्वीर" }, photo: { en: "Sharp photo", hi: "साफ़ फोटो" } };
 function fpAvailable(r) { return [r.px && "health", r.px && r.px.ref && "change", latestS2(r) && "sat", "photo"].filter(Boolean); }
 // The picture of the field: the sharp photo to recognise the land, with the satellite's 10 m cells drawn inside the boundary
@@ -1040,9 +1123,7 @@ function renderReport() {
         <div class="vhead"><span class="vicon">${ic(v.icon)}</span><div class="vt"><div class="vlabel">${esc(v.title)}</div><div class="vbig">${esc(v.big)}</div></div><button class="say" type="button" data-say="v:${v.key}" aria-label="${t("listen")}">${ic("volume-2")}</button></div>
         ${v.text ? `<p>${esc(v.text)}</p>` : ""}${v.caution ? `<p class="vcaution">${ic("triangle-alert")}<span>${esc(v.caution)}</span></p>` : ""}${v.extra || ""}${v.confirm ? confirmHTML(v.confirm.key) : ""}${v.foot ? `<p class="vfoot">${esc(v.foot)}</p>` : ""}
       </article>`).join("")}</div>
-    ${askHTML()}
-    ${diaryHTML()}
-    <div class="card rowlist">${V.filter((v) => v.row).map((v) => `<button type="button" class="rowlink ${v.level}" data-go="${v.go}"><span class="vicon">${ic(v.icon)}</span><span class="rl-t"><small>${esc(v.title)}</small><b>${esc(v.big)}</b></span>${ic("chevron-right")}</button>`).join("")}</div>
+    <div class="card rowlist">${V.filter((v) => v.row).map((v) => `<button type="button" class="rowlink ${v.level}" data-go="${v.go}"><span class="vicon">${ic(v.icon)}</span><span class="rl-t"><small>${esc(v.title)}</small><b>${esc(v.big)}</b></span>${ic("chevron-right")}</button>`).join("")}${currentField() ? `<button type="button" class="rowlink info" data-go="farm"><span class="vicon">${ic("list-checks")}</span><span class="rl-t"><small>${T2("Field diary", "खेत की डायरी")}</small><b>${(currentField().records || []).length ? T2(`${currentField().records.length} entries`, `${currentField().records.length} बातें लिखी हैं`) : T2("Write what you did today", "आज का काम लिखें")}</b></span>${ic("chevron-right")}</button>` : ""}<button type="button" class="rowlink good" id="askRow"><span class="vicon">${ic("mic")}</span><span class="rl-t"><small>${T2("Ask a question", "सवाल पूछें")}</small><b>${T2("When to irrigate? Which crop?", "सिंचाई कब? कौन सी फसल?")}</b></span>${ic("chevron-right")}</button></div>
     <div class="actionsrow noprint">
       <button class="btn mustard" id="shareBtn" type="button">${ic("share-2")}${t("shareReport")}</button>
       <button class="btn ghost" id="toCard" type="button">${ic("flask-conical")}${t("goCard")}</button>
@@ -1076,7 +1157,8 @@ function renderReport() {
   $("#toCard").onclick = () => showTab("soilcard");
   $("#toTech").onclick = () => { state.techCat = "star"; showTab("techniques"); };
   $$("#report [data-go]").forEach((b) => (b.onclick = () => showTab(b.dataset.go)));
-  wireDiary(); wireAsk();
+  $("#askRow").onclick = () => openAsk();
+  cacheResult(V, latest);
   $$("#fpModes button").forEach((b) => (b.onclick = () => { state.fpMode = b.dataset.m; applyFieldPic(); }));
   $$("#report [data-confirm]").forEach((b) => (b.onclick = () => { const f = rememberField(); if (!f) return; f.events = f.events || {}; f.events[b.dataset.confirm] = b.dataset.ans === "1"; if (b.dataset.ans === "1") { f.records = f.records || []; f.records.push({ id: Date.now().toString(36), type: "harvest", date: b.dataset.confirm.split(":")[1], note: T2("confirmed from the satellite picture", "सैटेलाइट तस्वीर देखकर पक्का किया") }); } storeFields(); refreshReport(); }));
   if ($("#cropPick")) $("#cropPick").onchange = (e) => { const f = rememberField(); if (!f) return; f.crop = f.crop || {}; if (e.target.value) f.crop[e.target.dataset.skey] = e.target.value; else delete f.crop[e.target.dataset.skey]; storeFields(); refreshReport(); };
@@ -1136,6 +1218,7 @@ function sayText(key, el) {
       const msp = CROPS.filter((c) => c.msp && c.season === state.season).slice(0, 4).map((c) => T2(`${c.en}, ${c.msp} rupees.`, `${c.hi}, ${c.msp} रुपये।`)).join(" ");
       return T2("This page shows mandi prices and the government support price, per quintal.", "इस पन्ने पर मंडी के भाव और सरकारी समर्थन मूल्य दिखते हैं, प्रति क्विंटल।") + " " + T2("Support prices.", "सरकारी भाव।") + " " + msp;
     }
+    if (tab === "farm") return T2("This page keeps your fields. For each field you see its last result, and you can open it to see today's condition. In the field diary, write what you do: sowing, irrigation, fertiliser, harvest and sale. Everything stays on this phone.", "इस पन्ने पर आपके खेत रखे हैं। हर खेत का पिछला नतीजा दिखता है, और उसे खोलकर आज का हाल देख सकते हैं। खेत की डायरी में अपना काम लिखें: बुवाई, सिंचाई, खाद, कटाई और बिक्री। यह सब इसी फ़ोन में रहता है।");
     if (tab === "weather") {
       const fc = state.forecast, al = fc ? weatherAlerts(fc, lang) : [];
       const d = fc?.daily;
@@ -1299,7 +1382,7 @@ async function renderAdvice() {
           </div>
         </div>
         ${x.reasons.length ? `<div class="tags">${x.reasons.map((r) => `<span>${esc(t("r_" + r.k, { v: r.v }))}</span>`).join("")}</div>` : ""}
-        <div class="facts"><div><b>${t("sowing")}:</b> ${esc(c.sowWindow)}</div>
+        <div class="facts"><div><b>${t("sowing")}:</b> ${esc(sowText(c))}</div>
           <div><b>${T2("Crop duration", "फसल की अवधि")}:</b> ${T2(`about ${c.duration} days`, `लगभग ${c.duration} दिन`)}</div>
           <div><b>${T2("Water need", "पानी की ज़रूरत")}:</b> ${T2(`about ${c.water} mm over the season (${["low", "medium", "high"][c.waterNeed - 1]})`, `पूरे मौसम में लगभग ${c.water} मि.मी. (${["कम", "मध्यम", "ज़्यादा"][c.waterNeed - 1]})`)}</div>
           <div><b>${T2("Usual yield", "सामान्य उपज")}:</b> ${c.yield[0]}–${c.yield[1]} ${T2("quintals an acre", "क्विंटल प्रति एकड़")}</div>
@@ -1765,7 +1848,9 @@ function setTheme(th) {
   if (active && active !== "land") showTab(active);
 }
 $("#themeBtn").onclick = () => setTheme(document.documentElement.dataset.theme === "sun" ? "night" : "sun");
-$("#aboutBtn").onclick = () => showTab("about");
+$("#askBtn").onclick = () => openAsk();
+$("#askClose").onclick = goBack;
+$("#askSheet").addEventListener("click", (e) => { if (e.target.id === "askSheet") goBack(); });
 
 /* ---------------- install as app, offline notice ---------------- */
 let installEvt = null;
@@ -1787,13 +1872,29 @@ $$(".lang button").forEach((b) => (b.onclick = () => {
   paintStatic();
   renderGuide(false); renderViewChips(); updateBadge(); renderLegend();
   if (state.report) renderReport();
-  const active = $(".tab.active")?.dataset.tab;
-  if (active && active !== "land") showTab(active);
+  $("#askSheetBody").innerHTML = "";
+  if (state.tab && state.tab !== "land") showTab(state.tab, false);
 }));
 paintStatic();
 setTheme(document.documentElement.dataset.theme || "night");
 if (restoreField(location.hash.slice(1))) { try { history.replaceState(null, "", location.pathname + location.search); } catch {} } // a shared link is used once; after that the app remembers the field itself
 else { try { restoreField(localStorage.getItem("km-field")); } catch {} }
+// First visit: one question, answered with a tap, which also unlocks speech on phones that need a touch first
+function showWelcome() {
+  const paint = () => {
+    $("#welcomeBody").innerHTML = `<div class="welcome">
+      <div class="lang" role="group"><button type="button" data-wl="hi" class="${getLang() === "hi" ? "on" : ""}">हिंदी</button><button type="button" data-wl="en" class="${getLang() === "en" ? "on" : ""}">English</button></div>
+      <h2>${T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है")}</h2>
+      <p>${T2("See your field from the satellite: crop health, what changed, and what to grow.", "अपने खेत को सैटेलाइट से देखें: फसल की सेहत, क्या बदला, और क्या बोएं।")}</p>
+      <button class="btn big" type="button" id="wListen">${ic("volume-2")}${T2("Explain it to me aloud", "मुझे बोलकर समझाओ")}</button>
+      <button class="btn big line" type="button" id="wRead">${T2("I will read it myself", "मैं खुद पढ़ लूंगा")}</button>
+    </div>`;
+    $$("#welcomeBody [data-wl]").forEach((b) => (b.onclick = () => { $(`.top .lang [data-lang="${b.dataset.wl}"]`).click(); paint(); }));
+    const done = (voice) => { try { localStorage.setItem("km-welcomed", "1"); } catch {} $("#welcome").classList.add("hidden"); if (voice) { setVoice(true); say(L_(SAY_GUIDE[step()]), $("#guide .say")); } };
+    $("#wListen").onclick = () => done(true); $("#wRead").onclick = () => done(false);
+  };
+  paint(); $("#welcome").classList.remove("hidden");
+}
 let savedVoice = false; try { savedVoice = localStorage.getItem("km-voice") === "1"; } catch {}
 setVoice(savedVoice);
 renderGuide(false);
@@ -1804,5 +1905,7 @@ try { history.replaceState({ tab: TABS.includes(initial) ? initial : "land" }, "
 if (TABS.includes(initial) && initial !== "land") showTab(initial, false);
 refreshMapDates();
 // A saved or shared field is checked straight away, so the farmer opens the app and sees today's condition
+let welcomed = true; try { welcomed = localStorage.getItem("km-welcomed") === "1" || !!localStorage.getItem("km-fields") || !!localStorage.getItem("km-field"); } catch {}
+if (!welcomed) showWelcome();
 if (state.point) setTimeout(() => { if (state.point && !state.report && !state.busy) analyse({ auto: true }); }, 600);
 window.__km = { state, map }; // handy for debugging in the console
