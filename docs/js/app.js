@@ -1,19 +1,19 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126202156";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126202156";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126202156";
-import * as Voice from "./voice.js?v=20261126202156";
-import { ARCGIS_KEY } from "./config.js?v=20261126202156";
-import * as Pheno from "./phenology.js?v=20261126202156";
-import { askIntent, cropInText } from "./ask.js?v=20261126202156";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126202156";
-import * as Field from "./field.js?v=20261126202156";
-import * as RS from "./rs.js?v=20261126202156";
-import * as src from "./sources.js?v=20261126202156";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126202156";
-import * as card from "./soilcard.js?v=20261126202156";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126202156";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126202156";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126202156";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126202910";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126202910";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126202910";
+import * as Voice from "./voice.js?v=20261126202910";
+import { ARCGIS_KEY } from "./config.js?v=20261126202910";
+import * as Pheno from "./phenology.js?v=20261126202910";
+import { askIntent, cropInText } from "./ask.js?v=20261126202910";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126202910";
+import * as Field from "./field.js?v=20261126202910";
+import * as RS from "./rs.js?v=20261126202910";
+import * as src from "./sources.js?v=20261126202910";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126202910";
+import * as card from "./soilcard.js?v=20261126202910";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126202910";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126202910";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126202910";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -130,7 +130,10 @@ document.addEventListener("click", (e) => {
    Esri World Imagery has real tiles to zoom 18 in rural Haryana (checked); beyond that it returns a grey
    "no data" tile, so deeper zooms enlarge level 18 instead. Live satellite layers are drawn on top. */
 // The map stays inside India and opens on Haryana. Haryana is sharp; everything around it is blurred.
-const map = L.map("map", { zoomControl: false, maxZoom: 21, minZoom: 5, zoomSnap: 0.25, maxBounds: INDIA_BOUNDS, maxBoundsViscosity: 1 });
+// Esri has real photo tiles to zoom 18 everywhere in Haryana (zoom 19 only in some districts; checked 27 Nov 2026).
+// Past that the photo is only enlarged and turns soft, so the map stops there.
+const MAX_SHARP = 18;
+const map = L.map("map", { zoomControl: false, maxZoom: MAX_SHARP, minZoom: 5, zoomSnap: 0.25, maxBounds: INDIA_BOUNDS, maxBoundsViscosity: 1 });
 const HARYANA_LL = HARYANA.map(([x, y]) => [y, x]);
 // the whole state in view, clear of the search bar and the buttons that float on the map
 map.fitBounds(L.latLngBounds(HARYANA_LL), { paddingTopLeft: [10, innerWidth < 761 ? 112 : 20], paddingBottomRight: [innerWidth < 761 ? 10 : 20, 14] });
@@ -143,10 +146,10 @@ const ATTR_S2 = "Copernicus Sentinel-2, Microsoft Planetary Computer", ATTR_NASA
 const PHOTO_OPEN = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 const PHOTO_KEYED = `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${ARCGIS_KEY}`;
 let photoUrl = ARCGIS_KEY ? PHOTO_KEYED : PHOTO_OPEN, photoErrors = 0;
-const photo = L.tileLayer(photoUrl, { maxNativeZoom: 18, maxZoom: 21, zIndex: 1, crossOrigin: "anonymous", keepBuffer: 4, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(map);
+const photo = L.tileLayer(photoUrl, { maxNativeZoom: 18, maxZoom: MAX_SHARP, zIndex: 1, crossOrigin: "anonymous", keepBuffer: 4, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(map);
 photo.on("tileload", () => (photoErrors = 0));
 photo.on("tileerror", () => { if (photoUrl === PHOTO_KEYED && ++photoErrors >= 4) { photoUrl = PHOTO_OPEN; photo.setUrl(PHOTO_OPEN); } });
-const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 17, maxZoom: 21, pane: "names" }).addTo(map);
+const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxNativeZoom: 17, maxZoom: MAX_SHARP, pane: "names" }).addTo(map);
 let s2Layer = null, modisLayer = null, isroLayer = null;
 const nasaOverlays = {};
 let marker = null, poly = null, square = null, searchPin = null;
@@ -400,8 +403,10 @@ function locateMe() {
   navigator.geolocation.getCurrentPosition((p) => { if (outsideHaryana(p.coords.latitude, p.coords.longitude)) { toast(T2("You are outside Haryana right now. Search for your village instead.", "आप अभी हरियाणा से बाहर हैं। अपना गाँव खोजकर चुनें।"), 5000); return; } map.setView([p.coords.latitude, p.coords.longitude], 17); setPoint(p.coords.latitude, p.coords.longitude, false); }, () => toast(t("gpsDenied")), { enableHighAccuracy: true, timeout: 15000 });
 }
 $("#fabLocate").onclick = locateMe;
-$("#fabIn").onclick = () => map.zoomIn();
+$("#fabIn").onclick = () => { if (map.getZoom() >= MAX_SHARP) { toast(T2("This is the closest clear photo.", "इससे पास की साफ़ फोटो नहीं है।")); return; } map.zoomIn(); };
 $("#fabOut").onclick = () => map.zoomOut();
+const zoomEnds = () => { $("#fabIn").classList.toggle("end", map.getZoom() >= MAX_SHARP); $("#fabOut").classList.toggle("end", map.getZoom() <= map.getMinZoom()); };
+map.on("zoomend", zoomEnds); zoomEnds();
 
 /* ---------------- the three-step guide ---------------- */
 const G = {
@@ -471,18 +476,18 @@ async function applyLayers() {
   [s2Layer, modisLayer, isroLayer].forEach((l) => l && map.removeLayer(l));
   s2Layer = modisLayer = isroLayer = null;
   const ov = rs.overlay;
-  if (ov === "nasa") modisLayer = L.tileLayer(RS.gibsTiles("modis", rs.date), { maxNativeZoom: 9, maxZoom: 21, zIndex: 2, attribution: ATTR_NASA }).addTo(map);
+  if (ov === "nasa") modisLayer = L.tileLayer(RS.gibsTiles("modis", rs.date), { maxNativeZoom: 9, maxZoom: MAX_SHARP, zIndex: 2, attribution: ATTR_NASA }).addTo(map);
   else if (ov !== "none") {
     const opacity = ov === "true" || ov === "false" ? 1 : rs.opacity;
     const sc = rs.scene || rs.auto;
-    if (sc) s2Layer = L.tileLayer(RS.sceneTiles(sc.id, ov), { minZoom: 8, maxNativeZoom: 15, maxZoom: 21, zIndex: 3, opacity, crossOrigin: "anonymous", attribution: ATTR_S2 });
+    if (sc) s2Layer = L.tileLayer(RS.sceneTiles(sc.id, ov), { minZoom: 8, maxNativeZoom: 15, maxZoom: MAX_SHARP, zIndex: 3, opacity, crossOrigin: "anonymous", attribution: ATTR_S2 });
     else {
       rs.mosaic = rs.mosaic || (await RS.latestMosaic(30, 5).catch(() => null));
-      if (rs.mosaic && rs.overlay === ov) s2Layer = L.tileLayer(RS.mosaicTiles(rs.mosaic.sid, ov), { minZoom: 9, maxNativeZoom: 15, maxZoom: 21, zIndex: 3, opacity, attribution: ATTR_S2 });
+      if (rs.mosaic && rs.overlay === ov) s2Layer = L.tileLayer(RS.mosaicTiles(rs.mosaic.sid, ov), { minZoom: 9, maxNativeZoom: 15, maxZoom: MAX_SHARP, zIndex: 3, opacity, attribution: ATTR_S2 });
     }
     if (s2Layer) s2Layer.addTo(map);
   }
-  if (rs.isro) isroLayer = L.tileLayer.wms(src.BHUVAN_WMS, { layers: src.BHUVAN_LULC, format: "image/png", transparent: true, version: "1.1.1", opacity: 0.55, maxZoom: 21, zIndex: 4, attribution: "ISRO Bhuvan (NRSC)" }).addTo(map);
+  if (rs.isro) isroLayer = L.tileLayer.wms(src.BHUVAN_WMS, { layers: src.BHUVAN_LULC, format: "image/png", transparent: true, version: "1.1.1", opacity: 0.55, maxZoom: MAX_SHARP, zIndex: 4, attribution: "ISRO Bhuvan (NRSC)" }).addTo(map);
   await applyNasa();
   labels[rs.names ? "addTo" : "remove"](map);
   updateBadge(); renderLegend(); renderViewChips();
@@ -496,7 +501,7 @@ async function applyNasa() {
       rs.fireCount = pts.length;
       nasaOverlays[k] = L.layerGroup(pts.map((f) => L.circleMarker([f.lat, f.lon], { radius: 5, color: "#fff", weight: 1, fillColor: "#ff3b1f", fillOpacity: 0.95 })
         .bindPopup(`<b>${T2("Fire seen by satellite", "सैटेलाइट ने आग देखी")}</b><br>${f.date}<br>VIIRS NOAA-20`)));
-    } else nasaOverlays[k] = L.tileLayer(RS.gibsTiles(k, RS.nasaDate(k, rs.date)), { maxNativeZoom: RS.NASA[k].lvl, maxZoom: 21, zIndex: 5, opacity: rs.opacity, attribution: ATTR_NASA });
+    } else nasaOverlays[k] = L.tileLayer(RS.gibsTiles(k, RS.nasaDate(k, rs.date)), { maxNativeZoom: RS.NASA[k].lvl, maxZoom: MAX_SHARP, zIndex: 5, opacity: rs.opacity, attribution: ATTR_NASA });
     nasaOverlays[k].addTo(map);
   }
 }

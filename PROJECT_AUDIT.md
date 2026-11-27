@@ -69,7 +69,7 @@ Test environment: the desktop browser pane of the Claude app (Chromium), at 375 
 
 | Feature | Status | Evidence / gap |
 |---|---|---|
-| Sharp base photo, no blank tiles | Working | Esri World Imagery; enlarged beyond zoom 18, checked to zoom 21. |
+| Sharp base photo, no blank tiles | Working | Esri World Imagery. Real tiles reach zoom 18 across Haryana, so since 27 Nov 2026 the map stops at zoom 18 and the photo is never enlarged. |
 | Capture date of the sharp photo | Working | Read from Esri's metadata per place and shown on the map. |
 | Source and resolution shown to the farmer | Partially working | Date is shown. Sensor and resolution are read but not displayed. |
 | Latest Sentinel-2 image with exact date | Working | Chip and badge show the date of the pass on screen. |
