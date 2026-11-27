@@ -36,7 +36,8 @@ Every statement on these pages names its source on the page. The data and the ru
 - **Year plan and money** (`docs/js/planner.js`): crops by season and acres, cost by item, income and left-over as ranges, the farmer's own figures in place of any estimate, real spending and sale against the plan. Crops without checked data (tomato and other vegetables) take the farmer's figures only.
 - **Soil profile**: scanned or typed values with their source and date, reports kept on the phone, help for farmers without a card. Missing values are never guessed.
 - **Assistant**: a large microphone, the eight field questions, and a first guided problem (yellow leaves) in `docs/js/doctor.js`. It is rule-based, not an AI.
-- **Farmer experience forum**: personal notes kept on the phone and sent by the farmer. The shared forum needs a server and is not open.
+- **Farmer experience forum**: personal notes kept on the phone, and a shared forum on a Supabase project (free tier). Anyone can send an experience without signing in; it is shown to others only after the owner approves it on the page `#admin`.
+- **Buyers and sellers board**: farmers and buyers add an entry with a name and mobile number (with consent, shown for 30 days), again only after the owner approves it. The app does not know these people unless the owner marks an entry as checked.
 - **Reading aloud** is switched off in `docs/js/config.js` (`READ_ALOUD`).
 
 `DEVELOPMENT_ROADMAP.md` lists, module by module, what works, what needs an API, a server or official data, and what is left.

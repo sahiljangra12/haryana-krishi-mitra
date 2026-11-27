@@ -56,6 +56,7 @@ No free source is both very sharp and recent. The app therefore uses two kinds o
 | Official sites of CCS HAU, MHU, ICAR institutes in Karnal | Institutes page | Text sources | Read 27 Nov 2026 | Free | Links not opened one by one in the test |
 | Haryana State Agricultural Marketing Board papers | "81 mandis on e-NAM", pre-coolers in mandis | Text source | Board papers of 2020-21 | Free | Figures are dated on the page |
 | Google Maps search links | "Search on the map" for offices, stores and transport | Not a data source: a search the farmer runs | Live | Free, no key | Results are marked as unchecked on every page that uses them |
+| Supabase project (owner's own, free tier) | Shared forum posts and the buyers and sellers board | Not outside data: what farmers and buyers send, shown after the owner approves | Live | Free tier; a free project is paused after a period without use and has storage and traffic limits (check the current limits on supabase.com/pricing) | Public address and publishable key in `config.js`; the rules are in `supabase/schema.sql`. Posts are personal experience, not checked advice |
 
 ## Sources still to investigate
 - A checked list of active FPOs in Haryana with crops and contacts (SFACH, SFAC, NABARD).

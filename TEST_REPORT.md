@@ -227,6 +227,23 @@ Tested in a desktop browser at phone size and at 1024 px. Not tested on a real p
 | FPO page opens with the finding steps and the questions to ask | Pass |
 | Older pages (Crops, Weather, Mandi prices, soil, methods, year plan, forum, orchard, land share) still open from Home and from the two centres | Pass |
 
+## Shared forum and marketplace board on Supabase: run 27 November 2026 (IST), live site, commit `4d9a98e`
+
+Server: a Supabase project on the free tier. The website holds only its public address and publishable key. Tables and rules come from `supabase/schema.sql`.
+
+| Check | Result |
+|---|---|
+| `supabase/schema.sql` on a local Postgres (PGlite), run twice | Pass: no error on the first or the second run |
+| Same rules on the local Postgres: public insert stored as pending, public cannot read pending rows, the status column or the admins table; admin reads and approves; a signed-in non-admin sees and changes nothing; sixth post in a day from one device refused; bad phone number refused | Pass |
+| Before the tables existed, the live forum and board said "not open yet" instead of an internet error | Pass |
+| Live project: public key reads `posts` and `listings` (empty lists) | Pass |
+| Live project: public key refused on the status and device columns, on `admins`, on reading `reports`, on update and on delete; a post sent as already approved, or as an expert's, refused | Pass (all 401) |
+| Live site: experience written on the forum page and sent | Pass: "Sent. Other farmers will see it after it is checked."; the public feed stayed empty |
+| Live site: board entry with a 5-digit number, then without the consent tick, then complete | Pass: stopped twice with the right message, then sent; the public list stayed empty |
+| Owner's page (`#admin`) shows the sign-in form | Pass |
+| Owner signs in, approves, marks a buyer as checked, rejects, deletes; an approved row then appears to the public; a report reaches the owner | **Not tested**: needs the owner's own sign-in |
+| New sign-ups on the project | Off (read from the project's public settings) |
+
 ## Automated tests
-`npm test` runs 52 unit tests (KVK list and nearest-centre rule, directory completeness, payment status and ledger totals, year-plan arithmetic, stored plan, yellow-leaf reading, start-screen completeness, land check on live readings, fruit order, poplar fit, crops under poplar, land-sharing cautions, stored profile, Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
+`npm test` runs 56 unit tests (the newer ones cover the forum and board input rules, the query strings, and a guard that no secret key is ever in `config.js`; the older ones cover the KVK list and nearest-centre rule, directory completeness, payment status and ledger totals, year-plan arithmetic, stored plan, yellow-leaf reading, start-screen completeness, land check on live readings, fruit order, poplar fit, crops under poplar, land-sharing cautions, stored profile, Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English. `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `4d9a98e`.
 
