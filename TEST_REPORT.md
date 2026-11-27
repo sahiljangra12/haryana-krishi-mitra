@@ -207,6 +207,26 @@ Tested in a desktop browser at phone size. Not tested on a real phone. The micro
 | New rows on My farm and More open the right pages | Pass |
 | Photo share and WhatsApp send | Not tested (need a phone) |
 
+## Home, knowledge centre and market: run 27 November 2026 (IST), live site, commit `b3d8902`
+
+Tested in a desktop browser at phone size and at 1024 px. Not tested on a real phone. External links were not opened one by one.
+
+| Check | Result |
+|---|---|
+| App opens on Home; bar has Home, Field, Knowledge, Market, My farm; no sideways scrolling | Pass |
+| First visit: the four start screens, then Home with the farmer's kind and district; a long-term farmer gets the tree and land-share tiles first | Pass |
+| Field flow from Home: map loads (8 tiles, veil drawn), result in 6 s, and Home then shows the field's condition | Pass |
+| A shared field link still opens on the map | Pass by code path (start tab is the map when the link carries a field) |
+| KVK page: Rewari shows its own centre; Nuh says ICAR's list has none and gives Rewari, about 39 km; directions, portal and helpline links present | Pass |
+| Schemes: 8 shown, Haryana filter leaves 5, each with benefit, who, how, link, source and check date | Pass |
+| Institutes: 6 with official sites, and the note on why single experts are not listed | Pass |
+| Find the right help: 8 problems; "water is short" gives two pages to open, the Bawal station, two schemes, the district KVK and the helpline; its button opens the water-saving methods | Pass |
+| Sell my crop: mustard 12 quintals at ₹5,500 shows the MSP ₹6,613 and warns that the price asked is below it; offer text built; draft kept | Pass. No mandi price came back (the price service does not answer from outside India) |
+| Sales and payments: three sales; overdue by 3 and 10 days and due in 5 days shown; marking one paid today gives "paid late, 3 days"; totals ₹30,000 received, ₹70,000 pending, ₹50,000 overdue; the buyer's own record line; the overdue row appears on Home | Pass |
+| Transport and storage: fruit and vegetables gives the cold-chain text and four map searches for the district | Pass |
+| FPO page opens with the finding steps and the questions to ask | Pass |
+| Older pages (Crops, Weather, Mandi prices, soil, methods, year plan, forum, orchard, land share) still open from Home and from the two centres | Pass |
+
 ## Automated tests
-`npm test` runs 47 unit tests (year-plan arithmetic, stored plan, yellow-leaf reading, start-screen completeness, land check on live readings, fruit order, poplar fit, crops under poplar, land-sharing cautions, stored profile, Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
+`npm test` runs 52 unit tests (KVK list and nearest-centre rule, directory completeness, payment status and ledger totals, year-plan arithmetic, stored plan, yellow-leaf reading, start-screen completeness, land check on live readings, fruit order, poplar fit, crops under poplar, land-sharing cautions, stored profile, Haryana outline and border rule, change classes, picture frame, radar comparison, spoken PIN codes, speech chunking, season logic, crop reading on real and synthetic curves, crop ranking, rotation, sowing calendar, question understanding in Hindi and English). `npm run check` runs a syntax check and blocks the regex feature that broke older iPhones. Both run on every push in GitHub Actions and passed on commit `96b6a8a`.
 

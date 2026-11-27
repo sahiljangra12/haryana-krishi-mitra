@@ -4,10 +4,18 @@ A free, open web app for Haryana farmers: a **satellite land report** for any fi
 
 **Live site:** https://sahiljangra12.github.io/haryana-krishi-mitra/
 
-## The six sections
-Field (the map and the result), Crops (what to grow), Weather, Mandi, My farm (saved fields, their last result, diary, backup) and More (Soil Health Card scanner, farming methods and videos, About). A mic button in the header opens the question box on every page.
+## The five sections
+The bar has five items. Everything else opens from them, each page with a back arrow.
 
-On the first visit the app asks one thing: listen or read. A saved field opens straight away with its last result and its date, then updates. With no network the last result stays on screen and says which day it is from.
+| Section | What is in it |
+|---|---|
+| **Home** | Today's rows (weather warning, the field's condition, the year plan, the soil report, overdue payments), a microphone bar, and tiles for every tool |
+| **Field** | The map: choose a field and see its condition from the satellite |
+| **Knowledge** | Find the right help for a problem, the district KVK and the Kisan Call Centre, government schemes, universities and institutes, farming methods, the experience forum |
+| **Market** | Mandi prices and MSP, "sell my crop", the sales and payments ledger, FPOs, transport and storage |
+| **My farm** | The farmer's details, saved fields and diary, the year plan, the soil report |
+
+The directory behind Knowledge and Market is in `docs/js/directory.js`, with the source of every entry and the date it was checked. No buyer, transporter, cold store, FPO or expert is listed by name: no checked list was found, and none is invented. Where a list is missing the page sends the farmer to the official body or to a map search that is marked as unchecked.
 
 ## The farmer first
 The app starts only after four basic answers, one full screen each: language, district, the kind of farming (seasonal crops, a fruit orchard, or timber trees) and the water for the land (assured, limited, rain only). Until all four are given the start screens cover the whole window; there is no skip and the app behind cannot be reached. This also holds for someone who used the app before the questions existed and for someone who opens a shared field link (the field is shown as soon as they finish). The answers are kept on the phone (`km-profile`) and can be changed at any time under My farm. Water is asked because every crop recommendation depends on it; before this the app silently assumed assured water. It decides what the My farm page shows first:

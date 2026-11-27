@@ -51,7 +51,18 @@ No free source is both very sharp and recent. The app therefore uses two kinds o
 | Kisan Call Centre, 1800-180-1551 (mkisan.gov.in; Lok Sabha answers) | Call button on the soil page and in the assistant | Text source | Free call, 6 am to 10 pm every day, as stated by the Ministry | Free | Number checked against mkisan.gov.in on 27 Nov 2026; the call itself not tested |
 | TNAU Agritech, ICAR Indian Farming, Univ. of Maryland, Cornell | The yellow-leaf questions in the assistant | Text sources | Listed in `docs/js/doctor.js` and on the answer | Free | Read on 27 Nov 2026; not reviewed by an agronomist |
 
+| ICAR list of Krishi Vigyan Kendras, Haryana (icar.org.in/en/node/15019) | KVK page: 18 centres, addresses, host bodies | Text source | Read 27 Nov 2026; ICAR's count may lag (four districts have no centre in it) | Free | Unit test checks 18 entries and the nearest-centre rule |
+| PIB, pmkisan.gov.in, pmfby.gov.in, Haryana budget and state statements 2025-26 | Schemes page | Text sources, named on each scheme | Read 27 Nov 2026; amounts change | Free | Not re-checked automatically |
+| Official sites of CCS HAU, MHU, ICAR institutes in Karnal | Institutes page | Text sources | Read 27 Nov 2026 | Free | Links not opened one by one in the test |
+| Haryana State Agricultural Marketing Board papers | "81 mandis on e-NAM", pre-coolers in mandis | Text source | Board papers of 2020-21 | Free | Figures are dated on the page |
+| Google Maps search links | "Search on the map" for offices, stores and transport | Not a data source: a search the farmer runs | Live | Free, no key | Results are marked as unchecked on every page that uses them |
+
 ## Sources still to investigate
+- A checked list of active FPOs in Haryana with crops and contacts (SFACH, SFAC, NABARD).
+- A checked list of cold stores and warehouses by district with capacity (a Rajya Sabha answer of February 2024 has district counts; the names are with NHB and the state).
+- Current phone numbers of each KVK (kvk.icar.gov.in).
+- Soil testing laboratories by district.
+
 - IMD: an official open service usable from a browser.
 - CGWB / India-WRIS: block-level groundwater categories as an open table.
 - Haryana Agriculture Department and CCS HAU: scheme notices and package-of-practices references for the cost and yield tables.

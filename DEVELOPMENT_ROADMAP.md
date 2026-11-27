@@ -10,7 +10,7 @@ Written 21 November 2026, after the audit in `PROJECT_AUDIT.md`. Nothing here is
 | 2 Land cover and likely crop | **First version built.** Rule-based, confidence never above medium, farmer can correct. Not validated against known fields. |
 | 3 Health and harvest timeline | **Partly built**: field story from well-seen seasons, possible-harvest with confirmation, standing-water check. |
 | 4 Soil, water, weather | **Partly built**: source labels, elevation. Block-level groundwater and IMD not started. |
-| 12/13 Tests and checks | **Started**: 47 unit tests and a compatibility check on every push. `app.js` not yet split. |
+| 12/13 Tests and checks | **Started**: 52 unit tests and a compatibility check on every push. `app.js` not yet split. |
 | 5 Recommendation engine | **Built and verified**: plain reasons, last crop and irrigation method, sowing calendar (a crop whose sowing has closed is marked late), costly no-MSP crops ranked down unless the farmer picks high risk, duration, water, yield, general fertiliser dose, assumptions, label check before any spray. **Missing: seed rate per crop** (no verified CCS HAU figures found yet) and Hindi wording of the sowing dates. |
 | 8 Mandi | Text corrected. Waiting for the India phone test. |
 | 10 Farm history | **Built and verified**: saved fields, crop per season, harvest answers, a diary per field (sowing, irrigation, fertiliser, spray, harvest, sale) and a backup file. Kept on the phone only. |
@@ -36,19 +36,29 @@ The app is a static site: there is no server, no login and no database. That dec
 | Farmer experience forum (Module 3) | The page exists and says plainly that the shared forum is not open; a farmer can write an experience with crop and topic, keep it on the phone, send it through WhatsApp or the share sheet, and remove it; each note is marked as personal experience | Video storage and delivery | Yes: accounts, a database, file storage, likes, comments, follows, district feeds, reporting and moderation all need it | No | Everything social. Also a decision by the owner: who moderates, and the legal duties of hosting the public's posts and videos |
 | Reading aloud | Switched off at the owner's request (`READ_ALOUD = false` in `config.js`); the microphone stays | | | | Can be switched back with one line |
 
-### Phases 2 to 5 (not started)
+### Phases 2 to 4 (built on 27 November 2026 as far as a site without a server can go)
 
-| Module | What it needs before it can be real |
-|---|---|
-| Knowledge centre, universities, experts (6) | Research and entry of official pages and contacts; no private phone numbers. Can be a static directory: no server |
-| Schemes (6D) | Official sources per scheme with a "last checked" date; someone has to keep it current |
-| KVK and helpline directory (7) | The official KVK list for Haryana's 22 districts with addresses; can be static |
-| Marketplace, buyers, offers (8) | Server, login, roles for farmers and buyers, moderation. No buyer or price may be invented |
-| Payment transparency (9) | Real transactions on the platform, so it comes after the marketplace |
-| Transport and storage (10) | A verified list of providers and cold stores; no open data source found yet |
-| FPO discovery (11) | The official FPO registers (SFAC, NABARD); each entry checked before it is shown |
-| Home screen and six-item navigation (13) | A design decision: the present bar has Field, Crops, Weather, Mandi, My farm, More |
-| Haryanvi | A reviewed translation of every screen by a native speaker; phones have no Haryanvi voice |
+| Module | Built and working now | Needs a server (backend) | Needs official data that was not found | Left |
+|---|---|---|---|---|
+| Home and navigation (13) | Home screen with today's rows (weather, field, plan, soil, overdue payments), a microphone bar and three groups of tiles; five-item bar: Home, Field, Knowledge, Market, My farm | No | No | Haryanvi text |
+| Knowledge centre (6) | Find the right help (8 problems, each with the page to open, the institute, the schemes, the district KVK and the helpline); six institutes with what they work on and their official sites; eight schemes with benefit, who, how, official link, source and check date | No, but someone must re-check the entries; nothing updates by itself | Required documents for most schemes; closing dates | Individual experts are not listed: no checked public list, and private numbers must not be published. Student and researcher contributions need a server |
+| KVK and helpline directory (7) | The 18 KVKs in ICAR's list with addresses and hosts; the district's own KVK or the nearest one with the distance, said plainly for the four districts without one in the list; directions; Kisan Call Centre call button; map searches for the agriculture office, soil lab and horticulture office, marked as unchecked | No | Current phone numbers and emails of each KVK; a list of soil testing laboratories and district offices | |
+| Marketplace (8) | "Sell my crop": offer prepared from crop, variety, quantity, quality, date and price; compared with the MSP and the day's Agmarknet price; sent by the farmer; official routes (e-NAM, registration for MSP buying, FPO) | Buyer accounts, listings that others can see, search, offers, contact between farmer and buyer | A checked list of buyers | Everything two-sided. No buyer is shown |
+| Payment transparency (9) | The farmer's own ledger: buyer, amount, promised date, paid date; on time, late, due and overdue worked out; totals; the farmer's own record with each buyer; overdue payments shown on Home | A reliability score across farmers, verified transactions, dispute reports | No | Public buyer ratings |
+| Transport and storage (10) | What each kind of produce needs (grain, potato and onion, fruit and vegetables, flowers); map searches by district for stores and vehicles, marked as unchecked; what to ask before storing or hiring | Provider accounts, availability and prices | A checked list of cold stores, warehouses and transporters with capacity | Named providers |
+| FPO discovery (11) | What an FPO does, how to find a registered one (SFACH, SFAC, KVK), what to ask before joining | No | A checked list of active FPOs with focus crops and contacts | Named FPOs |
+
+### Phase 5
+
+Satellite monitoring, crop suitability, the land check and district zones were built earlier and are verified above. Predictive analytics (yield or price forecasts) is not built: it needs years of checked yield and price data and a validation study, and a forecast without that would be a guess.
+
+### Still open after all phases
+
+- A server, for the shared forum, the two-sided marketplace, buyer ratings and a real AI assistant. This is the owner's decision (cost, moderation, legal duties of hosting the public's posts).
+- Haryanvi: a reviewed translation by a native speaker.
+- Tests on real phones (microphone, GPS, photo sharing, WhatsApp) and inside India (mandi prices).
+- Review of the farming and legal texts by an agronomist and a lawyer.
+- Re-checking the directory: the entries carry the date 27 November 2026.
 
 ## Ground rules for every phase
 - Work inside the existing app. No rewrite.
