@@ -1,24 +1,25 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126222210";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126222210";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126222210";
-import * as Voice from "./voice.js?v=20261126222210";
-import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126222210";
-import * as Pheno from "./phenology.js?v=20261126222210";
-import { askIntent, cropInText } from "./ask.js?v=20261126222210";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126222210";
-import * as Land from "./landtype.js?v=20261126222210";
-import * as Farmer from "./farmer.js?v=20261126222210";
-import * as Dir from "./directory.js?v=20261126222210";
-import * as Planner from "./planner.js?v=20261126222210";
-import * as Doctor from "./doctor.js?v=20261126222210";
-import * as Field from "./field.js?v=20261126222210";
-import * as RS from "./rs.js?v=20261126222210";
-import * as src from "./sources.js?v=20261126222210";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126222210";
-import * as card from "./soilcard.js?v=20261126222210";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126222210";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126222210";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126222210";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126223326";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126223326";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126223326";
+import * as Voice from "./voice.js?v=20261126223326";
+import { ARCGIS_KEY, READ_ALOUD } from "./config.js?v=20261126223326";
+import * as Pheno from "./phenology.js?v=20261126223326";
+import { askIntent, cropInText } from "./ask.js?v=20261126223326";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126223326";
+import * as Land from "./landtype.js?v=20261126223326";
+import * as Farmer from "./farmer.js?v=20261126223326";
+import * as Remote from "./remote.js?v=20261126223326";
+import * as Dir from "./directory.js?v=20261126223326";
+import * as Planner from "./planner.js?v=20261126223326";
+import * as Doctor from "./doctor.js?v=20261126223326";
+import * as Field from "./field.js?v=20261126223326";
+import * as RS from "./rs.js?v=20261126223326";
+import * as src from "./sources.js?v=20261126223326";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice, planningPrice } from "./advisor.js?v=20261126223326";
+import * as card from "./soilcard.js?v=20261126223326";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126223326";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126223326";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126223326";
 
 // Reading aloud is switched off (config.js): the speaker buttons, the sound switch and the reading bar are hidden. The microphone stays.
 document.documentElement.classList.toggle("noread", !READ_ALOUD);
@@ -90,9 +91,9 @@ function watchLivePrices() {
 }
 
 /* ---------------- tabs ---------------- */
-const TABS = ["land", "advice", "weather", "prices", "farm", "more", "soilcard", "techniques", "about", "plan", "share", "year", "exp", "home", "know", "market", "kvk", "inst", "schemes", "solve", "sell", "ledger", "fpo", "store"];
+const TABS = ["land", "advice", "weather", "prices", "farm", "more", "soilcard", "techniques", "about", "plan", "share", "year", "exp", "home", "know", "market", "kvk", "inst", "schemes", "solve", "sell", "ledger", "fpo", "store", "board", "admin"];
 // pages that open from another section keep that section lit in the bar
-const PARENT = { advice: "home", weather: "home", more: "home", about: "home", soilcard: "farm", plan: "farm", share: "farm", year: "farm", techniques: "know", exp: "know", kvk: "know", inst: "know", schemes: "know", solve: "know", prices: "market", sell: "market", ledger: "market", fpo: "market", store: "market" };
+const PARENT = { advice: "home", weather: "home", more: "home", about: "home", soilcard: "farm", plan: "farm", share: "farm", year: "farm", techniques: "know", exp: "know", kvk: "know", inst: "know", schemes: "know", solve: "know", prices: "market", sell: "market", ledger: "market", fpo: "market", store: "market", board: "market", admin: "home" };
 let navDepth = 0; // how many steps the phone's back button can take inside the app
 function showTab(name, push = true) {
   const was = state.tab || "land";
@@ -2340,13 +2341,16 @@ const saveExp = () => { try { localStorage.setItem("km-exp", JSON.stringify(expN
 function renderExp() {
   $("#expTitle").textContent = T2("Farmer experience forum", "किसान अनुभव मंच");
   const topic = state.expTopic || "variety";
-  $("#expBox").innerHTML = `<div class="card"><p class="vcaution">${ic("circle-alert")}<span>${T2("The shared forum is not open yet. Showing other farmers' posts and videos, likes, comments and stopping wrong information all need a server and people to moderate. Until then you can write your experience here, keep it on your phone, and send it yourself.", "साझा मंच अभी शुरू नहीं हुआ है। दूसरे किसानों की पोस्ट और वीडियो दिखाने, पसंद और टिप्पणी, और ग़लत जानकारी रोकने के लिए सर्वर और निगरानी करने वाले लोग चाहिए। तब तक आप अपना अनुभव यहाँ लिखकर फ़ोन में रख सकते हैं और खुद भेज सकते हैं।")}</span></p></div>
+  $("#expBox").innerHTML = `${Remote.enabled() ? `<div class="card"><p>${T2("Farmers share what they tried and what happened. What you send is shown to others only after it is checked. Photos and videos are not open yet.", "किसान यहाँ बताते हैं कि उन्होंने क्या आज़माया और क्या हुआ। आप जो भेजते हैं वह जांच के बाद ही दूसरों को दिखता है। फोटो और वीडियो अभी शुरू नहीं हुए।")}</p></div><div id="forumFeed"></div>` : `<div class="card"><p class="vcaution">${ic("circle-alert")}<span>${T2("The shared forum is not open yet. Showing other farmers' posts and videos, likes, comments and stopping wrong information all need a server and people to moderate. Until then you can write your experience here, keep it on your phone, and send it yourself.", "साझा मंच अभी शुरू नहीं हुआ है। दूसरे किसानों की पोस्ट और वीडियो दिखाने, पसंद और टिप्पणी, और ग़लत जानकारी रोकने के लिए सर्वर और निगरानी करने वाले लोग चाहिए। तब तक आप अपना अनुभव यहाँ लिखकर फ़ोन में रख सकते हैं और खुद भेज सकते हैं।")}</span></p></div>`}
     <div class="card"><h3>${ic("pencil-line")}${T2("Write your experience", "अपना अनुभव लिखें")}</h3>${chipsQ("topic", topic, Object.entries(EXP_TOPICS).map(([k, v]) => [k, L_(v)]))}
       <form id="expForm"><label class="f"><span>${T2("Crop", "फसल")}</span><input type="text" id="expCrop" maxlength="40" placeholder="${T2("e.g. amla", "जैसे आंवला")}"></label>
       <label class="f"><span>${T2("What happened, in your words", "क्या हुआ, अपने शब्दों में")}</span><textarea id="expText" rows="4" maxlength="1200" required placeholder="${T2("My land had little water, so I tried this crop...", "मेरी ज़मीन में पानी कम था, इसलिए मैंने यह फसल ट्राई की...")}"></textarea></label>
-      <button class="btn" type="submit">${ic("circle-check")}${T2("Keep it", "रख लें")}</button></form></div>
+      ${Remote.enabled() ? `<label class="f"><span>${T2("Your name (optional, shown with the post)", "आपका नाम (चाहें तो; पोस्ट के साथ दिखेगा)")}</span><input type="text" id="expAuthor" maxlength="40"></label><button class="btn" type="button" id="expSend">${ic("share-2")}${T2("Send to the forum", "मंच पर भेजें")}</button>` : ""}
+      <button class="btn ${Remote.enabled() ? "line" : ""}" type="submit">${ic("circle-check")}${T2("Keep it on my phone only", "सिर्फ़ मेरे फ़ोन में रखें")}</button></form></div>
     ${expNotes.length ? `<h3 class="sec">${T2("My experiences (on this phone only)", "मेरे अनुभव (सिर्फ़ इस फ़ोन में)")}</h3>` + expNotes.map((n) => `<article class="card expnote" data-id="${n.id}"><p class="hint">${esc([n.crop, EXP_TOPICS[n.topic] ? L_(EXP_TOPICS[n.topic]) : "", n.district, fmtDate(n.date)].filter(Boolean).join(" · "))}</p><p class="exptext">${esc(n.text)}</p><p class="hint">${ic("user-round")} ${T2("Personal experience, not checked by an expert", "निजी अनुभव, किसी जानकार ने जांचा नहीं")}</p><div class="row"><button type="button" class="btn line" data-send>${ic("share-2")}${T2("Send", "भेजें")}</button><button type="button" class="btn line" data-del>${ic("trash-2")}${T2("Remove", "हटाएं")}</button></div></article>`).join("") : ""}`;
   $$("#expBox [data-q] .chip").forEach((b) => (b.onclick = () => { state.expTopic = b.dataset.v; const c = $("#expCrop").value, tx = $("#expText").value; renderExp(); $("#expCrop").value = c; $("#expText").value = tx; }));
+  if ($("#expSend")) $("#expSend").onclick = sendExperience;
+  renderForumFeed();
   $("#expForm").onsubmit = (e) => { e.preventDefault(); const text = $("#expText").value.trim(); if (!text) return; expNotes.unshift({ id: Date.now().toString(36), date: new Date().toISOString(), district: L_(state.district), crop: $("#expCrop").value.trim(), topic, text }); saveExp(); renderExp(); toast(T2("Kept on this phone.", "इस फ़ोन में रख लिया गया।")); };
   $$("#expBox .expnote").forEach((el) => {
     const n = expNotes.find((x) => x.id === el.dataset.id); if (!n) return;
@@ -2372,7 +2376,7 @@ const dName = (n) => { const d = DISTRICTS.find((x) => x.name === n); return d ?
 const todayISO = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
 
 // pages that have no markup in index.html: a section with a back arrow, a title and a box
-const PAGE_IDS = ["home", "know", "market", "kvk", "inst", "schemes", "solve", "sell", "ledger", "fpo", "store"];
+const PAGE_IDS = ["home", "know", "market", "kvk", "inst", "schemes", "solve", "sell", "ledger", "fpo", "store", "board", "admin"];
 for (const id of PAGE_IDS) {
   if ($("#tab-" + id)) continue;
   const s = document.createElement("section"); s.id = "tab-" + id; s.className = "panel";
@@ -2470,7 +2474,7 @@ function renderMarket() {
   setTitle("market", "Mandi and market", "मंडी और बाज़ार");
   const L = Dir.ledgerTotals(sales, todayISO());
   $("#marketBox").innerHTML = `<p class="hint">${T2("Know the price, look at more than one way to sell, and keep a record of who paid when.", "भाव जानें, बेचने के एक से ज़्यादा रास्ते देखें, और हिसाब रखें कि किसने कब पैसा दिया।")}</p>
-    <div class="card rowlist">${rowLink("prices", "indian-rupee", T2("Today's mandi prices and MSP", "आज के मंडी भाव और MSP"), T2("Agmarknet prices by mandi and crop", "मंडी और फसल के हिसाब से Agmarknet के भाव"))}${rowLink("sell", "store", T2("Sell my crop: find the right buyer", "फसल बेचो: सही खरीदार खोजो"), T2("Compare with the mandi price, prepare your offer", "मंडी भाव से तुलना करें, अपनी पेशकश तैयार करें"))}${rowLink("ledger", "list-checks", T2("Sales and payments", "बिक्री और भुगतान का हिसाब"), sales.length ? T2(`Pending ${money(L.pending)}${L.overdueCount ? `, overdue ${money(L.overdue)}` : ""}`, `बाकी ${money(L.pending)}${L.overdueCount ? `, तारीख निकली ${money(L.overdue)}` : ""}`) : T2("Who bought, when the money is due, when it came", "किसने खरीदा, पैसा कब मिलना है, कब मिला"))}</div>
+    <div class="card rowlist">${rowLink("prices", "indian-rupee", T2("Today's mandi prices and MSP", "आज के मंडी भाव और MSP"), T2("Agmarknet prices by mandi and crop", "मंडी और फसल के हिसाब से Agmarknet के भाव"))}${rowLink("sell", "store", T2("Sell my crop: find the right buyer", "फसल बेचो: सही खरीदार खोजो"), T2("Compare with the mandi price, prepare your offer", "मंडी भाव से तुलना करें, अपनी पेशकश तैयार करें"))}${Remote.enabled() ? rowLink("board", "users", T2("Buyers and sellers board", "खरीदार और बेचने वालों की सूची"), T2("Entries from farmers and buyers, checked before they are shown", "किसानों और खरीदारों की सूचनाएं, दिखाने से पहले जांची हुई")) : ""}${rowLink("ledger", "list-checks", T2("Sales and payments", "बिक्री और भुगतान का हिसाब"), sales.length ? T2(`Pending ${money(L.pending)}${L.overdueCount ? `, overdue ${money(L.overdue)}` : ""}`, `बाकी ${money(L.pending)}${L.overdueCount ? `, तारीख निकली ${money(L.overdue)}` : ""}`) : T2("Who bought, when the money is due, when it came", "किसने खरीदा, पैसा कब मिलना है, कब मिला"))}</div>
     <div class="card rowlist">${rowLink("fpo", "users", T2("Farmer producer organisations (FPO)", "किसान उत्पादक संगठन (FPO)"), T2("Selling together for a better price", "मिलकर बेचना, बेहतर भाव"))}${rowLink("store", "tractor", T2("Transport and storage", "ट्रांसपोर्ट और स्टोरेज"), T2("What your crop needs and where to look", "आपकी फसल को क्या चाहिए और कहाँ खोजें"))}${rowLink("schemes", "landmark", T2("Price and insurance schemes", "भाव और बीमा की योजनाएं"), "")}</div>`;
 }
 function renderSell() {
@@ -2500,7 +2504,7 @@ function renderSell() {
       <li><b>${T2("Government buying at MSP", "MSP पर सरकारी खरीद")}</b>: ${T2("needs registration on Meri Fasal Mera Byora before the season.", "इसके लिए मौसम से पहले 'मेरी फसल मेरा ब्योरा' पर पंजीकरण चाहिए।")}</li>
       <li><b>FPO</b>: ${T2("a farmers' company that sells for its members.", "किसानों की अपनी कंपनी, जो अपने सदस्यों के लिए बेचती है।")}</li></ul>
       <div class="row wrap">${ext("https://enam.gov.in", "e-NAM")}${ext("https://fasal.haryana.gov.in", T2("Meri Fasal Mera Byora", "मेरी फसल मेरा ब्योरा"))}<button type="button" class="btn line" data-go="fpo">${ic("users")}FPO</button></div></div>
-    <div class="card rowlist">${rowLink("ledger", "list-checks", T2("After the sale: record the payment", "बिक्री के बाद: भुगतान का हिसाब लिखें"), "")}${rowLink("store", "tractor", T2("Transport and storage", "ट्रांसपोर्ट और स्टोरेज"), "")}</div>`;
+    <div class="card rowlist">${Remote.enabled() ? rowLink("board", "users", T2("Put this on the buyers and sellers board", "इसे खरीदार और बेचने वालों की सूची में डालें"), T2("Shown to everyone after it is checked", "जांच के बाद सबको दिखेगी")) : ""}${rowLink("ledger", "list-checks", T2("After the sale: record the payment", "बिक्री के बाद: भुगतान का हिसाब लिखें"), "")}${rowLink("store", "tractor", T2("Transport and storage", "ट्रांसपोर्ट और स्टोरेज"), "")}</div>`;
   const keep = () => { sellDraft = { cropId: $("#slCrop").value || null, name: $("#slName").value.trim(), variety: $("#slVariety").value.trim(), qty: +$("#slQty").value || null, grade: $("#slGrade").value.trim(), harvest: $("#slHarvest").value, price: +$("#slPrice").value || null }; try { localStorage.setItem("km-sell", JSON.stringify(sellDraft)); } catch {} };
   $$("#sellForm input, #sellForm select").forEach((el) => (el.onchange = () => { if (el.id === "slDistrict") setDistrict(el.value); keep(); renderSell(); }));
   if ($("#slSend")) $("#slSend").onclick = () => window.open(`https://wa.me/?text=${encodeURIComponent($("#slText").value)}`, "_blank", "noopener");
@@ -2562,6 +2566,118 @@ function renderStore() {
   $$("#storeBox [data-q] .chip").forEach((b) => (b.onclick = () => { state.storeKind = b.dataset.v; renderStore(); }));
 }
 const PAGE_RENDER = { home: renderHome, know: renderKnow, market: renderMarket, kvk: renderKvk, inst: renderInst, schemes: renderSchemes, solve: renderSolve, sell: renderSell, ledger: renderLedger, fpo: renderFpo, store: renderStore };
+
+/* =====================================================================================
+   Shared forum, marketplace board and the owner's approval page. All three talk to the
+   Supabase project named in config.js (see remote.js and supabase/schema.sql). Until an
+   address is set there, Remote.enabled() is false and each page says it is not open.
+   Nothing a farmer sends is public until the owner approves it.
+   ===================================================================================== */
+const SERVER_MSG = (e) => /too many/.test(e.message) ? T2("You have sent five today. Try again tomorrow.", "आज आप पाँच बार भेज चुके हैं। कल दोबारा कोशिश करें।") : /waiting list/.test(e.message) ? T2("Too many posts are waiting to be checked. Try again later.", "बहुत सी पोस्ट जांच के इंतज़ार में हैं। बाद में कोशिश करें।") : T2("It could not be sent. Check the internet and try again.", "भेजा नहीं जा सका। इंटरनेट देखकर दोबारा कोशिश करें।");
+const reportBtn = (table, id) => `<button type="button" class="linkbtn rep" data-report="${table}:${id}">${ic("circle-alert")}${T2("Report", "शिकायत करें")}</button>`;
+function wireReports(root) {
+  $$("[data-report]", root).forEach((b) => (b.onclick = async () => {
+    if (!b.classList.contains("sure")) { b.classList.add("sure"); b.innerHTML = `${ic("circle-alert")}${T2("Tap again to report as wrong or harmful", "ग़लत या नुकसानदेह बताने के लिए दोबारा दबाएं")}`; return; }
+    const [table, id] = b.dataset.report.split(":");
+    try { await Remote.report(table, id, ""); b.outerHTML = `<span class="hint">${T2("Reported. Thank you.", "शिकायत दर्ज हो गई। धन्यवाद।")}</span>`; } catch (e) { toast(SERVER_MSG(e), 5000); }
+  }));
+}
+async function renderForumFeed() {
+  const box = $("#forumFeed"); if (!box || !Remote.enabled()) return;
+  const scope = state.forumScope || "district";
+  box.innerHTML = `<h3 class="sec">${T2("From other farmers", "दूसरे किसानों के अनुभव")}</h3>${chipsQ("fscope", scope, [["district", L_(state.district)], ["all", T2("All Haryana", "पूरा हरियाणा")]])}<div id="forumList"><p class="hint">${T2("Loading", "ला रहे हैं")}</p></div>`;
+  $$("[data-q='fscope'] .chip", box).forEach((b) => (b.onclick = () => { state.forumScope = b.dataset.v; renderForumFeed(); }));
+  try {
+    const rows = await Remote.listPosts({ district: scope === "district" ? state.district.name : null });
+    if (!$("#forumList")) return;
+    $("#forumList").innerHTML = rows.length ? rows.map((p) => `<article class="card expnote"><p class="hint">${esc([p.crop, EXP_TOPICS[p.topic] ? L_(EXP_TOPICS[p.topic]) : "", dName(p.district), fmtDate(p.created_at)].filter(Boolean).join(" · "))}</p><p class="exptext">${esc(p.body)}</p><p class="hint">${ic(p.kind === "expert" ? "shield-check" : "user-round")} ${p.kind === "expert" ? T2("Contribution from an expert", "जानकार का योगदान") : T2("Personal experience, not checked by an expert", "निजी अनुभव, किसी जानकार ने जांचा नहीं")}${p.author ? ` · ${esc(p.author)}` : ""}</p>${reportBtn("posts", p.id)}</article>`).join("") : `<div class="card empty"><p>${scope === "district" ? T2("No experience from your district yet. Be the first to write one.", "आपके जिले से अभी कोई अनुभव नहीं आया। पहला अनुभव आप लिखें।") : T2("No experience has been posted yet.", "अभी कोई अनुभव नहीं आया।")}</p></div>`;
+    wireReports($("#forumList"));
+  } catch { if ($("#forumList")) $("#forumList").innerHTML = `<p class="hint">${T2("The forum could not be reached. Check the internet.", "मंच तक नहीं पहुँच पाए। इंटरनेट देखें।")}</p>`; }
+}
+async function sendExperience() {
+  const c = Remote.cleanPost({ district: state.district.name, crop: $("#expCrop").value, topic: state.expTopic || "variety", body: $("#expText").value, author: $("#expAuthor") ? $("#expAuthor").value : "" });
+  if (!c.ok) { toast(c.error === "short" ? T2("Write a little more: at least a full sentence.", "थोड़ा और लिखें: कम से कम एक पूरा वाक्य।") : T2("Fill in the crop and what happened.", "फसल और क्या हुआ, यह भरें।"), 4000); return; }
+  const b = $("#expSend"); b.disabled = true;
+  try { await Remote.addPost(c.row); $("#expText").value = ""; toast(T2("Sent. Other farmers will see it after it is checked.", "भेज दिया गया। जांच के बाद यह दूसरे किसानों को दिखेगा।"), 5000); } catch (e) { toast(SERVER_MSG(e), 5000); } finally { b.disabled = false; }
+}
+
+/* ---------------- marketplace board ---------------- */
+function renderBoard() {
+  setTitle("board", "Buyers and sellers", "खरीदार और बेचने वाले");
+  if (!Remote.enabled()) { $("#boardBox").innerHTML = `<div class="card"><p class="vcaution">${ic("circle-alert")}<span>${T2("The board is not open yet: it needs the server to be connected. Until then, prepare your offer and send it yourself.", "यह सूची अभी शुरू नहीं हुई: इसके लिए सर्वर जुड़ना बाकी है। तब तक अपनी पेशकश तैयार करके खुद भेजें।")}</span></p><button type="button" class="btn" data-go="sell">${ic("store")}${T2("Prepare my offer", "मेरी पेशकश तैयार करें")}</button></div>`; return; }
+  const kind = state.boardKind || "sell", scope = state.boardScope || "district", d = sellDraft, crop = CROPS.find((c) => c.id === d.cropId);
+  $("#boardBox").innerHTML = `<div class="card"><p class="vcaution">${ic("triangle-alert")}<span>${T2("Each entry is checked before it is shown, but the people are not known to this app unless marked as checked. Never send money in advance. Meet, see the produce, and agree the payment date before you hand over anything.", "हर सूचना दिखाने से पहले जांची जाती है, पर जब तक 'जांचा हुआ' न लिखा हो, ये लोग इस ऐप के जाने-पहचाने नहीं हैं। पहले से पैसे कभी न भेजें। मिलें, माल देखें, और कुछ भी देने से पहले भुगतान की तारीख तय करें।")}</span></p>
+      ${chipsQ("bkind", kind, [["sell", T2("Farmers selling", "बेचने वाले किसान")], ["buy", T2("Buyers looking", "खरीदार")]])}${chipsQ("bscope", scope, [["district", L_(state.district)], ["all", T2("All Haryana", "पूरा हरियाणा")]])}
+      <label class="f"><span>${T2("Crop", "फसल")}</span><input type="search" id="bdCrop" maxlength="40" value="${esc(state.boardCrop || "")}" placeholder="${T2("e.g. mustard", "जैसे सरसों")}"></label></div>
+    <div id="boardList"><p class="hint">${T2("Loading", "ला रहे हैं")}</p></div>
+    <details class="card" id="bdAdd" ${state.boardAdd ? "open" : ""}><summary>${ic("plus")}${T2("Add my entry", "अपनी सूचना जोड़ें")}</summary><form id="bdForm" class="filters">
+      <label class="f"><span>${T2("I want to", "मुझे")}</span><select id="bfKind"><option value="sell">${T2("sell", "बेचना है")}</option><option value="buy">${T2("buy", "खरीदना है")}</option></select></label>
+      <label class="f"><span>${T2("Crop", "फसल")}</span><input type="text" id="bfCrop" maxlength="40" required value="${esc(crop ? L_(crop) : d.name || "")}"></label>
+      <label class="f"><span>${T2("Variety", "किस्म")}</span><input type="text" id="bfVariety" maxlength="40" value="${esc(d.variety || "")}"></label>
+      <label class="f"><span>${T2("Quantity (quintals)", "मात्रा (क्विंटल)")}</span><input type="number" id="bfQty" inputmode="decimal" min="0.1" step="0.1" required value="${d.qty ?? ""}"></label>
+      <label class="f"><span>${T2("Price (₹ a quintal)", "भाव (₹ प्रति क्विंटल)")}</span><input type="number" id="bfPrice" inputmode="numeric" min="1" value="${d.price ?? ""}"></label>
+      <label class="f"><span>${T2("Ready from", "कब से तैयार")}</span><input type="date" id="bfReady" value="${d.harvest || ""}"></label>
+      <label class="f"><span>${T2("Your name", "आपका नाम")}</span><input type="text" id="bfName" maxlength="40" required></label>
+      <label class="f"><span>${T2("Mobile number", "मोबाइल नंबर")}</span><input type="tel" id="bfPhone" inputmode="numeric" maxlength="14" required></label>
+      <label class="f wide2"><span>${T2("Anything else", "और कुछ")}</span><input type="text" id="bfNote" maxlength="300"></label>
+      <label class="check wide2"><input type="checkbox" id="bfConsent"> <span>${T2("I agree that my name and mobile number will be shown to everyone who opens this page, for 30 days.", "मैं मानता हूँ कि मेरा नाम और मोबाइल नंबर 30 दिन तक इस पन्ने को खोलने वाले हर व्यक्ति को दिखेगा।")}</span></label>
+      <button class="btn" type="submit" id="bfSend">${ic("circle-check")}${T2("Send for checking", "जांच के लिए भेजें")}</button></form>
+      <p class="hint">${T2("District", "जिला")}: ${L_(state.district)}. ${T2("It appears after it is checked, and is removed after 30 days.", "यह जांच के बाद दिखेगी और 30 दिन बाद हट जाएगी।")}</p></details>`;
+  $$("[data-q='bkind'] .chip", $("#boardBox")).forEach((b) => (b.onclick = () => { state.boardKind = b.dataset.v; renderBoard(); }));
+  $$("[data-q='bscope'] .chip", $("#boardBox")).forEach((b) => (b.onclick = () => { state.boardScope = b.dataset.v; renderBoard(); }));
+  $("#bdCrop").onchange = (e) => { state.boardCrop = e.target.value.trim(); renderBoard(); };
+  $("#bdAdd").addEventListener("toggle", () => (state.boardAdd = $("#bdAdd").open));
+  $("#bdForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const c = Remote.cleanListing({ kind: $("#bfKind").value, district: state.district.name, crop: $("#bfCrop").value, variety: $("#bfVariety").value, qty_qtl: $("#bfQty").value, price: $("#bfPrice").value, ready_from: $("#bfReady").value, name: $("#bfName").value, phone: $("#bfPhone").value, note: $("#bfNote").value, consent: $("#bfConsent").checked });
+    if (!c.ok) { toast({ phone: T2("Write a 10-digit mobile number.", "10 अंकों का मोबाइल नंबर लिखें।"), consent: T2("Tick the box to agree that your number will be shown.", "नंबर दिखाने की सहमति के लिए डिब्बे पर टिक करें।"), qty: T2("Write the quantity.", "मात्रा लिखें।"), name: T2("Write your name.", "अपना नाम लिखें।") }[c.error] || T2("Check what you filled in.", "भरी हुई जानकारी देख लें।"), 4500); return; }
+    $("#bfSend").disabled = true;
+    try { await Remote.addListing(c.row); state.boardAdd = false; toast(T2("Sent. It will appear after it is checked.", "भेज दी गई। जांच के बाद यह दिखेगी।"), 5000); renderBoard(); } catch (err) { toast(SERVER_MSG(err), 5000); $("#bfSend").disabled = false; }
+  };
+  Remote.listListings({ kind, district: scope === "district" ? state.district.name : null, crop: state.boardCrop }).then((rows) => {
+    if (!$("#boardList") || state.tab !== "board") return;
+    $("#boardList").innerHTML = rows.length ? rows.map((l) => `<article class="card sale"><div class="fr-h"><h3>${esc(l.crop)}${l.variety ? ` <small>(${esc(l.variety)})</small>` : ""}</h3><span class="fit ${l.verified ? "yes" : "ok"}">${l.verified ? T2("Checked by the app", "ऐप ने जांचा है") : T2("Not checked", "जांचा नहीं गया")}</span></div>
+        <p><b>${+l.qty_qtl} ${T2("qtl", "क्विंटल")}</b>${l.price ? ` · ${rupee(+l.price)}/${T2("qtl", "क्विंटल")}` : ""}${l.ready_from ? ` · ${T2("from", "से")} ${fmtDate(l.ready_from)}` : ""}</p>
+        <p class="hint">${esc(l.name)} · ${dName(l.district)} · ${fmtDate(l.created_at)}${l.note ? `<br>${esc(l.note)}` : ""}</p>
+        <div class="row wrap"><a class="btn" href="tel:+91${l.phone}">${ic("phone")}${T2("Call", "फोन करें")}</a><a class="btn line" href="https://wa.me/91${l.phone}" target="_blank" rel="noopener">${ic("share-2")}WhatsApp</a></div>${reportBtn("listings", l.id)}</article>`).join("") : `<div class="card empty"><p>${kind === "sell" ? T2("No farmer has listed this yet.", "अभी किसी किसान ने यह नहीं डाला।") : T2("No buyer has posted a requirement yet.", "अभी किसी खरीदार ने ज़रूरत नहीं डाली।")}</p></div>`;
+    wireReports($("#boardList"));
+  }).catch(() => { if ($("#boardList")) $("#boardList").innerHTML = `<p class="hint">${T2("The board could not be reached. Check the internet.", "सूची तक नहीं पहुँच पाए। इंटरनेट देखें।")}</p>`; });
+}
+
+/* ---------------- the owner's page: approve what the public sent ---------------- */
+let adminToken = null; // kept in memory only: closing the page signs out
+async function renderAdmin() {
+  setTitle("admin", "Owner: approvals", "मालिक: मंज़ूरी");
+  const box = $("#adminBox");
+  if (!Remote.enabled()) { box.innerHTML = `<div class="card"><p>${T2("The server is not connected yet (config.js has no address).", "सर्वर अभी जुड़ा नहीं है (config.js में पता नहीं है)।")}</p></div>`; return; }
+  if (!adminToken) {
+    box.innerHTML = `<div class="card"><p>${T2("Only the owner of the app can sign in here.", "यहाँ सिर्फ़ ऐप का मालिक साइन इन कर सकता है।")}</p><form id="adForm"><label class="f"><span>Email</span><input type="email" id="adEmail" autocomplete="username" required></label><label class="f"><span>${T2("Password", "पासवर्ड")}</span><input type="password" id="adPass" autocomplete="current-password" required></label><button class="btn" type="submit">${T2("Sign in", "साइन इन")}</button></form></div>`;
+    $("#adForm").onsubmit = async (e) => { e.preventDefault(); try { const r = await Remote.signIn($("#adEmail").value.trim(), $("#adPass").value); if (!(await Remote.amAdmin(r.access_token))) throw new Error("not admin"); adminToken = r.access_token; renderAdmin(); } catch { toast(T2("Sign-in failed, or this user is not the owner.", "साइन इन नहीं हुआ, या यह उपयोगकर्ता मालिक नहीं है।"), 5000); } };
+    return;
+  }
+  box.innerHTML = `<p class="hint">${T2("Loading", "ला रहे हैं")}</p>`;
+  try {
+    const [posts, listings, reports] = await Promise.all([Remote.adminList("posts", adminToken), Remote.adminList("listings", adminToken), Remote.adminList("reports", adminToken)]);
+    const acts = (table, id, extra = "") => `<div class="row wrap"><button type="button" class="btn" data-ad="${table}:${id}:approved">${T2("Approve", "मंज़ूर")}</button>${extra}<button type="button" class="btn line" data-ad="${table}:${id}:rejected">${T2("Reject", "नामंज़ूर")}</button><button type="button" class="btn line" data-ad="${table}:${id}:delete">${ic("trash-2")}${T2("Delete", "मिटाएं")}</button></div>`;
+    box.innerHTML = `<div class="row"><button type="button" class="btn line" id="adOut">${T2("Sign out", "साइन आउट")}</button><button type="button" class="btn line" id="adReload">${ic("refresh-cw")}${T2("Reload", "दोबारा लाएं")}</button></div>
+      <h3 class="sec">${T2("Forum posts waiting", "मंच की पोस्ट, इंतज़ार में")} (${posts.length})</h3>${posts.map((p) => `<article class="card"><p class="hint">${esc([p.district, p.crop, p.topic, fmtDate(p.created_at), p.author].filter(Boolean).join(" · "))}</p><p class="exptext">${esc(p.body)}</p>${acts("posts", p.id, `<button type="button" class="btn line" data-ad="posts:${p.id}:expert">${T2("Approve as expert", "जानकार के रूप में मंज़ूर")}</button>`)}</article>`).join("") || `<p class="hint">${T2("None.", "कोई नहीं।")}</p>`}
+      <h3 class="sec">${T2("Marketplace entries waiting", "बाज़ार की सूचनाएं, इंतज़ार में")} (${listings.length})</h3>${listings.map((l) => `<article class="card"><p><b>${l.kind === "buy" ? T2("BUY", "खरीद") : T2("SELL", "बिक्री")}: ${esc(l.crop)}</b> · ${+l.qty_qtl} qtl${l.price ? ` · ₹${+l.price}` : ""}</p><p class="hint">${esc([l.name, l.phone, l.district, fmtDate(l.created_at), l.note].filter(Boolean).join(" · "))}</p>${acts("listings", l.id, `<button type="button" class="btn line" data-ad="listings:${l.id}:verified">${T2("Approve as checked", "जांचा हुआ मानकर मंज़ूर")}</button>`)}</article>`).join("") || `<p class="hint">${T2("None.", "कोई नहीं।")}</p>`}
+      <h3 class="sec">${T2("Reports from the public", "लोगों की शिकायतें")} (${reports.length})</h3>${reports.map((r) => `<article class="card"><p class="hint">${esc(r.target_table)} · ${esc(r.target_id)} · ${fmtDate(r.created_at)}</p><div class="row wrap"><button type="button" class="btn line" data-ad="${r.target_table}:${r.target_id}:rejected">${T2("Hide the reported entry", "शिकायत वाली सूचना छिपाएं")}</button><button type="button" class="btn line" data-ad="reports:${r.id}:delete">${T2("Dismiss", "शिकायत हटाएं")}</button></div></article>`).join("") || `<p class="hint">${T2("None.", "कोई नहीं।")}</p>`}`;
+    $("#adOut").onclick = () => { adminToken = null; renderAdmin(); };
+    $("#adReload").onclick = renderAdmin;
+    $$("[data-ad]", box).forEach((b) => (b.onclick = async () => {
+      const [table, id, act] = b.dataset.ad.split(":");
+      try {
+        if (act === "delete") await Remote.adminDelete(table, id, adminToken);
+        else if (act === "expert") await Remote.adminSet(table, id, { status: "approved", kind: "expert" }, adminToken);
+        else if (act === "verified") await Remote.adminSet(table, id, { status: "approved", verified: true }, adminToken);
+        else await Remote.adminSet(table, id, { status: act }, adminToken);
+        renderAdmin();
+      } catch (e) { toast(e.status === 401 ? T2("Signed out. Sign in again.", "साइन आउट हो गया। दोबारा साइन इन करें।") : T2("That did not work.", "यह नहीं हो पाया।"), 4000); if (e.status === 401) { adminToken = null; renderAdmin(); } }
+    }));
+  } catch { box.innerHTML = `<p class="hint">${T2("Could not load. Check the internet and reload.", "ला नहीं पाए। इंटरनेट देखकर दोबारा कोशिश करें।")}</p>`; }
+}
+PAGE_RENDER.board = renderBoard; PAGE_RENDER.admin = renderAdmin;
 
 /* ---------------- My farm: the farmer's own page ---------------- */
 const FOR_YOU = {

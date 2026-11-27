@@ -9,3 +9,9 @@ export const ARCGIS_KEY_EXPIRES = "2027-11-19";
 // Reading the pages aloud (speaker buttons, the sound switch, the reading bar). Switched off at the owner's request on 27 Nov 2026.
 // Set to true to bring it back; nothing else needs to change. The microphone for asking questions is separate and stays on.
 export const READ_ALOUD = false;
+
+// Shared forum and marketplace board (Supabase, free tier). Both values are public by design: the database rules in
+// supabase/schema.sql decide what this key may do (submit as pending, read approved). The service_role key must NEVER be put here.
+// Empty = the forum and the board stay closed and the app says so.
+export const SUPABASE_URL = "";
+export const SUPABASE_ANON_KEY = "";

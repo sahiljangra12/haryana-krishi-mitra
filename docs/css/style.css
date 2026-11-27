@@ -1084,3 +1084,18 @@ label.f.inl { margin: 0; flex: 1 1 9rem; }
 label.f.inl input { width: 100%; padding: 0 0.6rem; }
 .sale [data-del].sure { color: var(--risk); }
 .solveback { margin: 0 0 0.6rem; min-height: 44px; }
+
+/* ---------------- shared forum, marketplace board, owner's page ---------------- */
+.linkbtn.rep { margin: 0.3rem 0 0; min-height: 40px; color: var(--soil-2); font-size: 0.84rem; }
+.linkbtn.rep.sure { color: var(--risk); }
+#forumFeed .chips, #boardBox .chips { margin-bottom: 0.6rem; }
+#boardBox .card, #adminBox .card { margin-bottom: 0.8rem; }
+#boardBox input, #boardBox select, #adminBox input { width: 100%; padding: 0 0.6rem; }
+#bdForm { grid-template-columns: 1fr 1fr; align-items: end; margin-top: 0.8rem; }
+#bdForm .wide2, #bdForm .btn { grid-column: 1 / -1; }
+#bdForm .btn, #adminBox .btn, #boardBox .card > .btn { min-height: 46px; font-size: 1rem; }
+label.check { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.92rem; }
+label.check input { width: 22px !important; height: 22px; min-height: 0; flex: none; margin-top: 0.1rem; }
+#bdAdd > summary { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-weight: 600; color: var(--green); min-height: 40px; }
+#boardBox .sale .row .btn, #adminBox .row .btn { flex: 1 1 8rem; min-height: 44px; font-size: 0.95rem; text-decoration: none; }
+#expForm #expSend { margin-bottom: 0.5rem; }
