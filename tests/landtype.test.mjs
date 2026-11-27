@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { classify, shares, IO_CLASS, WC_CLASS } from "../docs/js/landtype.js";
-import { fruitFit, poplarFit, underPoplar, shareNotes, cleanProfile, emptyProfile, FRUITS, SOURCES } from "../docs/js/farmer.js";
+import { fruitFit, poplarFit, underPoplar, shareNotes, cleanProfile, emptyProfile, isComplete, FRUITS, SOURCES } from "../docs/js/farmer.js";
 
 const io = (s, year = 2023) => ({ year, shares: s }), wc = (s) => ({ year: 2021, shares: s });
 
@@ -84,4 +84,12 @@ test("a stored profile is cleaned field by field", () => {
   assert.equal(p.plantation.tree_age, "grown"); assert.equal(p.plantation.tractor_access, null);
   assert.deepEqual(p.primary_crops, ["poplar"]); assert.equal(p.language, null); assert.equal(p.interest_land_sharing, true); assert.equal(p.location.district, "Rewari");
   assert.deepEqual(cleanProfile("junk"), emptyProfile());
+});
+test("the app starts only when all four basic answers are in", () => {
+  assert.equal(isComplete(emptyProfile()), false);
+  const p = cleanProfile({ language: "hi", location: { district: "Karnal" }, farmer_category: "seasonal" });
+  assert.equal(isComplete(p), false); // water missing
+  assert.equal(isComplete(cleanProfile({ ...p, irrigation: "limited" })), true);
+  assert.equal(isComplete(cleanProfile({ ...p, irrigation: "limited", farmer_category: "hobby" })), false); // an unknown kind does not count
+  assert.equal(isComplete(null), false);
 });

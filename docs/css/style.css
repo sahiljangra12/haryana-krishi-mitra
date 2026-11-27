@@ -960,3 +960,17 @@ details.srcs a { color: var(--canal); }
 .gdel { display: flex; margin: 0.6rem auto 0; min-height: 44px; color: var(--soil-2); }
 .gdel.sure { color: var(--risk); font-weight: 600; }
 #report.blocked #askRow, #report.blocked .rowlink[data-go="farm"], #report.blocked #toCard, #report.blocked #toTech { display: none; }
+
+/* ---------------- start screens: they cover the whole window until the four basic answers are given ---------------- */
+html.gated, html.gated body { overflow: hidden; }
+.sheet.gate { align-items: stretch; background: var(--bg); }
+.sheet.gate .sheet-card { max-width: none; width: 100%; max-height: none; height: 100%; border-radius: 0; box-shadow: none; padding: calc(1.2rem + env(safe-area-inset-top, 0px)) 1.1rem calc(1.2rem + var(--safe-b)); display: flex; }
+.sheet.gate .sheet-card::before { display: none; }
+.sheet.gate #welcomeBody { width: 100%; max-width: 520px; margin: auto; }
+.sheet.gate .welcome { gap: 0.9rem; padding-top: 0.6rem; }
+.wlogo { justify-self: center; border-radius: 16px; }
+.wsteps { min-height: 36px; align-items: center; }
+.wsteps i.done { background: var(--green); opacity: 0.45; }
+.wback { top: 0; }
+.welcome .btn.big .ic:last-child { margin-left: 0.2rem; }
+.toast { z-index: 2100; }

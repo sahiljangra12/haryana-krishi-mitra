@@ -1,21 +1,21 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126212146";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126212146";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126212146";
-import * as Voice from "./voice.js?v=20261126212146";
-import { ARCGIS_KEY } from "./config.js?v=20261126212146";
-import * as Pheno from "./phenology.js?v=20261126212146";
-import { askIntent, cropInText } from "./ask.js?v=20261126212146";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126212146";
-import * as Land from "./landtype.js?v=20261126212146";
-import * as Farmer from "./farmer.js?v=20261126212146";
-import * as Field from "./field.js?v=20261126212146";
-import * as RS from "./rs.js?v=20261126212146";
-import * as src from "./sources.js?v=20261126212146";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126212146";
-import * as card from "./soilcard.js?v=20261126212146";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126212146";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126212146";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126212146";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126213235";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126213235";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126213235";
+import * as Voice from "./voice.js?v=20261126213235";
+import { ARCGIS_KEY } from "./config.js?v=20261126213235";
+import * as Pheno from "./phenology.js?v=20261126213235";
+import { askIntent, cropInText } from "./ask.js?v=20261126213235";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126213235";
+import * as Land from "./landtype.js?v=20261126213235";
+import * as Farmer from "./farmer.js?v=20261126213235";
+import * as Field from "./field.js?v=20261126213235";
+import * as RS from "./rs.js?v=20261126213235";
+import * as src from "./sources.js?v=20261126213235";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126213235";
+import * as card from "./soilcard.js?v=20261126213235";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126213235";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126213235";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126213235";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -2021,6 +2021,7 @@ window.addEventListener("offline", () => toast(t("offline")));
 $$(".tab").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 $$(".lang button").forEach((b) => (b.onclick = () => {
   setLang(b.dataset.lang);
+  if (Farmer.isComplete(profile)) saveProfile(); // keep the stored language in step
   Voice.stop();
   paintStatic();
   renderGuide(false); renderViewChips(); updateBadge(); renderLegend();
@@ -2053,42 +2054,56 @@ function setDistrict(name) { const d = DISTRICTS.find((x) => x.name === name); i
 const ZONE_WORD = { NE: { en: "This is the canal and tubewell belt (north-eastern plains).", hi: "यह नहर और ट्यूबवेल वाला इलाका है (उत्तर-पूर्वी मैदान)।" }, SW: { en: "This is the drier belt (south-west: sandier soil, less rain).", hi: "यह सूखा इलाका है (दक्षिण-पश्चिम: रेतीली मिट्टी, कम बारिश)।" } };
 const GW_WORD = { stressed: { en: "Groundwater is falling in much of this district.", hi: "इस जिले के बड़े हिस्से में ज़मीन का पानी नीचे जा रहा है।" }, saline: { en: "Groundwater is salty in many places here.", hi: "यहाँ कई जगह ज़मीन का पानी खारा है।" } };
 
-/* ---------------- first visit: language, place, kind of farming ---------------- */
+/* ---------------- the app starts only after four basic answers: language, district, kind of farming, water ----------------
+   Until they are given, the start screens cover the whole window and the app behind cannot be reached.
+   The same screen, opened later from My farm with start = "type", is an ordinary sheet that can be closed. */
+const WATER_Q = { en: "How is the water for your land?", hi: "आपकी ज़मीन पर पानी कैसा है?" };
+const WATER_WHY = { en: "Crop advice changes a lot with water, so we ask instead of guessing.", hi: "पानी के हिसाब से फसल की सलाह बहुत बदलती है, इसलिए हम अंदाज़ा नहीं लगाते, आपसे पूछते हैं।" };
+const WATER_CARDS = [
+  ["good", "droplets", { en: "Assured water", hi: "पक्का पानी" }, { en: "Canal or tubewell, whenever needed", hi: "नहर या ट्यूबवेल, जब चाहिए तब" }],
+  ["limited", "droplet", { en: "Limited water", hi: "पानी कम है" }, { en: "Water comes, but not always enough", hi: "पानी मिलता है, पर हमेशा पूरा नहीं" }],
+  ["rainfed", "cloud-rain", { en: "Rain only", hi: "सिर्फ़ बारिश का पानी" }, { en: "No canal or tubewell", hi: "नहर या ट्यूबवेल नहीं है" }],
+];
+function setGate(on) {
+  document.documentElement.classList.toggle("gated", on);
+  $("#welcome").classList.toggle("gate", on);
+  for (const sel of [".top", ".tabs", "main"]) { const el = $(sel); if (el) el.inert = on; }
+}
 function showWelcome(start = "lang") {
-  const single = start === "type"; // asked on its own: from My farm, or once for a farmer who used the app before this question existed
-  let page = start, voice = false, pick = profile.farmer_category, dist = profile.location.district || state.district.name;
-  const close = () => $("#welcome").classList.add("hidden");
-  const finish = (chosen) => {
-    try { localStorage.setItem("km-welcomed", "1"); localStorage.setItem("km-typeasked", "1"); } catch {}
+  const single = start === "type";
+  let page = start, voice = false, pick = profile.farmer_category, dist = profile.location.district || state.district.name, water = profile.irrigation;
+  const steps = ["lang", "place", "type", "water"];
+  const close = () => { $("#welcome").classList.add("hidden"); setGate(false); };
+  const finish = () => {
+    try { localStorage.setItem("km-welcomed", "1"); } catch {}
     close();
-    if (chosen) toast(T2("Saved. You can change it any time in My farm.", "सेव हो गया। 'मेरे खेत' में जाकर इसे कभी भी बदल सकते हैं।"), 4000);
-    if (!single) showTab("farm"); else if (state.tab === "farm") renderFarm(); else if (state.tab === "more") renderMore(); else if (state.tab === "plan") renderPlan();
-    if (voice) { setVoice(true); say(T2("This is your page. First, press See my field from the satellite.", "यह आपका पन्ना है। सबसे पहले, अपना खेत सैटेलाइट से देखें दबाएं।"), null); }
+    toast(T2("Saved. You can change it any time in My farm.", "सेव हो गया। 'मेरे खेत' में जाकर इसे कभी भी बदल सकते हैं।"), 4000);
+    if (single) { if (state.tab === "farm") renderFarm(); else if (state.tab === "more") renderMore(); else if (state.tab === "plan") renderPlan(); return; }
+    // a field opened from a link or kept from before is shown at once; otherwise the farmer's own page comes first
+    if (state.point) { showTab("land", false); setTimeout(() => map.invalidateSize(), 80); } else showTab("farm");
+    if (voice) say(state.point ? L_(SAY_GUIDE[step()]) : T2("This is your page. First, press See my field from the satellite.", "यह आपका पन्ना है। सबसे पहले, अपना खेत सैटेलाइट से देखें दबाएं।"), null);
   };
-  const dots = (n) => (single ? "" : `<div class="wsteps" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i === n ? "on" : ""}"></i>`).join("")}</div>`);
+  const head = (n, title, text) => `${single ? `<button type="button" class="iconbtn sheet-close" id="wClose" aria-label="${T2("Close", "बंद करें")}">${ic("x")}</button>` : `${n > 1 ? `<button type="button" class="backbtn wback" id="wBack" aria-label="${T2("Back", "वापस")}">${ic("arrow-left")}</button>` : ""}<div class="wsteps" role="img" aria-label="${T2(`Step ${n} of 4`, `4 में से ${n}`)}">${steps.map((_, i) => `<i class="${i + 1 === n ? "on" : i + 1 < n ? "done" : ""}"></i>`).join("")}</div>`}<h2>${title}</h2><p>${text}</p>`;
+  const next = (id, ok) => `<button class="btn big" type="button" id="${id}" ${ok ? "" : "disabled"}>${T2("Continue", "आगे बढ़ें")}${ic("chevron-right")}</button>`;
+  const go = (p) => { page = p; paint(); };
   const paint = () => {
     const body = $("#welcomeBody");
     if (page === "lang") {
-      body.innerHTML = `<div class="welcome">${dots(1)}
-        <div class="lang" role="group"><button type="button" data-wl="hi" class="${getLang() === "hi" ? "on" : ""}">हिंदी</button><button type="button" data-wl="en" class="${getLang() === "en" ? "on" : ""}">English</button></div>
-        <h2>${T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है")}</h2>
-        <p>${T2("See your field from the satellite: crop health, what changed, and what to grow.", "अपने खेत को सैटेलाइट से देखें: फसल की सेहत, क्या बदला, और क्या बोएं।")}</p>
-        <button class="btn big" type="button" id="wListen">${ic("volume-2")}${T2("Explain it to me aloud", "मुझे बोलकर समझाओ")}</button>
-        <button class="btn big line" type="button" id="wRead">${T2("I will read it myself", "मैं खुद पढ़ लूंगा")}</button>
+      body.innerHTML = `<div class="welcome"><img class="wlogo" src="img/logo.svg" alt="" width="64" height="64">${head(1, T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है"), T2("Four short questions first. Then the app is set up for your farming.", "पहले चार छोटे सवाल। फिर ऐप आपकी खेती के हिसाब से तैयार हो जाएगा।"))}
+        <div class="lang" role="group" aria-label="${T2("Language", "भाषा")}"><button type="button" data-wl="hi" class="${getLang() === "hi" ? "on" : ""}">हिंदी</button><button type="button" data-wl="en" class="${getLang() === "en" ? "on" : ""}">English</button></div>
+        <button class="btn big" type="button" id="wListen">${ic("volume-2")}${T2("Read the questions aloud to me", "सवाल बोलकर सुनाओ")}</button>
+        <button class="btn big line" type="button" id="wRead">${T2("I will read them myself", "मैं खुद पढ़ लूंगा")}${ic("chevron-right")}</button>
       </div>`;
       $$("[data-wl]", body).forEach((b) => (b.onclick = () => { $(`.top .lang [data-lang="${b.dataset.wl}"]`).click(); paint(); }));
-      $("#wListen").onclick = () => { voice = true; Voice.prime && Voice.prime(); page = "place"; paint(); };
-      $("#wRead").onclick = () => { voice = false; page = "place"; paint(); };
+      $("#wListen").onclick = () => { voice = true; setVoice(true); go("place"); };
+      $("#wRead").onclick = () => { voice = false; Voice.stop(); go("place"); };
     } else if (page === "place") {
-      body.innerHTML = `<div class="welcome">${dots(2)}
-        <button type="button" class="backbtn wback" id="wBack" aria-label="${T2("Back", "वापस")}">${ic("arrow-left")}</button>
-        <h2>${T2("Where is your farming?", "आपकी खेती कहाँ है?")}</h2>
-        <p>${T2("Choose your district. Weather, mandi prices and crop advice will then be for your area.", "अपना जिला चुनें। फिर मौसम, मंडी भाव और फसल की सलाह आपके इलाके की होगी।")}</p>
+      const q = T2("Where is your farming?", "आपकी खेती कहाँ है?"), why = T2("Choose your district. Weather, mandi prices and crop advice will then be for your area.", "अपना जिला चुनें। फिर मौसम, मंडी भाव और फसल की सलाह आपके इलाके की होगी।");
+      body.innerHTML = `<div class="welcome">${head(2, q, why)}
         <label class="f wide"><span>${t("chooseDistrict")}</span><select id="wDistrict">${districtOpts(dist)}</select></label>
         <button class="btn big line" type="button" id="wGps">${ic("locate")}${T2("Find it from my location", "मेरी लोकेशन से चुनें")}</button>
-        <button class="btn big" type="button" id="wNext">${T2("Continue", "आगे बढ़ें")}${ic("chevron-right")}</button>
+        ${next("wNext", true)}
       </div>`;
-      $("#wBack").onclick = () => { page = "lang"; paint(); };
       $("#wDistrict").onchange = (e) => (dist = e.target.value);
       $("#wGps").onclick = () => {
         if (!navigator.geolocation) return toast(T2("Location is not available on this phone. Choose the district from the list.", "इस फ़ोन में लोकेशन नहीं मिल रही। सूची से जिला चुनें।"), 4000);
@@ -2097,22 +2112,26 @@ function showWelcome(start = "lang") {
           dist = nearestDistrict(p.coords.latitude, p.coords.longitude).name; paint();
         }, () => toast(T2("Location could not be read. Choose the district from the list.", "लोकेशन नहीं मिली। सूची से जिला चुनें।"), 4000), { timeout: 10000 });
       };
-      $("#wNext").onclick = () => { setDistrict(dist); const d = state.district; if (!state.point) map.setView([d.lat, d.lon], 10, { animate: false }); page = "type"; paint(); };
+      $("#wNext").onclick = () => { setDistrict(dist); const d = state.district; if (!state.point) map.setView([d.lat, d.lon], 10, { animate: false }); go("type"); };
+      if (voice) say(`${q} ${why}`, null);
+    } else if (page === "type") {
+      body.innerHTML = `<div class="welcome typepage">${head(3, L_(TYPE_Q), L_(TYPE_WHY))}${typeCards(pick)}${next("wDone", !!pick)}</div>`;
+      $$("[data-type]", body).forEach((b) => (b.onclick = () => { pick = b.dataset.type; const y = body.parentElement.scrollTop; paint(); body.parentElement.scrollTop = y; }));
+      $("#wDone").onclick = () => { if (!pick) return; saveProfile({ farmer_category: pick }); if (single) finish(); else go("water"); };
+      if (voice && !pick) say(`${L_(TYPE_Q)} ${Farmer.TYPE_IDS.map((id) => { const k = Farmer.FARMER_TYPES[id]; return `${L_(k)}: ${L_(k.desc)}`; }).join(" ")}`, null);
     } else {
-      body.innerHTML = `<div class="welcome typepage">${dots(3)}
-        ${single ? `<button type="button" class="iconbtn sheet-close" id="wClose" aria-label="${T2("Close", "बंद करें")}">${ic("x")}</button>` : `<button type="button" class="backbtn wback" id="wBack" aria-label="${T2("Back", "वापस")}">${ic("arrow-left")}</button>`}
-        <h2>${L_(TYPE_Q)}</h2><p>${L_(TYPE_WHY)}</p>
-        ${typeCards(pick)}
-        <button class="btn big" type="button" id="wDone" ${pick ? "" : "disabled"}>${T2("Continue", "आगे बढ़ें")}${ic("chevron-right")}</button>
-        <button class="linkbtn wskip" type="button" id="wSkip">${T2("I will tell you later", "बाद में बताऊंगा")}</button>
-      </div>`;
-      if ($("#wBack")) $("#wBack").onclick = () => { page = "place"; paint(); };
-      if ($("#wClose")) $("#wClose").onclick = () => { try { localStorage.setItem("km-typeasked", "1"); } catch {} close(); };
-      $$("[data-type]", body).forEach((b) => (b.onclick = () => { pick = b.dataset.type; paint(); }));
-      $("#wDone").onclick = () => { if (!pick) return; saveProfile({ farmer_category: pick }); finish(true); };
-      $("#wSkip").onclick = () => finish(false);
+      body.innerHTML = `<div class="welcome typepage">${head(4, L_(WATER_Q), L_(WATER_WHY))}
+        <div class="typecards" role="radiogroup" aria-label="${esc(L_(WATER_Q))}">${WATER_CARDS.map(([id, icon, title, sub]) => `<button type="button" role="radio" aria-checked="${water === id}" class="typecard ${water === id ? "on" : ""}" data-water="${id}"><span class="tc-ic">${ic(icon)}</span><span class="tc-t"><b>${L_(title)}</b><span>${L_(sub)}</span></span><span class="tc-check">${ic("circle-check")}</span></button>`).join("")}</div>
+        <button class="btn big" type="button" id="wFinish" ${water ? "" : "disabled"}>${ic("circle-check")}${T2("Start the app", "ऐप शुरू करें")}</button></div>`;
+      $$("[data-water]", body).forEach((b) => (b.onclick = () => { water = b.dataset.water; const y = body.parentElement.scrollTop; paint(); body.parentElement.scrollTop = y; }));
+      $("#wFinish").onclick = () => { if (!water) return; setWater(water); finish(); };
+      if (voice && !water) say(`${L_(WATER_Q)} ${WATER_CARDS.map(([, , title, sub]) => `${L_(title)}: ${L_(sub)}`).join(". ")}`, null);
     }
+    if ($("#wBack")) $("#wBack").onclick = () => go(steps[steps.indexOf(page) - 1]);
+    if ($("#wClose")) $("#wClose").onclick = close;
+    body.parentElement.scrollTop = 0;
   };
+  setGate(!single);
   paint(); $("#welcome").classList.remove("hidden");
 }
 
@@ -2149,7 +2168,7 @@ function profileHTML() {
 }
 function wireProfile(root) {
   if ($("#pfEdit", root)) $("#pfEdit", root).onclick = () => showWelcome("type");
-  $$("[data-type]", root).forEach((b) => (b.onclick = () => { saveProfile({ farmer_category: b.dataset.type }); try { localStorage.setItem("km-typeasked", "1"); } catch {} renderFarm(); }));
+  $$("[data-type]", root).forEach((b) => (b.onclick = () => { saveProfile({ farmer_category: b.dataset.type }); renderFarm(); }));
 }
 
 /* ---------------- orchard and tree planning ---------------- */
@@ -2290,9 +2309,8 @@ try { history.replaceState({ tab: TABS.includes(initial) ? initial : "land" }, "
 if (TABS.includes(initial) && initial !== "land") showTab(initial, false);
 refreshMapDates();
 // A saved or shared field is checked straight away, so the farmer opens the app and sees today's condition
-let welcomed = true; try { welcomed = localStorage.getItem("km-welcomed") === "1" || !!localStorage.getItem("km-fields") || !!localStorage.getItem("km-field"); } catch {}
-let typeAsked = true; try { typeAsked = localStorage.getItem("km-typeasked") === "1"; } catch {}
-if (!welcomed) showWelcome();
-else if (!profile.farmer_category && !typeAsked) showWelcome("type");
+// The app starts only once the four basic answers are in. This holds for a first visit, for someone who used the app
+// before the questions existed, and for someone who opens a shared field link.
+if (!Farmer.isComplete(profile)) showWelcome();
 if (state.point) setTimeout(() => { if (state.point && !state.report && !state.busy) analyse({ auto: true }); }, 600);
 window.__km = { state, map, get profile() { return profile; } }; // handy for debugging in the console

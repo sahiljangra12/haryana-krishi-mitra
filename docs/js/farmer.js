@@ -70,6 +70,9 @@ export function cleanProfile(raw) {
   return p;
 }
 
+// The four basic answers the app needs before it starts: language, district, kind of farming, water
+export const isComplete = (p) => !!(p && p.language && p.location && p.location.district && p.farmer_category && p.irrigation);
+
 /* ---------------- fruit orchards ---------------- */
 // dry: named by ICAR among fruit crops that do well in arid conditions. frost: the same source warns that frost hurts it.
 export const FRUITS = [
