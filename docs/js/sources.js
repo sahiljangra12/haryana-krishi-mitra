@@ -1,4 +1,4 @@
-import { DISTRICTS } from "./districts.js?v=20261126202910";
+import { DISTRICTS } from "./districts.js?v=20261126211353";
 // All live data access lives here. Every source is free and open, no API keys in the browser.
 //  - Sentinel-2 L2A imagery: Microsoft Planetary Computer (STAC search + titiler statistics/tiles)
 //  - Soil: ISRIC SoilGrids 2.0 (250 m)
@@ -6,7 +6,7 @@ import { DISTRICTS } from "./districts.js?v=20261126202910";
 //  - Climate history: NASA POWER
 //  - Mandi prices: data/prices.json, refreshed daily by a GitHub Action from data.gov.in (Agmarknet)
 
-import { ARCGIS_KEY } from "./config.js?v=20261126202910";
+import { ARCGIS_KEY } from "./config.js?v=20261126211353";
 const STAC = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
 const PCDATA = "https://planetarycomputer.microsoft.com/api/data/v1";
 
@@ -91,13 +91,14 @@ async function stats(item, feature, query) {
 }
 const exprQuery = (e) => `expression=${encodeURIComponent(e)}&asset_as_band=true`;
 
-// Share of field pixels that are cloud / cloud shadow / snow according to the Scene Classification Layer
-async function cloudShare(item, feature) {
+// Share of field pixels that are cloud / cloud shadow / snow, and the share that is open water (class 6),
+// according to the Scene Classification Layer. One request gives both.
+async function sclShares(item, feature) {
   const s = await stats(item, feature, "assets=SCL&categorical=true");
   const [counts, values] = s.histogram;
-  let bad = 0, tot = 0;
-  values.forEach((v, i) => { tot += counts[i]; if ([0, 1, 3, 8, 9, 10, 11].includes(Math.round(v))) bad += counts[i]; });
-  return tot ? bad / tot : 1;
+  let bad = 0, wet = 0, tot = 0;
+  values.forEach((v, i) => { const k = Math.round(v); tot += counts[i]; if ([0, 1, 3, 8, 9, 10, 11].includes(k)) bad += counts[i]; if (k === 6) wet += counts[i]; });
+  return tot ? { cloud: bad / tot, water: wet / tot } : { cloud: 1, water: 0 };
 }
 
 // Pick roughly one scene every `stepDays` so the time series is light on the network
@@ -138,8 +139,8 @@ function scenesFor(feature) {
 async function readScenes(items, feature, onProgress) {
   let done = 0;
   const rows = await pool(items, 6, async (item) => {
-    const cs = await cloudShare(item, feature);
-    let row = { date: item.properties.datetime.slice(0, 10), item, cloud: cs, sceneCloud: item.properties["eo:cloud_cover"] };
+    const scl = await sclShares(item, feature), cs = scl.cloud;
+    let row = { date: item.properties.datetime.slice(0, 10), item, cloud: cs, water: scl.water, sceneCloud: item.properties["eo:cloud_cover"] };
     if (cs < 0.3) row = { ...row, ...(await indices(item, feature)) };
     onProgress && onProgress(++done, items.length);
     return row;
@@ -681,4 +682,35 @@ export async function elevation(feature) {
   if (!id) return null;
   const s = Object.values((await getJSON(`${PCDATA}/item/statistics?collection=cop-dem-glo-30&item=${encodeURIComponent(id)}&assets=data`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(feature) }, 20000)).properties.statistics)[0];
   return { mean: s.mean, min: s.min, max: s.max };
+}
+
+/* ---------------- what is on the ground: 10 m land-cover maps (Planetary Computer) ----------------
+   Impact Observatory annual land cover (newest year; one item, 43R, covers all of Haryana) and ESA WorldCover 2021.
+   The share of each class inside the field outline is read with one statistics request per map. */
+async function classHist(collection, itemId, asset, feature) {
+  const url = `${PCDATA}/item/statistics?collection=${collection}&item=${encodeURIComponent(itemId)}&assets=${asset}&categorical=true`;
+  const j = await getJSON(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(feature) }, 20000);
+  return Object.values(j.properties.statistics)[0].histogram;
+}
+const lcItems = new Map();
+function lcItem(collection, lat, lon, pick) {
+  const key = `${collection}:${Math.floor(lat / 3)}:${Math.floor(lon / 3)}`;
+  if (!lcItems.has(key)) {
+    const p = getJSON(STAC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ collections: [collection], intersects: { type: "Point", coordinates: [lon, lat] }, limit: 20 }) }, 15000)
+      .then((j) => pick(j.features || []));
+    p.catch(() => lcItems.delete(key));
+    lcItems.set(key, p);
+  }
+  return lcItems.get(key);
+}
+const yearOf = (f) => +String(f.properties.start_datetime || f.properties.datetime || "").slice(0, 4) || 0;
+export async function landCover(feature, lat, lon) {
+  const io = lcItem("io-lulc-annual-v02", lat, lon, (fs) => fs.sort((a, b) => yearOf(b) - yearOf(a))[0])
+    .then(async (it) => (it ? { year: yearOf(it), hist: await classHist("io-lulc-annual-v02", it.id, "data", feature) } : null));
+  const wc = lcItem("esa-worldcover", lat, lon, (fs) => fs.sort((a, b) => yearOf(b) - yearOf(a))[0])
+    .then(async (it) => (it ? { year: yearOf(it), hist: await classHist("esa-worldcover", it.id, "map", feature) } : null));
+  const [a, b] = await Promise.allSettled([io, wc]);
+  const out = { io: a.status === "fulfilled" ? a.value : null, wc: b.status === "fulfilled" ? b.value : null };
+  if (!out.io && !out.wc) throw new Error("land cover maps did not answer");
+  return out;
 }

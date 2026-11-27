@@ -1,19 +1,21 @@
-import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126202910";
-import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126202910";
-import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126202910";
-import * as Voice from "./voice.js?v=20261126202910";
-import { ARCGIS_KEY } from "./config.js?v=20261126202910";
-import * as Pheno from "./phenology.js?v=20261126202910";
-import { askIntent, cropInText } from "./ask.js?v=20261126202910";
-import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126202910";
-import * as Field from "./field.js?v=20261126202910";
-import * as RS from "./rs.js?v=20261126202910";
-import * as src from "./sources.js?v=20261126202910";
-import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126202910";
-import * as card from "./soilcard.js?v=20261126202910";
-import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126202910";
-import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126202910";
-import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126202910";
+import { t, getLang, setLang, rupee } from "./i18n.js?v=20261126211353";
+import { CROPS, SEASONS, COST_LABELS, MSP_SOURCE } from "./crops.js?v=20261126211353";
+import { DISTRICTS, nearestDistrict } from "./districts.js?v=20261126211353";
+import * as Voice from "./voice.js?v=20261126211353";
+import { ARCGIS_KEY } from "./config.js?v=20261126211353";
+import * as Pheno from "./phenology.js?v=20261126211353";
+import { askIntent, cropInText } from "./ask.js?v=20261126211353";
+import { HARYANA, nearHaryana, INDIA_BOUNDS } from "./haryana.js?v=20261126211353";
+import * as Land from "./landtype.js?v=20261126211353";
+import * as Farmer from "./farmer.js?v=20261126211353";
+import * as Field from "./field.js?v=20261126211353";
+import * as RS from "./rs.js?v=20261126211353";
+import * as src from "./sources.js?v=20261126211353";
+import { recommend, upcomingSeason, weatherAlerts, interpretSeries, uniformity, livePrice } from "./advisor.js?v=20261126211353";
+import * as card from "./soilcard.js?v=20261126211353";
+import { TECHNIQUES, CATEGORIES, relevantTechniques } from "./techniques.js?v=20261126211353";
+import { PHOTOS, CROP_PHOTO, TECH_PHOTO } from "./images.js?v=20261126211353";
+import { exposures, scenarios, MARKET, HAZARD_LABEL, INCENTIVE_LABEL } from "./risk.js?v=20261126211353";
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -82,12 +84,13 @@ function watchLivePrices() {
 }
 
 /* ---------------- tabs ---------------- */
-const TABS = ["land", "advice", "weather", "prices", "farm", "more", "soilcard", "techniques", "about"];
-const UNDER_MORE = ["soilcard", "techniques", "about"];
+const TABS = ["land", "advice", "weather", "prices", "farm", "more", "soilcard", "techniques", "about", "plan", "share"];
+// pages that open from another section keep that section lit in the bar
+const PARENT = { soilcard: "more", techniques: "more", about: "more", plan: "farm", share: "farm" };
 let navDepth = 0; // how many steps the phone's back button can take inside the app
 function showTab(name, push = true) {
   const was = state.tab || "land";
-  $$(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === (UNDER_MORE.includes(name) ? "more" : name)));
+  $$(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === (PARENT[name] || name)));
   $$(".panel").forEach((p) => p.classList.toggle("active", p.id === "tab-" + name));
   Voice.stop();
   window.scrollTo(0, 0);
@@ -100,6 +103,8 @@ function showTab(name, push = true) {
   if (name === "techniques") renderTechniques();
   if (name === "farm") renderFarm();
   if (name === "more") renderMore();
+  if (name === "plan") renderPlan();
+  if (name === "share") renderShare();
   state.tab = name;
   if (push && name !== was) { try { history.pushState({ tab: name }, "", "#" + name); navDepth++; } catch {} }
 }
@@ -114,6 +119,16 @@ function closeLayerPanel() {
   if (closed) Voice.stop();
   return closed;
 }
+// A sheet closes three ways: its own close button, a tap on the dimmed area around it, or the Escape key
+document.addEventListener("click", (e) => {
+  if (e.target.id === "askSheet") goBack();
+  if (e.target.id === "welcome" && $("#wClose")) $("#wClose").click();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if ($("#wClose") && !$("#welcome").classList.contains("hidden")) return $("#wClose").click();
+  if (!$("#askSheet").classList.contains("hidden") || !$("#layerPanel").classList.contains("hidden")) goBack();
+});
 window.addEventListener("popstate", (e) => {
   navDepth = Math.max(0, navDepth - 1);
   closeLayerPanel();
@@ -123,6 +138,8 @@ window.addEventListener("popstate", (e) => {
 document.addEventListener("click", (e) => {
   if (e.target.closest("[data-back]")) return goBack();
   const go = e.target.closest("[data-go]");
+  if (go && go.dataset.plan) state.planKind = go.dataset.plan;
+  if (go && go.dataset.tech) state.techCat = go.dataset.tech;
   if (go && !go.closest("#report")) showTab(go.dataset.go);
 });
 
@@ -133,6 +150,7 @@ document.addEventListener("click", (e) => {
 // Esri has real photo tiles to zoom 18 everywhere in Haryana (zoom 19 only in some districts; checked 27 Nov 2026).
 // Past that the photo is only enlarged and turns soft, so the map stops there.
 const MAX_SHARP = 18;
+const DAILY_MAX = 8; // up to this zoom the "latest picture" is NASA's daily one
 const map = L.map("map", { zoomControl: false, maxZoom: MAX_SHARP, minZoom: 5, zoomSnap: 0.25, maxBounds: INDIA_BOUNDS, maxBoundsViscosity: 1 });
 const HARYANA_LL = HARYANA.map(([x, y]) => [y, x]);
 // the whole state in view, clear of the search bar and the buttons that float on the map
@@ -433,18 +451,26 @@ function renderGuide(sayIt = true) {
   const acres = +$("#acres").value || 2, drawn = state.vertices.length >= 3 && !state.drawing;
   let body = "";
   if (s === "start") body = `<button class="btn big" id="gLocate" type="button">${ic("locate")}${t("myLoc")}</button>` + (state.fields.length ? `<div class="myfields"><h3>${T2("My fields", "मेरे खेत")}</h3>${state.fields.slice(0, 12).map((f) => `<div class="mf"><button type="button" class="mf-open" data-fid="${f.id}">${ic("map-pin")}<span><b>${esc(f.name)}</b><small>${esc([f.place, f.acres ? `${f.acres} ${t("acres")}` : ""].filter(Boolean).join(" · "))}</small></span></button><button type="button" class="mf-del" data-del="${f.id}" aria-label="${T2("Delete", "मिटाएं")}">${ic("trash-2")}</button></div>`).join("")}</div>` : "");
-  if (s === "tap") body = `<p class="place">${ic("map-pin")}<span>${esc(state.areaLabel || "")}</span></p>`;
+  if (s === "tap") body = `<p class="place">${ic("map-pin")}<span>${esc(state.areaLabel || "")}</span></p><div class="row"><button class="btn line" id="gBack" type="button">${ic("arrow-left")}${T2("Back: search another place", "वापस: दूसरी जगह खोजें")}</button></div>`;
   if (s === "size") body = `<p class="place">${ic("map-pin")}<span id="placeName">${esc(state.placeName || `${state.point[0].toFixed(4)}, ${state.point[1].toFixed(4)}`)}</span></p>
     ${drawn ? `<p class="place">${ic("scale")}<span>${areaText(areaAcres(currentFeature()))}</span></p>` : `<div class="sizes">${[1, 2, 3, 5, 10].map((a) => `<button type="button" data-ac="${a}" class="${acres === a ? "on" : ""}"><b>${a}</b><small>${t("acres")}</small></button>`).join("")}<button type="button" id="gDraw">${ic("pencil-line")}<small>${t("drawOwn")}</small></button></div>`}
-    <div class="row"><button class="btn big" id="gGo" type="button">${ic("satellite")}${t("seeResult")}</button><button class="iconbtn" id="gClear" type="button" aria-label="${t("clear")}">${ic("x")}</button></div>`;
+    <div class="row"><button class="btn big" id="gGo" type="button">${ic("satellite")}${t("seeResult")}</button><button class="btn line big gsmall" id="gClear" type="button">${ic("x")}${T2("Remove pin", "पिन हटाएं")}</button></div>`;
   if (s === "draw") body = `<div class="row"><button class="btn big" id="gDone" type="button" ${state.vertices.length < 3 ? "disabled" : ""}>${ic("circle-check")}${t("done")} (${state.vertices.length})</button><button class="btn line big" id="gCancel" type="button">${t("clear")}</button></div>`;
-  if (s === "load") body = `<div id="progress" class="progress"><div class="bar"></div><span class="ptext"></span></div>`;
-  if (s === "done") body = `${currentField() ? `<p class="place fname">${ic("map-pin")}<span id="fName">${esc(currentField().name)}</span><button type="button" class="linkbtn" id="fRename">${ic("pencil-line")}${T2("Rename", "नाम बदलें")}</button></p>` : ""}<div class="row"><button class="btn big" id="gShow" type="button">${ic("circle-check")}${t("seeResult")}</button><button class="btn line big" id="gNew" type="button">${t("newField")}</button></div>`;
+  if (s === "load") body = `<div id="progress" class="progress"><div class="bar"></div><span class="ptext"></span></div><div class="row"><button class="btn line" id="gStop" type="button">${ic("x")}${T2("Stop", "रोकें")}</button></div>`;
+  if (s === "done") body = `${currentField() ? `<p class="place fname">${ic("map-pin")}<span id="fName">${esc(currentField().name)}</span><button type="button" class="linkbtn" id="fRename">${ic("pencil-line")}${T2("Rename", "नाम बदलें")}</button></p>` : ""}<div class="row"><button class="btn big" id="gShow" type="button">${ic("circle-check")}${t("seeResult")}</button><button class="btn line big" id="gNew" type="button">${t("newField")}</button></div>${currentField() ? `<button type="button" class="linkbtn gdel" id="gDelete">${ic("trash-2")}${T2("Remove this field from my list", "यह खेत मेरी सूची से हटाएं")}</button>` : ""}`;
   $("#guide").innerHTML = `<div class="ghead"><span class="gstep">${n}<small>/3</small></span><div class="gtext"><h2>${title}</h2><p>${text}</p></div><button class="say big" type="button" data-say="guide" aria-label="${t("listen")}">${ic("volume-2")}</button></div>${body}`;
   const on = (id, fn) => { const el = $("#" + id); if (el) el.onclick = fn; };
   on("gLocate", locateMe); on("gDraw", startDraw); on("gGo", analyse); on("gClear", resetField);
   on("gDone", () => finishDraw(true)); on("gCancel", () => finishDraw(false));
   on("gShow", () => $("#report").scrollIntoView({ behavior: "smooth" })); on("gNew", resetField);
+  on("gBack", () => { state.searched = false; state.areaLabel = ""; renderGuide(false); try { $("#q").focus(); } catch {} });
+  // stop a reading that is taking too long: nothing is lost, the pin stays
+  on("gStop", () => { analyseRun++; state.busy = false; renderGuide(false); });
+  on("gDelete", () => {
+    const b = $("#gDelete"), f = currentField(); if (!f) return;
+    if (!b.classList.contains("sure")) { b.classList.add("sure"); b.innerHTML = `${ic("trash-2")}${T2("Tap again to remove", "हटाने के लिए दोबारा दबाएं")}`; setTimeout(() => { if (b.isConnected) renderGuide(false); }, 4000); return; }
+    state.fields = state.fields.filter((x) => x.id !== f.id); storeFields(); resetField(); toast(T2("Field removed.", "खेत हटा दिया गया।"));
+  });
   $$("#guide [data-fid]").forEach((b) => (b.onclick = () => { const f = state.fields.find((x) => x.id === b.dataset.fid); if (f) openField(f); }));
   // delete needs two taps, so a slip of the thumb cannot lose a field
   $$("#guide [data-del]").forEach((b) => (b.onclick = () => {
@@ -478,6 +504,9 @@ async function applyLayers() {
   const ov = rs.overlay;
   if (ov === "nasa") modisLayer = L.tileLayer(RS.gibsTiles("modis", rs.date), { maxNativeZoom: 9, maxZoom: MAX_SHARP, zIndex: 2, attribution: ATTR_NASA }).addTo(map);
   else if (ov !== "none") {
+    // "Latest picture" from far out: yesterday's NASA picture of the whole state (250 m, new every day).
+    // Zoomed in, the newest Sentinel-2 pass (10 m) takes over.
+    if (ov === "true") modisLayer = L.tileLayer(RS.gibsTiles("modis", rs.date), { maxNativeZoom: 9, maxZoom: DAILY_MAX, zIndex: 2, attribution: ATTR_NASA }).addTo(map);
     const opacity = ov === "true" || ov === "false" ? 1 : rs.opacity;
     const sc = rs.scene || rs.auto;
     if (sc) s2Layer = L.tileLayer(RS.sceneTiles(sc.id, ov), { minZoom: 8, maxNativeZoom: 15, maxZoom: MAX_SHARP, zIndex: 3, opacity, crossOrigin: "anonymous", attribution: ATTR_S2 });
@@ -511,11 +540,13 @@ function updateBadge() {
     : ov === "nasa" ? `NASA MODIS, ${fmtDate(rs.date)}`
     : rs.scene || rs.auto ? T2(`Satellite image of ${fmtDate((rs.scene || rs.auto).date)} (${agoText((rs.scene || rs.auto).date)})`, `सैटेलाइट तस्वीर ${fmtDate((rs.scene || rs.auto).date)} की (${agoText((rs.scene || rs.auto).date)})`)
     : T2("Newest clear satellite image", "सबसे नई साफ़ सैटेलाइट तस्वीर");
-  if (ov !== "none" && ov !== "nasa" && map.getZoom() < 9) txt = T2("Zoom in to see the satellite image", "सैटेलाइट तस्वीर देखने के लिए नक्शा बड़ा करें");
+  const far = Math.round(map.getZoom()) <= DAILY_MAX;
+  if (ov === "true" && far) txt = T2(`NASA daily picture of ${fmtDate(rs.date)} (${agoText(rs.date)}). Cloud and smog show as white. Zoom in for a closer picture.`, `NASA की रोज़ की तस्वीर, ${fmtDate(rs.date)} (${agoText(rs.date)})। बादल और धुंध सफ़ेद दिखते हैं। पास की तस्वीर के लिए नक्शा बड़ा करें।`);
+  else if (ov !== "none" && ov !== "nasa" && far) txt = T2("Zoom in to see the satellite image", "सैटेलाइट तस्वीर देखने के लिए नक्शा बड़ा करें");
   if (rs.nasa.fires && rs.fireCount != null) txt += `, ${rs.fireCount} ${T2("fires", "जगह आग")}`;
   $("#imgBadge").innerHTML = `${ic(ov === "none" ? "image" : "satellite")}<span>${esc(txt)}</span>`;
 }
-map.on("zoomend", updateBadge);
+map.on("zoomend", () => { updateBadge(); renderViewChips(); });
 function renderLegend() {
   const keys = [];
   if (rs.overlay === "ndvi" || rs.overlay === "ndmi") keys.push(rs.overlay);
@@ -531,12 +562,13 @@ const daysAgo = (iso) => Math.max(0, Math.round((Date.now() - Date.parse(iso)) /
 const agoText = (iso) => { const d = daysAgo(iso); return d === 0 ? T2("today", "आज") : d === 1 ? T2("yesterday", "कल") : T2(`${d} days ago`, `${d} दिन पहले`); };
 function chipDate(k) {
   if (k === "none") return rs.photo ? monthYear(rs.photo.date) : "";
+  if (k === "true" && Math.round(map.getZoom()) <= DAILY_MAX) return dayMonth(rs.date);
   const sc = rs.scene || rs.auto;
   return sc ? dayMonth(sc.date) : "";
 }
 function renderViewChips() {
   $("#viewChips").innerHTML = VIEW_CHIPS.map(([k, icn, lab]) => { const d = chipDate(k); return `<button type="button" data-ov="${k}" class="${rs.overlay === k ? "on" : ""}">${ic(icn)}<span>${L_(lab)}${d ? `<small>${d}</small>` : ""}</span></button>`; }).join("") + `<button type="button" id="moreLayers" aria-label="${T2("More layers", "और परतें")}">${ic("layers")}</button>`;
-  $$("#viewChips [data-ov]").forEach((b) => (b.onclick = () => { rs.overlay = b.dataset.ov; if (rs.overlay !== "none" && map.getZoom() < 10) toast(T2("Zoom in to see the satellite image", "सैटेलाइट तस्वीर देखने के लिए नक्शा बड़ा करें")); applyLayers(); }));
+  $$("#viewChips [data-ov]").forEach((b) => (b.onclick = () => { rs.overlay = b.dataset.ov; try { localStorage.setItem("km-view", rs.overlay === "true" ? "true" : "none"); } catch {} if (rs.overlay === "ndvi" && map.getZoom() < 10) toast(T2("Zoom in to see the satellite image", "सैटेलाइट तस्वीर देखने के लिए नक्शा बड़ा करें")); applyLayers(); }));
   $("#moreLayers").onclick = () => {
     const p = $("#layerPanel");
     if (!p.classList.contains("hidden")) return goBack();
@@ -620,7 +652,7 @@ async function analyse(opts = {}) {
   const satP = src.fieldLatest(feature);
   // the cell-by-cell picture of the field starts the moment the newest passes are known
   const pxP = satP.then((s) => within(Field.analyse(feature, s.series), 12000)).catch(() => null);
-  const tasks = { sat: satP, px: pxP, soil: within(soilP, 6000), fc: src.forecast(lat, lon), prices: src.mandiPrices(), wet: src.soilWetness(lat, lon), lulc: src.landUse(lat, lon) };
+  const tasks = { sat: satP, px: pxP, soil: within(soilP, 6000), fc: src.forecast(lat, lon), prices: src.mandiPrices(), wet: src.soilWetness(lat, lon), lulc: src.landUse(lat, lon), lc: src.landCover(feature, lat, lon) };
   let n = 0; const total = Object.keys(tasks).length;
   Object.values(tasks).forEach((p) => p.catch(() => {}).finally(() => run === analyseRun && state.busy && progress(++n, total)));
   const keys = Object.keys(tasks), settled = await Promise.allSettled(Object.values(tasks)), R = {};
@@ -635,12 +667,12 @@ async function analyse(opts = {}) {
     if (!renderCached(fSaved, true)) toast(T2("The internet did not connect. Try again when the network is back.", "इंटरनेट नहीं जुड़ा। नेटवर्क आने पर दोबारा कोशिश करें।"), 6000);
     return;
   }
-  const r = (state.report = { lat, lon, series, px: ok("px"), scenesFound: R.sat?.scenesFound, newestPass: R.sat?.newestPass, satError: R.sat?.error, soil: ok("soil"), soilPending: !ok("soil"), historyPending: true, climate: null, wet: ok("wet"), lulc: ok("lulc"), neighbour: null, photo: null, at: new Date(), checkedAt: Date.now() });
+  const r = (state.report = { lat, lon, series, px: ok("px"), scenesFound: R.sat?.scenesFound, newestPass: R.sat?.newestPass, satError: R.sat?.error, soil: ok("soil"), soilPending: !ok("soil"), historyPending: true, climate: null, wet: ok("wet"), lulc: ok("lulc"), lc: ok("lc"), neighbour: null, photo: null, at: new Date(), checkedAt: Date.now() });
   state.reportFor = fieldParam();
   if (ok("fc")) { state.forecast = R.fc; state.forecastFor = { lat, lon, label: L_(state.district) }; }
   if (ok("prices")) { state.prices = R.prices; watchLivePrices(); }
   const s2 = latestS2(r);
-  if (s2) { const p = s2.item.properties; rs.scene = { id: s2.item.id, date: p.datetime, cloud: p["eo:cloud_cover"], platform: p.platform || "" }; if (!auto) rs.overlay = "ndvi"; applyLayers(); }
+  if (s2) { const p = s2.item.properties; rs.scene = { id: s2.item.id, date: p.datetime, cloud: p["eo:cloud_cover"], platform: p.platform || "" }; if (!auto && !landOf(r)?.block) rs.overlay = "ndvi"; applyLayers(); }
   state.busy = false;
   renderGuide(false); renderReport();
   if (!auto) { $("#report").scrollIntoView({ behavior: "smooth" }); if (state.voiceOn) say(sayText("all"), $("#sayAll")); }
@@ -712,6 +744,58 @@ const EVENT_WORD = { rise: { en: "Green cover came up (crop established)", hi: "
 const cropName = (id) => { const k = CROPS.find((x) => x.id === id); return k ? L_(k) : id; };
 const seasonLabel = (s) => `${L_(SEASONS[s.id] || { en: s.id, hi: s.id }).replace(/\s*\(.*\)/, "")} ${s.id === "rabi" ? `${s.year}-${String(s.year + 1).slice(2)}` : s.year}`;
 // Kind of land and the likely crop, read from a year of clear passes. The farmer's own answer always wins.
+/* ---------------- what is on this ground: field, buildings, water or trees ---------------- */
+function landOf(r) {
+  if (!r) return null;
+  const f = currentField(), latest = r.series[r.series.length - 1];
+  const clear = r.series.filter((x) => x.cloud <= 0.05 && x.water != null).slice(-3);
+  const waterNow = clear.length >= 2 ? clear.reduce((a, x) => a + x.water, 0) / clear.length : null;
+  const io = r.lc?.io ? { year: r.lc.io.year, shares: Land.shares(r.lc.io.hist, Land.IO_CLASS) } : null;
+  const wc = r.lc?.wc ? { year: r.lc.wc.year, shares: Land.shares(r.lc.wc.hist, Land.WC_CLASS) } : null;
+  return (r.land = Land.classify({ io, wc, ndvi: latest ? latest.ndvi : null, waterNow, month: latest ? +latest.date.slice(5, 7) : null, told: f && f.isFarm ? "farm" : null }));
+}
+// the land finding for the field on screen, when it stops crop advice
+const blockedLand = () => { const r = state.report; return r && state.reportFor === fieldParam() && r.land && r.land.block ? r.land : null; };
+const landBlockText = (land) => (land.kind === "water"
+  ? T2("The place you chose is water (a pond, canal or river), not a field. So there is no crop advice for it. Put the pin on your field.", "आपने जो जगह चुनी है वहाँ पानी है (तालाब, नहर या नदी), खेत नहीं। इसलिए वहाँ के लिए फसल की सलाह नहीं है। पिन को अपने खेत पर रखें।")
+  : T2("The place you chose is built-up land (houses, a road or paved ground), not a field. So there is no crop advice for it. Put the pin on your field.", "आपने जो जगह चुनी है वह पक्की जगह है (मकान, सड़क या पक्की ज़मीन), खेत नहीं। इसलिए वहाँ के लिए फसल की सलाह नहीं है। पिन को अपने खेत पर रखें।"));
+const landButtons = () => `<div class="vbtns"><button type="button" class="btn" data-land="else">${ic("map-pin")}${T2("Choose another place", "दूसरी जगह चुनें")}</button><button type="button" class="btn line" data-land="mine">${T2("No, this is my field", "नहीं, यह मेरा खेत ही है")}</button></div>`;
+function wireLand(root) {
+  $$("[data-land]", root).forEach((b) => (b.onclick = () => {
+    const a = b.dataset.land, f = a === "mine" || a === "undo" ? rememberField() : null;
+    if (a === "else") { resetField(); showTab("land"); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    if (a === "draw") { showTab("land"); window.scrollTo({ top: 0, behavior: "smooth" }); startDraw(); return; }
+    if (f && a === "mine") f.isFarm = true;
+    if (f && a === "undo") delete f.isFarm;
+    storeFields(); refreshReport();
+    if (state.tab === "advice") renderAdvice();
+  }));
+}
+function landVerdict(r, land) {
+  if (!land || land.kind === "unknown" || land.kind === "farm") return null;
+  const pct = (x) => Math.max(1, Math.round(x * 100)), yr = land.year || "";
+  const foot = [r.lc?.io ? `Impact Observatory 10 m, ${r.lc.io.year}` : "", r.lc?.wc ? `ESA WorldCover 10 m, ${r.lc.wc.year}` : "", land.waterNow != null ? "Sentinel-2" : ""].filter(Boolean).join(" · ");
+  const base = { key: "land", title: T2("Land check", "ज़मीन की जांच"), foot };
+  const what = land.kind === "water" ? T2("water", "पानी") : T2("buildings or paved ground", "मकान या पक्की ज़मीन");
+  if (land.overruled) return { ...base, icon: "circle-check", level: "info", big: T2("You said this is your field", "आपने बताया: यह आपका खेत है"),
+    text: T2(`The land map of ${yr} shows ${what} here. The map may be old or wrong, so the results below are shown, but read them with care.`, `${yr} के ज़मीन के नक्शे में यहाँ ${what} दिखता है। नक्शा पुराना या ग़लत हो सकता है, इसलिए नीचे नतीजे दिखाए गए हैं, पर इन्हें ध्यान से पढ़ें।`),
+    extra: `<div class="vbtns"><button type="button" class="btn line" data-land="undo">${ic("rotate-ccw")}${T2("Undo: this is not a field", "वापस लें: यह खेत नहीं है")}</button></div>` };
+  if (land.kind === "built") return { ...base, icon: "building-2", level: "bad", big: T2("This is built-up land, not a field", "यह खेत नहीं, पक्की जगह है"),
+    text: T2(`The land map of ${yr} shows houses, roads or paved ground on about ${pct(land.built)}% of this place. So no crop advice is given here. Put the pin on your field.`, `${yr} के ज़मीन के नक्शे में इस जगह का लगभग ${pct(land.built)}% हिस्सा मकान, सड़क या पक्की ज़मीन है। इसलिए यहाँ फसल की सलाह नहीं दी जा रही। पिन को अपने खेत पर रखें।`), extra: landButtons() };
+  if (land.kind === "water") return { ...base, icon: "waves", level: "bad", big: T2("This is water, not a field", "यहाँ पानी है, खेत नहीं"),
+    text: T2(`The land map of ${yr} shows water (a pond, canal or river) on about ${pct(Math.max(land.water, land.waterNow || 0))}% of this place. So no crop advice is given here. Put the pin on your field.`, `${yr} के ज़मीन के नक्शे में इस जगह का लगभग ${pct(Math.max(land.water, land.waterNow || 0))}% हिस्सा पानी है (तालाब, नहर या नदी)। इसलिए यहाँ फसल की सलाह नहीं दी जा रही। पिन को अपने खेत पर रखें।`), extra: landButtons() };
+  if (land.kind === "mixed") {
+    const parts = [land.built >= 0.05 ? T2(`about ${pct(land.built)}% buildings or paved ground`, `लगभग ${pct(land.built)}% मकान या पक्की ज़मीन`) : "", land.water >= 0.05 ? T2(`about ${pct(land.water)}% water`, `लगभग ${pct(land.water)}% पानी`) : ""].filter(Boolean).join(T2(" and ", " और "));
+    const drawn = state.vertices.length >= 3;
+    return { ...base, icon: "triangle-alert", level: "warn", big: T2("Part of this place is not field", "इस जगह का कुछ हिस्सा खेत नहीं है"),
+      text: T2(`Inside this outline there is ${parts || "some land that is not field"}. The results below are an average over the whole outline, so they can be off.${drawn ? "" : " Draw the boundary of your own field for a true result."}`, `इस घेरे के अंदर ${parts || "कुछ ऐसी ज़मीन है जो खेत नहीं"} है। नीचे के नतीजे पूरे घेरे का औसत हैं, इसलिए थोड़े ग़लत हो सकते हैं।${drawn ? "" : " सही नतीजे के लिए अपने खेत की सीमा खुद बनाएं।"}`),
+      extra: drawn ? "" : `<div class="vbtns"><button type="button" class="btn" data-land="draw">${ic("pencil-line")}${T2("Draw my field boundary", "अपने खेत की सीमा बनाएं")}</button></div>` };
+  }
+  // trees
+  return { ...base, icon: "trees", level: "info", big: T2("Trees or an orchard are seen here", "यहाँ पेड़ या बाग दिखते हैं"),
+    text: T2(`The land map of ${yr} shows trees on about ${pct(land.trees)}% of this place. Trees stay green all year, so the crop guess and the harvest check below do not fit this land well.`, `${yr} के ज़मीन के नक्शे में इस जगह के लगभग ${pct(land.trees)}% हिस्से में पेड़ हैं। पेड़ साल भर हरे रहते हैं, इसलिए नीचे दिया फसल का अंदाज़ा और कटाई की जांच इस ज़मीन पर ठीक नहीं बैठती।`),
+    extra: `<div class="vbtns"><button type="button" class="btn line" data-go="plan">${ic("trees")}${T2("Orchard and tree planning", "बाग और पेड़ की योजना")}</button></div>` };
+}
 function coverVerdict(r) {
   const base = { key: "cover", icon: "wheat", level: "info", title: T2("Land and crop", "ज़मीन और फसल") };
   if (r.historyPending) return { ...base, big: T2("Reading the whole year", "साल भर की तस्वीरें पढ़ रहे हैं"), text: T2("This takes a few more seconds.", "इसमें कुछ सेकंड और लगेंगे।"), foot: "" };
@@ -762,7 +846,10 @@ function changeVerdict(r) {
 }
 function verdicts(r) {
   const V = [], latest = r.series[r.series.length - 1], prev = r.series[r.series.length - 2];
-  if (latest) {
+  // first: is this a field at all? On buildings or water nothing is said about a crop.
+  const land = landOf(r), blocked = !!(land && land.block), lv = landVerdict(r, land);
+  if (lv) V.push(lv);
+  if (blocked) { /* no crop, water, soil or best-crop cards */ } else if (latest) {
     const n = latest.ndvi, rising = prev && n - prev.ndvi > 0.04, diff = r.neighbour != null ? n - r.neighbour : 0;
     let level, big, text;
     if (n < 0.2) { level = "info"; big = T2("Field is empty", "खेत खाली है"); text = T2("The satellite sees bare soil. The field is empty or was sown recently.", "सैटेलाइट को खाली मिट्टी दिख रही है। खेत खाली है या अभी-अभी बुवाई हुई है।"); }
@@ -797,7 +884,7 @@ function verdicts(r) {
     V.push({ key: "water", icon: "droplets", level: wl, title: T2("Water", "पानी"), big: wb, text: wt.trim(), foot: wet != null ? `NASA POWER, ${fmtDate(r.wet.date)}` : "" });
   } else V.push({ key: "crop", icon: "leaf", level: "info", title: T2("Crop health", "फसल की सेहत"), big: T2("No clear image", "साफ़ तस्वीर नहीं मिली"), text: t("cloudy"), foot: "" });
   // soil
-  const s = adviceSoil();
+  const s = blocked ? null : adviceSoil();
   if (s) {
     const ph = s.phh2o, oc = s.soc != null ? s.soc / 10 : null;
     let level = "good", text = "";
@@ -805,14 +892,14 @@ function verdicts(r) {
     if (oc != null && oc < 0.5) { level = "warn"; text += " " + T2("Organic matter is low: add farmyard manure or green manure.", "मिट्टी में जीवांश कम है: गोबर की खाद या हरी खाद डालें।"); }
     V.push({ key: "soil", icon: "mountain", level, title: T2("Soil", "मिट्टी"), big: s.texture ? L_(TEXTURE_WORD[s.texture] || TEXTURE_WORD.loam).replace(/\s*\(.*\)/, "") + (s.fromCard ? "" : T2(" (map estimate)", " (नक्शे का अंदाज़ा)")) : level === "warn" ? T2("Soil needs care", "मिट्टी को सुधार चाहिए") : T2("Soil is fine", "मिट्टी ठीक है"), text: text.trim(), foot: s.fromCard ? T2("From your Soil Health Card", "आपके मृदा स्वास्थ्य कार्ड से") : T2("Estimate from soil map. Scan your Soil Health Card for exact values.", "मिट्टी के नक्शे से अनुमान। सही मान के लिए मृदा कार्ड स्कैन करें।") , row: true, go: "soilcard" });
   }
-  if (!s) V.push({ key: "soil", icon: "mountain", level: "info", title: T2("Soil", "मिट्टी"), big: r.soilPending ? T2("Reading the soil map", "मिट्टी का नक्शा पढ़ रहे हैं") : T2("Soil map did not answer", "मिट्टी का नक्शा नहीं खुला"), text: r.soilPending ? T2("This takes a few more seconds.", "इसमें कुछ सेकंड और लगेंगे।") : T2("For the most exact advice, take a photo of your Soil Health Card in the Soil tab.", "सबसे सही सलाह के लिए मिट्टी वाले पन्ने पर अपने मृदा स्वास्थ्य कार्ड की फोटो डालें।"), foot: "" , row: true, go: "soilcard" });
+  if (!s && !blocked) V.push({ key: "soil", icon: "mountain", level: "info", title: T2("Soil", "मिट्टी"), big: r.soilPending ? T2("Reading the soil map", "मिट्टी का नक्शा पढ़ रहे हैं") : T2("Soil map did not answer", "मिट्टी का नक्शा नहीं खुला"), text: r.soilPending ? T2("This takes a few more seconds.", "इसमें कुछ सेकंड और लगेंगे।") : T2("For the most exact advice, take a photo of your Soil Health Card in the Soil tab.", "सबसे सही सलाह के लिए मिट्टी वाले पन्ने पर अपने मृदा स्वास्थ्य कार्ड की फोटो डालें।"), foot: "" , row: true, go: "soilcard" });
   // weather
   if (state.forecast) {
     const al = weatherAlerts(state.forecast, getLang()), top = al.find((a) => a.level === "high") || al.find((a) => a.level === "medium") || al[0];
     V.push({ key: "weather", icon: "cloud-sun", level: top ? (top.level === "high" ? "bad" : top.level === "medium" ? "warn" : "info") : "good", title: T2("Weather, next 10 days", "मौसम, अगले 10 दिन"), big: top ? T2("Be careful", "सावधान रहें") : T2("Weather is fine", "मौसम ठीक है"), text: top ? `${top.date}: ${top.text}` : T2("No frost, storm or heavy rain is expected.", "पाला, आंधी या भारी बारिश की उम्मीद नहीं है।"), foot: "Open-Meteo" , row: true, go: "weather" });
   }
   // best crop
-  try {
+  if (!blocked) try {
     const top = recommend({ season: state.season, district: state.district, soil: s, water: $("#water").value, risk: $("#risk").value, acres: 1, prices: state.prices })[0];
     if (top) V.push({ key: "best", icon: "sprout", level: "good", title: `${T2("Best crop for", "सबसे अच्छी फसल")}: ${L_(SEASONS[state.season])}`, big: L_(top.crop), text: T2(`Expected profit about ${rupee(top.budget.perAcreMid)} per acre in a normal year.`, `सामान्य साल में एक एकड़ से लगभग ${rupee(top.budget.perAcreMid)} का मुनाफ़ा।`), sayText: T2(`Expected profit about ${Voice.sayMoney(top.budget.perAcreMid, "en")} per acre in a normal year.`, `सामान्य साल में एक एकड़ से लगभग ${Voice.sayMoney(top.budget.perAcreMid, "hi")} का मुनाफ़ा हो सकता है।`), foot: "", action: "advice" , row: true, go: "advice" });
   } catch {}
@@ -844,6 +931,8 @@ function fieldCrop() {
   return top ? { id: top.crop.id, told: false } : null;
 }
 async function answer(kind, text) {
+  const blk = blockedLand();
+  if (blk && kind !== "rain" && kind !== "mandi") return landBlockText(blk);
   const r = state.report, V = state.verdicts || [], v = (k) => V.find((x) => x.key === k), needField = T2("First choose your field on the map and press See result. Then ask again.", "पहले नक्शे पर अपना खेत चुनें और नतीजा देखें दबाएं। फिर दोबारा पूछें।");
   if (kind === "grow") {
     const recs = recommend(advCtx()), ok = recs.filter((x) => !x.late).slice(0, 3), late = recs.filter((x) => x.late).map((x) => L_(x.crop));
@@ -972,11 +1061,12 @@ function diaryHTML(f) {
 function renderFarm() {
   const box = $("#farmBox");
   if (!state.fields.length) {
-    box.innerHTML = `<div class="card empty"><p>${T2("No field is saved yet. Choose your field on the map and it will be kept here.", "अभी कोई खेत सेव नहीं है। नक्शे पर अपना खेत चुनें, वह यहाँ रख लिया जाएगा।")}</p><button class="btn big" type="button" data-go="land">${ic("map-pin")}${T2("Choose my field", "अपना खेत चुनें")}</button></div>`;
+    box.innerHTML = profileHTML() + `<div class="card empty"><p>${T2("No field is saved yet. Choose your field on the map and it will be kept here.", "अभी कोई खेत सेव नहीं है। नक्शे पर अपना खेत चुनें, वह यहाँ रख लिया जाएगा।")}</p><button class="btn big" type="button" data-go="land">${ic("map-pin")}${T2("Choose my field", "अपना खेत चुनें")}</button></div>`;
+    wireProfile(box);
     return;
   }
   const sNow = Pheno.seasonOf(new Date().toISOString().slice(0, 10));
-  box.innerHTML = `<p class="hint">${T2("Your fields, their last result and your diary. Everything here stays on this phone.", "आपके खेत, उनका पिछला नतीजा और आपकी डायरी। यह सब इसी फ़ोन में रहता है।")}</p>` + state.fields.map((f) => {
+  box.innerHTML = profileHTML() + `<h3 class="sec">${T2("My fields", "मेरे खेत")}</h3><p class="hint">${T2("Your fields, their last result and your diary. Everything here stays on this phone.", "आपके खेत, उनका पिछला नतीजा और आपकी डायरी। यह सब इसी फ़ोन में रहता है।")}</p>` + state.fields.map((f) => {
     const crop = f.last ? f.last.cards.find((x) => x.key === "crop") : null, told = f.crop ? f.crop[`${sNow.id}-${sNow.year}`] : null;
     return `<article class="card farmcard" data-fid="${f.id}">
       <div class="fc-head"><div><h3 class="fc-name">${esc(f.name)}</h3><p class="hint">${esc([f.place, f.acres ? areaText(f.acres) : ""].filter(Boolean).join(" · "))}</p></div>
@@ -987,6 +1077,7 @@ function renderFarm() {
       ${diaryHTML(f)}
     </article>`;
   }).join("") + `<div class="row backup"><button class="btn line" type="button" id="backupBtn">${ic("download")}${T2("Save a backup file", "बैकअप फ़ाइल सेव करें")}</button><label class="btn line">${ic("upload")}${T2("Load a backup", "बैकअप खोलें")}<input type="file" id="restoreFile" accept="application/json,.json" hidden></label></div>`;
+  wireProfile(box);
   $$("#farmBox .farmcard").forEach((el) => {
     const f = state.fields.find((x) => x.id === el.dataset.fid); if (!f) return;
     $("[data-open]", el).onclick = () => { showTab("land"); openField(f); };
@@ -1032,10 +1123,14 @@ function renderFarm() {
 // "More": the pages a farmer needs less often
 function renderMore() {
   const row = (go, icon, title, sub) => `<button type="button" class="rowlink info" data-go="${go}"><span class="vicon">${ic(icon)}</span><span class="rl-t"><b>${title}</b><small>${sub}</small></span>${ic("chevron-right")}</button>`;
-  $("#moreBoxPage").innerHTML = `<div class="card rowlist">` +
+  const k = profile.farmer_category ? Farmer.FARMER_TYPES[profile.farmer_category] : null;
+  $("#moreBoxPage").innerHTML = `<div class="card rowlist"><button type="button" class="rowlink info" id="moreType"><span class="vicon">${ic("user-round")}</span><span class="rl-t"><b>${T2("My kind of farming", "मेरी खेती का प्रकार")}</b><small>${k ? L_(k) : T2("Not chosen yet", "अभी चुना नहीं")}</small></span>${ic("chevron-right")}</button>` +
+    row("plan", "apple", T2("Orchard and tree planning", "बाग और पेड़ की योजना"), T2("Fruit for your area; crops between poplar rows", "आपके इलाके के फल; पॉपलर की कतारों के बीच की फसल")) +
+    row("share", "handshake", T2("Land on share", "ज़मीन बटाई पर"), T2("Get ready to give or take land for farming", "ज़मीन देने या लेने की बातचीत की तैयारी")) + `</div><div class="card rowlist">` +
     row("soilcard", "flask-conical", T2("Soil Health Card scanner", "मृदा स्वास्थ्य कार्ड स्कैनर"), T2("Take a photo of your card and get a fertiliser plan", "कार्ड की फोटो लें और खाद की योजना पाएं")) +
     row("techniques", "book-open-text", T2("Farming methods and videos", "खेती के तरीके और वीडियो"), T2("Seventeen methods explained, with videos", "17 तरीके, वीडियो के साथ")) +
     row("about", "info", T2("About this app and its data", "इस ऐप और इसके आँकड़ों के बारे में"), T2("Where every number comes from", "हर आँकड़ा कहाँ से आता है")) + `</div>`;
+  $("#moreType").onclick = () => showWelcome("type");
 }
 /* ---------------- last result kept with the field: the app opens with it at once, and it is there without a network ---------------- */
 function cacheResult(V, latest) {
@@ -1146,6 +1241,8 @@ function renderReport() {
   el.classList.remove("hidden");
   const latest = r.series[r.series.length - 1], s = r.soil;
   const V = (state.verdicts = verdicts(r));
+  // on buildings or water the health colours would mean nothing: show the plain photo
+  if (r.land && r.land.block && state.fpMode !== "sat") state.fpMode = "photo";
   const notes = interpretSeries(r.series, lang);
   const idx = latest ? [["NDVI", latest.ndvi, T2("Greenness of the crop", "फसल की हरियाली")], ["NDMI", latest.ndmi, T2("Moisture in crop and soil", "फसल और मिट्टी की नमी")], ["NDRE", latest.ndre, T2("Leaf colour (nitrogen hint)", "पत्तों का रंग (नाइट्रोजन का संकेत)")], ["BSI", latest.bsi, T2("Bare soil showing", "खाली मिट्टी कितनी दिख रही है")]].filter((x) => x[1] != null) : [];
   el.innerHTML = `
@@ -1193,6 +1290,7 @@ function renderReport() {
   $("#toTech").onclick = () => { state.techCat = "star"; showTab("techniques"); };
   $$("#report [data-go]").forEach((b) => (b.onclick = () => showTab(b.dataset.go)));
   $("#askRow").onclick = () => openAsk();
+  wireLand(el);
   cacheResult(V, latest);
   $$("#fpModes button").forEach((b) => (b.onclick = () => { state.fpMode = b.dataset.m; applyFieldPic(); }));
   $$("#report [data-confirm]").forEach((b) => (b.onclick = () => { const f = rememberField(); if (!f) return; f.events = f.events || {}; f.events[b.dataset.confirm] = b.dataset.ans === "1"; if (b.dataset.ans === "1") { f.records = f.records || []; f.records.push({ id: Date.now().toString(36), type: "harvest", date: b.dataset.confirm.split(":")[1], note: T2("confirmed from the satellite picture", "सैटेलाइट तस्वीर देखकर पक्का किया") }); } storeFields(); refreshReport(); }));
@@ -1322,6 +1420,10 @@ let compareChart = null;
 const whatIf = {}; // crop id -> {yield, price, cost}
 
 async function renderAdvice() {
+  const blk = blockedLand();
+  $("#tab-advice").classList.toggle("blocked", !!blk);
+  $("#adviceBlock").innerHTML = blk ? `<article class="verdict bad"><div class="vhead"><span class="vicon">${ic(blk.kind === "water" ? "waves" : "building-2")}</span><div class="vt"><div class="vlabel">${T2("Land check", "ज़मीन की जांच")}</div><div class="vbig">${blk.kind === "water" ? T2("This is water, not a field", "यहाँ पानी है, खेत नहीं") : T2("This is built-up land, not a field", "यह खेत नहीं, पक्की जगह है")}</div></div></div><p>${esc(landBlockText(blk))}</p>${landButtons()}</article>` : "";
+  if (blk) { wireLand($("#adviceBlock")); return; }
   if (!state.prices) { try { state.prices = await src.mandiPrices(); watchLivePrices(); } catch {} }
   const lang = getLang();
   const r = state.report;
@@ -1915,21 +2017,253 @@ setTheme(document.documentElement.dataset.theme || "night");
 if (restoreField(location.hash.slice(1))) { try { history.replaceState(null, "", location.pathname + location.search); } catch {} } // a shared link is used once; after that the app remembers the field itself
 else { try { restoreField(localStorage.getItem("km-field")); } catch {} }
 // First visit: one question, answered with a tap, which also unlocks speech on phones that need a touch first
-function showWelcome() {
+/* ---------------- the farmer's profile: kind of farming, place, water. Kept on this phone only. ---------------- */
+let profile = (() => { try { return Farmer.cleanProfile(JSON.parse(localStorage.getItem(Farmer.PROFILE_KEY) || "null")); } catch { return Farmer.emptyProfile(); } })();
+function saveProfile(patch = {}) {
+  profile = Farmer.cleanProfile({ ...profile, ...patch, location: { ...profile.location, ...(patch.location || {}) }, plantation: { ...profile.plantation, ...(patch.plantation || {}) }, land_share: { ...profile.land_share, ...(patch.land_share || {}) }, language: getLang(), updated_at: new Date().toISOString() });
+  try { localStorage.setItem(Farmer.PROFILE_KEY, JSON.stringify(profile)); } catch {}
+  return profile;
+}
+const TYPE_Q = { en: "What kind of farming do you do?", hi: "आप किस प्रकार की खेती करते हो?" };
+const TYPE_WHY = { en: "We will fit the crop, soil and income suggestions to your kind of farming.", hi: "आपकी खेती के हिसाब तै हम आपके लिए सही फसल, मिट्टी और कमाई के सुझाव देंगे।" };
+const typeCards = (sel) => `<div class="typecards" role="radiogroup" aria-label="${esc(L_(TYPE_Q))}">${Farmer.TYPE_IDS.map((id) => { const k = Farmer.FARMER_TYPES[id]; return `<button type="button" role="radio" aria-checked="${sel === id}" class="typecard ${sel === id ? "on" : ""}" data-type="${id}"><span class="tc-ic">${ic(k.icon)}</span><span class="tc-t"><b>${L_(k)}</b><span>${L_(k.desc)}</span><small>${L_(k.eg)}</small></span><span class="tc-check">${ic("circle-check")}</span></button>`; }).join("")}</div>`;
+const waterOpts = (v) => [["good", t("waterGood")], ["limited", t("waterLimited")], ["rainfed", t("waterRainfed")]].map(([k, l]) => `<option value="${k}" ${v === k ? "selected" : ""}>${l}</option>`).join("");
+const districtOpts = (v) => DISTRICTS.map((d) => `<option value="${d.name}" ${v === d.name ? "selected" : ""}>${getLang() === "hi" ? d.hi : d.name}</option>`).join("");
+const chipsQ = (q, v, opts) => `<div class="chips wrap" data-q="${q}">${opts.map(([k, l]) => `<button type="button" class="chip ${v === k ? "on" : ""}" data-v="${k}">${l}</button>`).join("")}</div>`;
+const srcList = (ids) => `<details class="card srcs"><summary>${ic("info")}${T2("Where this comes from", "यह जानकारी कहाँ से है")}</summary><ul>${ids.map((id) => `<li><a href="${Farmer.SOURCES[id].url}" target="_blank" rel="noopener">${esc(Farmer.SOURCES[id].en)}</a></li>`).join("")}</ul></details>`;
+const myWater = () => profile.irrigation || $("#water").value || "good";
+function setWater(v) { $("#water").value = v; saveProfile({ irrigation: v }); }
+function setDistrict(name) { const d = DISTRICTS.find((x) => x.name === name); if (!d) return; state.district = d; fillSelects(); saveProfile({ location: { district: d.name } }); }
+const ZONE_WORD = { NE: { en: "This is the canal and tubewell belt (north-eastern plains).", hi: "यह नहर और ट्यूबवेल वाला इलाका है (उत्तर-पूर्वी मैदान)।" }, SW: { en: "This is the drier belt (south-west: sandier soil, less rain).", hi: "यह सूखा इलाका है (दक्षिण-पश्चिम: रेतीली मिट्टी, कम बारिश)।" } };
+const GW_WORD = { stressed: { en: "Groundwater is falling in much of this district.", hi: "इस जिले के बड़े हिस्से में ज़मीन का पानी नीचे जा रहा है।" }, saline: { en: "Groundwater is salty in many places here.", hi: "यहाँ कई जगह ज़मीन का पानी खारा है।" } };
+
+/* ---------------- first visit: language, place, kind of farming ---------------- */
+function showWelcome(start = "lang") {
+  const single = start === "type"; // asked on its own: from My farm, or once for a farmer who used the app before this question existed
+  let page = start, voice = false, pick = profile.farmer_category, dist = profile.location.district || state.district.name;
+  const close = () => $("#welcome").classList.add("hidden");
+  const finish = (chosen) => {
+    try { localStorage.setItem("km-welcomed", "1"); localStorage.setItem("km-typeasked", "1"); } catch {}
+    close();
+    if (chosen) toast(T2("Saved. You can change it any time in My farm.", "सेव हो गया। 'मेरे खेत' में जाकर इसे कभी भी बदल सकते हैं।"), 4000);
+    if (!single) showTab("farm"); else if (state.tab === "farm") renderFarm(); else if (state.tab === "more") renderMore(); else if (state.tab === "plan") renderPlan();
+    if (voice) { setVoice(true); say(T2("This is your page. First, press See my field from the satellite.", "यह आपका पन्ना है। सबसे पहले, अपना खेत सैटेलाइट से देखें दबाएं।"), null); }
+  };
+  const dots = (n) => (single ? "" : `<div class="wsteps" aria-hidden="true">${[1, 2, 3].map((i) => `<i class="${i === n ? "on" : ""}"></i>`).join("")}</div>`);
   const paint = () => {
-    $("#welcomeBody").innerHTML = `<div class="welcome">
-      <div class="lang" role="group"><button type="button" data-wl="hi" class="${getLang() === "hi" ? "on" : ""}">हिंदी</button><button type="button" data-wl="en" class="${getLang() === "en" ? "on" : ""}">English</button></div>
-      <h2>${T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है")}</h2>
-      <p>${T2("See your field from the satellite: crop health, what changed, and what to grow.", "अपने खेत को सैटेलाइट से देखें: फसल की सेहत, क्या बदला, और क्या बोएं।")}</p>
-      <button class="btn big" type="button" id="wListen">${ic("volume-2")}${T2("Explain it to me aloud", "मुझे बोलकर समझाओ")}</button>
-      <button class="btn big line" type="button" id="wRead">${T2("I will read it myself", "मैं खुद पढ़ लूंगा")}</button>
-    </div>`;
-    $$("#welcomeBody [data-wl]").forEach((b) => (b.onclick = () => { $(`.top .lang [data-lang="${b.dataset.wl}"]`).click(); paint(); }));
-    const done = (voice) => { try { localStorage.setItem("km-welcomed", "1"); } catch {} $("#welcome").classList.add("hidden"); if (voice) { setVoice(true); say(L_(SAY_GUIDE[step()]), $("#guide .say")); } };
-    $("#wListen").onclick = () => done(true); $("#wRead").onclick = () => done(false);
+    const body = $("#welcomeBody");
+    if (page === "lang") {
+      body.innerHTML = `<div class="welcome">${dots(1)}
+        <div class="lang" role="group"><button type="button" data-wl="hi" class="${getLang() === "hi" ? "on" : ""}">हिंदी</button><button type="button" data-wl="en" class="${getLang() === "en" ? "on" : ""}">English</button></div>
+        <h2>${T2("Welcome to Krishi Mitra", "कृषि मित्र में स्वागत है")}</h2>
+        <p>${T2("See your field from the satellite: crop health, what changed, and what to grow.", "अपने खेत को सैटेलाइट से देखें: फसल की सेहत, क्या बदला, और क्या बोएं।")}</p>
+        <button class="btn big" type="button" id="wListen">${ic("volume-2")}${T2("Explain it to me aloud", "मुझे बोलकर समझाओ")}</button>
+        <button class="btn big line" type="button" id="wRead">${T2("I will read it myself", "मैं खुद पढ़ लूंगा")}</button>
+      </div>`;
+      $$("[data-wl]", body).forEach((b) => (b.onclick = () => { $(`.top .lang [data-lang="${b.dataset.wl}"]`).click(); paint(); }));
+      $("#wListen").onclick = () => { voice = true; Voice.prime && Voice.prime(); page = "place"; paint(); };
+      $("#wRead").onclick = () => { voice = false; page = "place"; paint(); };
+    } else if (page === "place") {
+      body.innerHTML = `<div class="welcome">${dots(2)}
+        <button type="button" class="backbtn wback" id="wBack" aria-label="${T2("Back", "वापस")}">${ic("arrow-left")}</button>
+        <h2>${T2("Where is your farming?", "आपकी खेती कहाँ है?")}</h2>
+        <p>${T2("Choose your district. Weather, mandi prices and crop advice will then be for your area.", "अपना जिला चुनें। फिर मौसम, मंडी भाव और फसल की सलाह आपके इलाके की होगी।")}</p>
+        <label class="f wide"><span>${t("chooseDistrict")}</span><select id="wDistrict">${districtOpts(dist)}</select></label>
+        <button class="btn big line" type="button" id="wGps">${ic("locate")}${T2("Find it from my location", "मेरी लोकेशन से चुनें")}</button>
+        <button class="btn big" type="button" id="wNext">${T2("Continue", "आगे बढ़ें")}${ic("chevron-right")}</button>
+      </div>`;
+      $("#wBack").onclick = () => { page = "lang"; paint(); };
+      $("#wDistrict").onchange = (e) => (dist = e.target.value);
+      $("#wGps").onclick = () => {
+        if (!navigator.geolocation) return toast(T2("Location is not available on this phone. Choose the district from the list.", "इस फ़ोन में लोकेशन नहीं मिल रही। सूची से जिला चुनें।"), 4000);
+        navigator.geolocation.getCurrentPosition((p) => {
+          if (outsideHaryana(p.coords.latitude, p.coords.longitude)) return toast(T2("You are outside Haryana right now. Choose the district from the list.", "आप अभी हरियाणा से बाहर हैं। सूची से जिला चुनें।"), 4500);
+          dist = nearestDistrict(p.coords.latitude, p.coords.longitude).name; paint();
+        }, () => toast(T2("Location could not be read. Choose the district from the list.", "लोकेशन नहीं मिली। सूची से जिला चुनें।"), 4000), { timeout: 10000 });
+      };
+      $("#wNext").onclick = () => { setDistrict(dist); const d = state.district; if (!state.point) map.setView([d.lat, d.lon], 10, { animate: false }); page = "type"; paint(); };
+    } else {
+      body.innerHTML = `<div class="welcome typepage">${dots(3)}
+        ${single ? `<button type="button" class="iconbtn sheet-close" id="wClose" aria-label="${T2("Close", "बंद करें")}">${ic("x")}</button>` : `<button type="button" class="backbtn wback" id="wBack" aria-label="${T2("Back", "वापस")}">${ic("arrow-left")}</button>`}
+        <h2>${L_(TYPE_Q)}</h2><p>${L_(TYPE_WHY)}</p>
+        ${typeCards(pick)}
+        <button class="btn big" type="button" id="wDone" ${pick ? "" : "disabled"}>${T2("Continue", "आगे बढ़ें")}${ic("chevron-right")}</button>
+        <button class="linkbtn wskip" type="button" id="wSkip">${T2("I will tell you later", "बाद में बताऊंगा")}</button>
+      </div>`;
+      if ($("#wBack")) $("#wBack").onclick = () => { page = "place"; paint(); };
+      if ($("#wClose")) $("#wClose").onclick = () => { try { localStorage.setItem("km-typeasked", "1"); } catch {} close(); };
+      $$("[data-type]", body).forEach((b) => (b.onclick = () => { pick = b.dataset.type; paint(); }));
+      $("#wDone").onclick = () => { if (!pick) return; saveProfile({ farmer_category: pick }); finish(true); };
+      $("#wSkip").onclick = () => finish(false);
+    }
   };
   paint(); $("#welcome").classList.remove("hidden");
 }
+
+/* ---------------- My farm: the farmer's own page ---------------- */
+const FOR_YOU = {
+  seasonal: [
+    ["land", "satellite", { en: "See my field from the satellite", hi: "अपना खेत सैटेलाइट से देखें" }, { en: "Crop health and what changed", hi: "फसल की सेहत और क्या बदला" }],
+    ["advice", "sprout", { en: "What to grow this season", hi: "इस सीजन क्या बोएं" }, { en: "By soil, water and price, with crop rotation and sowing dates", hi: "मिट्टी, पानी और भाव के हिसाब से, फसल चक्र और बुवाई के समय के साथ" }],
+    ["soilcard", "flask-conical", { en: "Soil test and fertiliser", hi: "मिट्टी की जांच और खाद" }, { en: "From your Soil Health Card", hi: "आपके मृदा स्वास्थ्य कार्ड से" }],
+    ["prices", "indian-rupee", { en: "Mandi prices", hi: "मंडी भाव" }, { en: "", hi: "" }],
+    ["weather", "cloud-sun", { en: "Weather", hi: "मौसम" }, { en: "", hi: "" }],
+  ],
+  medium_term: [
+    ["plan:orchard", "apple", { en: "Plan my orchard", hi: "बाग की योजना" }, { en: "Which fruit fits your area and your water", hi: "आपके इलाके और पानी में कौन सा फल ठीक है" }],
+    ["land", "satellite", { en: "See my land from the satellite", hi: "अपनी ज़मीन सैटेलाइट से देखें" }, { en: "", hi: "" }],
+    ["advice", "sprout", { en: "Season crops beside the orchard", hi: "बाग के साथ सीजन की फसल" }, { en: "Income while the trees are young", hi: "पेड़ छोटे हों तब तक की कमाई" }],
+    ["tech:water", "droplets", { en: "Ways to save water", hi: "पानी बचाने के तरीके" }, { en: "Drip and other methods", hi: "टपक सिंचाई और दूसरे तरीके" }],
+    ["weather", "cloud-sun", { en: "Weather", hi: "मौसम" }, { en: "", hi: "" }],
+  ],
+  long_term: [
+    ["plan:trees", "trees", { en: "Trees and crops between the rows", hi: "पेड़ और कतारों के बीच की फसल" }, { en: "What can grow under poplar, by tree age", hi: "पॉपलर के नीचे क्या उग सकता है, पेड़ की उम्र के हिसाब से" }],
+    ["share", "handshake", { en: "Give or take land on share", hi: "ज़मीन बटाई पर देना या लेना" }, { en: "If you cannot farm it yourself", hi: "अगर आप खुद खेती नहीं कर सकते" }],
+    ["land", "satellite", { en: "See my land from the satellite", hi: "अपनी ज़मीन सैटेलाइट से देखें" }, { en: "", hi: "" }],
+    ["weather", "cloud-sun", { en: "Weather", hi: "मौसम" }, { en: "", hi: "" }],
+  ],
+};
+const goAttrs = (go) => { const [tab, arg] = go.split(":"); return tab === "plan" ? `data-go="plan" data-plan="${arg}"` : tab === "tech" ? `data-go="techniques" data-tech="${arg}"` : `data-go="${tab}"`; };
+const rowLink = (go, icon, title, sub) => `<button type="button" class="rowlink info" ${goAttrs(go)}><span class="vicon">${ic(icon)}</span><span class="rl-t"><b>${title}</b>${sub ? `<small>${sub}</small>` : ""}</span>${ic("chevron-right")}</button>`;
+function profileHTML() {
+  const k = profile.farmer_category ? Farmer.FARMER_TYPES[profile.farmer_category] : null;
+  if (!k) return `<article class="card profile"><h3>${L_(TYPE_Q)}</h3><p class="hint">${L_(TYPE_WHY)}</p>${typeCards(null)}</article>`;
+  return `<article class="card profile"><div class="pf-head"><span class="vicon">${ic(k.icon)}</span><div class="pf-t"><small>${T2("Your farming", "आपकी खेती")}</small><b>${L_(k)}</b><small>${esc(L_(state.district))}</small></div><button type="button" class="linkbtn" id="pfEdit">${ic("pencil-line")}${T2("Change", "बदलें")}</button></div></article>
+    <h3 class="sec">${T2("For you", "आपके लिए")}</h3><div class="card rowlist">${FOR_YOU[profile.farmer_category].map(([go, icon, title, sub]) => rowLink(go, icon, L_(title), L_(sub))).join("")}</div>`;
+}
+function wireProfile(root) {
+  if ($("#pfEdit", root)) $("#pfEdit", root).onclick = () => showWelcome("type");
+  $$("[data-type]", root).forEach((b) => (b.onclick = () => { saveProfile({ farmer_category: b.dataset.type }); try { localStorage.setItem("km-typeasked", "1"); } catch {} renderFarm(); }));
+}
+
+/* ---------------- orchard and tree planning ---------------- */
+function renderPlan() {
+  const kind = (state.planKind = state.planKind || (profile.farmer_category === "long_term" ? "trees" : "orchard"));
+  const d = state.district, water = myWater(), zone = d.zone;
+  $("#planTitle").textContent = kind === "trees" ? T2("Trees and crops between rows", "पेड़ और बीच की फसल") : T2("Plan my orchard", "बाग की योजना");
+  const blk = blockedLand();
+  let html = `<div class="fp-modes seg2" id="planSeg"><button type="button" data-k="orchard" class="${kind === "orchard" ? "on" : ""}">${ic("apple")}${T2("Fruit orchard", "फलों का बाग")}</button><button type="button" data-k="trees" class="${kind === "trees" ? "on" : ""}">${ic("trees")}${T2("Timber trees", "लकड़ी के पेड़")}</button></div>
+    <div class="card"><div class="filters"><label class="f"><span>${t("chooseDistrict")}</span><select id="planDistrict">${districtOpts(d.name)}</select></label><label class="f"><span>${t("water")}</span><select id="planWater">${waterOpts(water)}</select></label></div>
+    <p class="hint">${L_(ZONE_WORD[zone] || ZONE_WORD.NE)} ${GW_WORD[d.gw] ? L_(GW_WORD[d.gw]) : ""}</p></div>`;
+  if (blk) html += `<p class="vcaution">${ic("triangle-alert")}<span>${esc(landBlockText(blk))}</span></p>`;
+  if (kind === "orchard") {
+    const list = Farmer.fruitFit(zone, water);
+    const badge = (f) => (f.fit === "water" ? `<span class="fit no">${T2("Only with assured water", "पक्का पानी हो तभी")}</span>` : f.first ? `<span class="fit yes">${T2("Look at this first", "इसे पहले देखें")}</span>` : `<span class="fit ok">${T2("Can be grown", "लग सकता है")}</span>`);
+    html += `<h3 class="sec">${T2("Fruit for your area and water", "आपके इलाके और पानी के लिए फल")}</h3><div class="card fruitlist">${list.map((f) => `<div class="fruit"><div class="fr-h"><b>${L_(f)}</b>${badge(f)}</div>
+      <p>${f.dry ? T2("ICAR lists it among the fruit crops that do well in dry (arid) conditions.", "ICAR ने इसे सूखे इलाकों में अच्छा चलने वाले फलों में गिना है।") : T2("Usually planted where canal or tubewell water is assured. Haryana gives orchard grants for it. (General guidance: confirm with your District Horticulture Officer.)", "आम तौर पर वहीं लगाया जाता है जहाँ नहर या ट्यूबवेल का पक्का पानी हो। हरियाणा में इसके बाग पर अनुदान मिलता है। (सामान्य जानकारी: अपने जिला बागवानी अधिकारी से पक्का करें।)")}
+      ${f.frost ? " " + T2("Frost harms its growth and fruit: protect young plants in winter.", "पाला इसकी बढ़त और फल को नुकसान करता है: सर्दी में छोटे पौधों का बचाव करें।") : ""}${f.note ? " " + L_(f.note) : ""}</p></div>`).join("")}</div>
+      <p class="hint">${T2("This list is not a promise that the fruit will succeed on your land. Before planting an orchard, get the soil and the water tested.", "यह सूची इस बात का वादा नहीं है कि फल आपकी ज़मीन पर ज़रूर चलेगा। बाग लगाने से पहले मिट्टी और पानी की जांच ज़रूर कराएं।")}</p>
+      <div class="card"><h3>${ic("sprout")}${T2("Until the trees start bearing", "जब तक पेड़ फल न देने लगें")}</h3><p>${T2("In the first years, fodder, pulses and vegetables can be grown between the rows. One ICAR trial grew moong followed by gram, and turmeric, between young fruit trees.", "शुरू के सालों में कतारों के बीच चारा, दालें और सब्ज़ियाँ उगाई जा सकती हैं। ICAR के एक परीक्षण में छोटे फलदार पेड़ों के बीच मूंग के बाद चना, और हल्दी उगाई गई।")}</p><button type="button" class="btn line" data-go="advice">${ic("sprout")}${T2("See season crops for my area", "मेरे इलाके की सीजन वाली फसलें देखें")}</button></div>
+      <div class="card"><h3>${ic("landmark")}${T2("Government help", "सरकारी मदद")}</h3><p>${T2("The Haryana Horticulture Department said in November 2025: a grant of ₹24,500 to ₹1,40,000 an acre for planting a new orchard, for up to 5 acres. You apply on the Meri Fasal Mera Byora or Hortnet portal. The rate differs by fruit and can change: ask your District Horticulture Officer for today's rate.", "हरियाणा बागवानी विभाग ने नवंबर 2025 में बताया: नया बाग लगाने पर ₹24,500 से ₹1,40,000 प्रति एकड़ तक अनुदान, ज़्यादा से ज़्यादा 5 एकड़ तक। आवेदन 'मेरी फसल मेरा ब्योरा' या Hortnet पोर्टल पर होता है। दर हर फल की अलग है और बदल सकती है: आज की दर अपने जिला बागवानी अधिकारी से पूछें।")}</p></div>
+      <div class="card"><h3>${ic("indian-rupee")}${T2("Cost and income", "खर्च और कमाई")}</h3><p>${T2("This app gives no cost or income figure for an orchard, because we did not find checked figures for each fruit in Haryana. Ask the District Horticulture Officer for the cost. An orchard gives nothing in its first years, and no income is ever guaranteed.", "यह ऐप बाग के खर्च या कमाई का कोई आँकड़ा नहीं देता, क्योंकि हरियाणा में हर फल के जांचे हुए आँकड़े हमें नहीं मिले। लागत अपने जिला बागवानी अधिकारी से पूछें। बाग शुरू के सालों में कुछ नहीं देता, और कमाई की कभी कोई गारंटी नहीं होती।")}</p></div>
+      ${srcList(["aaz", "ciah", "ber", "citrus", "young", "grant"])}`;
+  } else {
+    const fit = Farmer.poplarFit(zone, water), pl = profile.plantation, age = pl.tree_age, tractor = pl.tractor_access;
+    const FIT = {
+      yes: ["good", "circle-check", T2("Poplar can suit your area", "पॉपलर आपके इलाके में चल सकता है"), T2("You are in the canal and tubewell belt and have assured water.", "आप नहर और ट्यूबवेल वाले इलाके में हैं और आपके पास पक्का पानी है।")],
+      ask: ["warn", "circle-alert", T2("Ask locally before planting poplar", "पॉपलर लगाने से पहले अपने इलाके में पूछ लें"), T2("You have assured water, but this is the drier belt. Ask the Forest Department or KVK whether poplar does well near you.", "आपके पास पक्का पानी है, पर यह सूखा इलाका है। वन विभाग या कृषि विज्ञान केंद्र से पूछें कि आपके पास पॉपलर ठीक चलता है या नहीं।")],
+      no: ["bad", "triangle-alert", T2("Poplar is not advised with your water", "आपके पानी में पॉपलर की सलाह नहीं है"), T2("Your water is limited or rain only. Poplar needs a lot of water.", "आपका पानी सीमित है या सिर्फ़ बारिश का है। पॉपलर को बहुत पानी चाहिए।")],
+    }[fit];
+    html += `<article class="verdict ${FIT[0]}"><div class="vhead"><span class="vicon">${ic(FIT[1])}</span><div class="vt"><div class="vlabel">${T2("Poplar", "पॉपलर")}</div><div class="vbig">${FIT[2]}</div></div></div><p>${FIT[3]} ${T2("The Haryana Forest Department says poplar suits fertile soil with a high water table.", "हरियाणा वन विभाग के अनुसार पॉपलर को उपजाऊ मिट्टी और ऊँचा जल-स्तर चाहिए।")}</p></article>
+      <div class="card"><h3>${ic("trees")}${T2("What the Forest Department says about poplar", "पॉपलर के बारे में वन विभाग क्या कहता है")}</h3><ul class="plain">
+        <li>${T2("It is cut after about 5 to 7 years.", "यह लगभग 5 से 7 साल में कटता है।")}</li>
+        <li>${T2("Planted 5 m x 4 m or 5 m x 5 m apart, a tractor can still work between the rows.", "5 x 4 मीटर या 5 x 5 मीटर की दूरी पर लगाने से कतारों के बीच ट्रैक्टर चल सकता है।")}</li>
+        <li>${T2("It has no leaves in winter, so winter crops grow well with it.", "सर्दी में इसके पत्ते झड़ जाते हैं, इसलिए सर्दी की फसल इसके साथ अच्छी चलती है।")}</li></ul>
+        <p class="hint">${T2("Eucalyptus (safeda) is the other tree widely planted on farms in Haryana. We do not have checked guidance for it yet, so none is shown.", "सफेदा हरियाणा के खेतों में लगने वाला दूसरा बड़ा पेड़ है। उसके बारे में जांची हुई जानकारी अभी हमारे पास नहीं है, इसलिए यहाँ नहीं दी गई।")}</p></div>
+      <div class="card"><h3>${T2("How old are your trees?", "आपके पेड़ कितने साल के हैं?")}</h3>${chipsQ("age", age, [["new", T2("Not planted yet", "अभी लगाने हैं")], ["young", T2("1 to 3 years", "1 से 3 साल")], ["grown", T2("4 years or more", "4 साल या ज़्यादा")]])}
+        <h3>${T2("Can a tractor go between the rows?", "क्या कतारों के बीच ट्रैक्टर जा सकता है?")}</h3>${chipsQ("tractor", tractor, [["yes", T2("Yes", "हाँ")], ["no", T2("No", "नहीं")], ["unsure", T2("Not sure", "पता नहीं")]])}</div>`;
+    if (age) {
+      const u = Farmer.underPoplar(age, tractor), GL = { winter: T2("Winter crops", "सर्दी की फसलें"), summer: T2("Summer and monsoon crops", "गर्मी और बरसात की फसलें"), shade: T2("Crops grown under the trees", "पेड़ों के नीचे उगने वाली"), veg: T2("Vegetables", "सब्ज़ियाँ") };
+      html += `<div class="card"><h3>${ic("sprout")}${T2("What can grow between the rows", "कतारों के बीच क्या उग सकता है")}</h3>
+        ${u.groups.map((g) => `<p class="grp"><b>${GL[g]}:</b> ${Farmer.UNDER_POPLAR[g][getLang() === "hi" ? "hi" : "en"].join(", ")}</p>`).join("")}
+        <p class="hint">${T2("These are the crops the Forest Department lists as grown with poplar in Haryana.", "ये वे फसलें हैं जो वन विभाग के अनुसार हरियाणा में पॉपलर के साथ उगाई जाती हैं।")}</p>
+        ${u.lower ? `<p class="vcaution">${ic("triangle-alert")}<span>${T2("Your trees are big now. In a seven-year CCS HAU trial every crop gave less as the poplar grew older. Winter crops are the safer choice, because the trees are bare then.", "आपके पेड़ अब बड़े हैं। CCS HAU के सात साल के परीक्षण में पॉपलर की उम्र बढ़ने के साथ हर फसल की पैदावार घटी। सर्दी की फसल ज़्यादा ठीक रहती है, क्योंकि तब पेड़ों पर पत्ते नहीं होते।")}</span></p>` : ""}
+        ${u.handOnly ? `<p class="vcaution">${ic("triangle-alert")}<span>${T2("A tractor cannot go in, so only crops worked by hand are shown.", "ट्रैक्टर अंदर नहीं जा सकता, इसलिए सिर्फ़ हाथ से होने वाली फसलें दिखाई गई हैं।")}</span></p>` : u.checkTractor ? `<p class="hint">${T2("Before using a tractor, check the gap between rows, the age of the trees and their roots on the spot.", "ट्रैक्टर चलाने से पहले कतारों की दूरी, पेड़ों की उम्र और जड़ें मौके पर देख लें।")}</p>` : ""}
+        <p class="hint">${T2("Near a line of poplar (up to about 9 m) crops give less: 10 to 60% less in kharif and 7 to 30% less in rabi, in one ICAR and CCS HAU study.", "पॉपलर की कतार के पास (लगभग 9 मीटर तक) फसल कम होती है: ICAR और CCS HAU के एक अध्ययन में खरीफ में 10 से 60% और रबी में 7 से 30% कम।")}</p>
+        <button type="button" class="btn line" data-go="advice">${ic("sprout")}${T2("See season crops for my area", "मेरे इलाके की सीजन वाली फसलें देखें")}</button></div>`;
+    }
+    html += `<div class="card rowlist">${rowLink("share", "handshake", T2("Give or take land on share", "ज़मीन बटाई पर देना या लेना"), T2("If you cannot farm between the trees yourself", "अगर पेड़ों के बीच खेती आप खुद नहीं कर सकते"))}</div>
+      <p class="hint">${T2("No income figure is shown for timber: prices and yields vary too much to state one honestly.", "लकड़ी की कमाई का कोई आँकड़ा नहीं दिया गया: भाव और पैदावार इतने बदलते हैं कि कोई एक आँकड़ा ईमानदारी से नहीं दिया जा सकता।")}</p>${srcList(["forest", "age", "line"])}`;
+  }
+  $("#planBox").innerHTML = html;
+  $$("#planSeg button").forEach((b) => (b.onclick = () => { state.planKind = b.dataset.k; renderPlan(); }));
+  $("#planDistrict").onchange = (e) => { setDistrict(e.target.value); renderPlan(); };
+  $("#planWater").onchange = (e) => { setWater(e.target.value); renderPlan(); };
+  $$("#planBox [data-q] .chip").forEach((b) => (b.onclick = () => { const q = b.parentElement.dataset.q; saveProfile({ plantation: q === "age" ? { tree_age: b.dataset.v } : { tractor_access: b.dataset.v }, interest_intercropping: true }); renderPlan(); }));
+}
+
+/* ---------------- land sharing: getting ready for the talk. Nothing is listed or published. ---------------- */
+const SHARE_NOTE = {
+  handOnly: { en: "A tractor cannot work between grown trees. This land suits only crops worked by hand (vegetables, turmeric, fodder). Say so at the start.", hi: "बड़े पेड़ों के बीच ट्रैक्टर नहीं चल सकता। यह ज़मीन सिर्फ़ हाथ से होने वाली फसलों (सब्ज़ी, हल्दी, चारा) के लिए ठीक है। यह बात शुरू में ही बता दें।" },
+  checkTractor: { en: "Whether a tractor can work between the trees depends on the gap between rows, the age of the trees and their roots. Look at it together on the spot.", hi: "पेड़ों के बीच ट्रैक्टर चलेगा या नहीं, यह कतारों की दूरी, पेड़ों की उम्र और जड़ों पर टिका है। दोनों मिलकर मौके पर देख लें।" },
+  protectTrees: { en: "The trees are the main crop. Agree in writing how ploughing, watering and spraying will be done near them so they are not harmed.", hi: "पेड़ ही मुख्य फसल हैं। लिखकर तय करें कि पेड़ों के पास जुताई, पानी और दवा कैसे होगी, ताकि पेड़ों को नुकसान न हो।" },
+  rainfed: { en: "There is no assured water, so only rain-fed crops are possible. Keep that in mind when settling the share.", hi: "पक्का पानी नहीं है, इसलिए सिर्फ़ बारिश वाली फसलें हो सकती हैं। हिस्सा तय करते समय यह ध्यान रखें।" },
+  limitedWater: { en: "Water is limited. Settle first who pays for water and for electricity or diesel.", hi: "पानी कम है। पहले तय करें कि पानी और बिजली या डीज़ल का खर्च कौन देगा।" },
+  small: { en: "The land is under half an acre. That much suits crops like vegetables.", hi: "ज़मीन आधे एकड़ से कम है। इतनी ज़मीन सब्ज़ी जैसी फसलों के लिए ठीक रहती है।" },
+  ownerPapers: { en: "Keep the land record (jamabandi) and khasra number ready.", hi: "ज़मीन के कागज़ (जमाबंदी) और खसरा नंबर तैयार रखें।" },
+  seeLand: { en: "Before you agree, go and see the land, the water source and the path to it yourself.", hi: "हाँ करने से पहले ज़मीन, पानी का साधन और रास्ता खुद जाकर देखें।" },
+};
+function shareMessage(s) {
+  const d = L_(state.district), w = { good: T2("assured water", "पक्का पानी"), limited: T2("limited water", "सीमित पानी"), rainfed: T2("rain only", "सिर्फ़ बारिश") }[s.irrigation] || "";
+  const tr = { none: T2("no trees on it", "पेड़ नहीं हैं"), young: T2("young trees on it", "छोटे पेड़ लगे हैं"), grown: T2("grown trees on it", "बड़े पेड़ लगे हैं") }[s.trees] || "";
+  const tc = s.trees && s.trees !== "none" ? { yes: T2("a tractor can go between the rows", "कतारों के बीच ट्रैक्टर जा सकता है"), no: T2("a tractor cannot go between the rows", "कतारों के बीच ट्रैक्टर नहीं जा सकता"), unsure: "" }[s.tractor] || "" : "";
+  const ac = s.acres ? `${s.acres} ${T2("acres", "एकड़")}` : T2("some", "कुछ");
+  return s.role === "owner"
+    ? T2(`I have about ${ac} of farm land in ${d} district. ${[w, tr, tc].filter(Boolean).join(", ")}. I would like to talk about giving it for farming on share (batai) or on rent (theka).`, `मेरे पास ${d} जिले में लगभग ${ac} खेती की ज़मीन है। ${[w, tr, tc].filter(Boolean).join(", ")}। मैं इसे बटाई या ठेके पर खेती के लिए देने की बात करना चाहता हूँ।`)
+    : T2(`I am looking for about ${ac} of farm land in ${d} district to farm on share (batai) or on rent (theka). ${w ? "Water I need: " + w + "." : ""}`, `मैं ${d} जिले में लगभग ${ac} ज़मीन बटाई या ठेके पर लेकर खेती करना चाहता हूँ। ${w ? "पानी: " + w + "।" : ""}`);
+}
+function renderShare() {
+  $("#shareTitle").textContent = T2("Land on share", "ज़मीन बटाई पर");
+  const ls = profile.land_share, role = ls.role, acres = profile.land_size_acres || (state.areaAcres ? +state.areaAcres.toFixed(2) : null), irrigation = myWater(), trees = ls.trees, tractor = profile.plantation.tractor_access;
+  let html = `<div class="card"><p>${T2("Someone who owns land but has no time to farm it, and someone who wants to farm but has too little land, can agree to work together: for a share of the crop (batai) or a fixed rent (theka).", "जिसके पास ज़मीन है पर खेती का समय नहीं, और जो खेती करना चाहता है पर ज़मीन कम है, दोनों आपस में तय करके साथ काम कर सकते हैं: फसल के हिस्से पर (बटाई) या तय किराये पर (ठेका)।")}</p>
+    <p class="vcaution">${ic("triangle-alert")}<span>${T2("Nothing is listed or published here yet. This page only helps you get ready for the talk. The app does not make a legal agreement and does not promise any income.", "अभी यहाँ कोई ज़मीन छपती नहीं है और कोई सूची नहीं है। यह पन्ना सिर्फ़ बातचीत की तैयारी कराता है। यह ऐप कोई कानूनी समझौता नहीं बनाता और किसी कमाई का वादा नहीं करता।")}</span></p></div>
+    <div class="card"><h3>${T2("Which one are you?", "आप कौन हैं?")}</h3>${chipsQ("role", role, [["owner", T2("I have land to give", "मेरे पास देने को ज़मीन है")], ["cultivator", T2("I want land to farm", "मुझे खेती के लिए ज़मीन चाहिए")]])}`;
+  if (role) {
+    html += `<div class="filters"><label class="f"><span>${role === "owner" ? T2("How much land (acres)", "कितनी ज़मीन (एकड़)") : T2("How much land you want (acres)", "कितनी ज़मीन चाहिए (एकड़)")}</span><input type="number" id="shAcres" inputmode="decimal" min="0.1" max="500" step="0.1" value="${acres ?? ""}"></label>
+      <label class="f"><span>${t("water")}</span><select id="shWater">${waterOpts(irrigation)}</select></label><label class="f"><span>${t("chooseDistrict")}</span><select id="shDistrict">${districtOpts(state.district.name)}</select></label></div>`;
+    if (role === "owner") {
+      html += `<h3>${T2("Are there trees on the land?", "क्या ज़मीन पर पेड़ लगे हैं?")}</h3>${chipsQ("trees", trees, [["none", T2("No trees", "नहीं")], ["young", T2("Young trees", "छोटे पेड़")], ["grown", T2("Grown trees", "बड़े पेड़")]])}`;
+      if (trees && trees !== "none") html += `<h3>${T2("Can a tractor go between the rows?", "क्या कतारों के बीच ट्रैक्टर जा सकता है?")}</h3>${chipsQ("tractor", tractor, [["yes", T2("Yes", "हाँ")], ["no", T2("No", "नहीं")], ["unsure", T2("Not sure", "पता नहीं")]])}`;
+    }
+  }
+  html += `</div>`;
+  if (role) {
+    const s = { role, acres, irrigation, trees: role === "owner" ? trees : null, tractor: role === "owner" ? tractor : null }, notes = Farmer.shareNotes(s);
+    if (notes.length) html += `<div class="card"><h3>${ic("circle-alert")}${T2("For your land, keep in mind", "आपकी ज़मीन के लिए ध्यान रखें")}</h3><ul class="plain">${notes.map((n) => `<li>${L_(SHARE_NOTE[n])}</li>`).join("")}</ul></div>`;
+    html += `<div class="card"><h3>${ic("list-checks")}${T2("Settle these before you agree", "हाँ करने से पहले यह तय करें")}</h3><ol class="plain">
+      <li>${T2("For how long: which seasons or how many years.", "कितने समय के लिए: कौन से सीजन या कितने साल।")}</li>
+      <li>${T2("Which crops will be grown.", "कौन सी फसलें उगाई जाएंगी।")}</li>
+      <li>${T2("Who pays for seed, fertiliser, spray, water and electricity.", "बीज, खाद, दवा, पानी और बिजली का खर्च कौन देगा।")}</li>
+      <li>${T2("How the crop or the money will be divided.", "फसल या पैसे का बंटवारा कैसे होगा।")}</li>
+      <li>${T2("Who harvests and who sells.", "कटाई कौन करेगा और बेचेगा कौन।")}</li>
+      <li>${T2("Who looks after the trees, the bunds and the tubewell.", "पेड़, मेड़ और ट्यूबवेल की देखभाल कौन करेगा।")}</li>
+      <li>${T2("How the land comes back when the time is over.", "समय पूरा होने पर ज़मीन कैसे लौटेगी।")}</li></ol></div>
+      <div class="card"><h3>${ic("landmark")}${T2("The law", "कानून")}</h3><p>${T2("Haryana has a law for leasing farm land: the Haryana Lease of Agricultural Land Act, 2024. It recognises a lease and is meant to protect the owner's rights. Put the agreement in writing, and ask your tehsil office or a lawyer how to do it. This is not legal advice.", "हरियाणा में खेती की ज़मीन पट्टे पर देने का कानून है: हरियाणा कृषि भूमि पट्टा अधिनियम, 2024। यह पट्टे को मान्यता देता है और ज़मीन मालिक के हक़ की रक्षा के लिए है। समझौता लिखित में करें, और तरीका अपनी तहसील या किसी वकील से पूछें। यह कानूनी सलाह नहीं है।")}</p></div>
+      <div class="card"><h3>${ic("share-2")}${T2("A message you can send", "एक संदेश जो आप भेज सकते हैं")}</h3><p class="hint">${T2("Send it yourself to people you trust. The app does not publish it anywhere.", "इसे आप खुद अपने भरोसे के लोगों को भेजें। ऐप इसे कहीं नहीं छापता।")}</p>
+        <textarea id="shText" rows="4">${esc(shareMessage(s))}</textarea>
+        <div class="row"><button type="button" class="btn" id="shSend">${ic("share-2")}${T2("Send on WhatsApp", "WhatsApp पर भेजें")}</button><button type="button" class="btn line" id="shCopy">${ic("copy")}${T2("Copy", "कॉपी करें")}</button></div></div>
+      <div class="row"><button type="button" class="btn line" id="shReset">${ic("trash-2")}${T2("Clear my answers", "मेरे जवाब मिटाएं")}</button></div>`;
+  }
+  html += `<p class="hint">${T2("Later, a market could be added here where owners show their land. That needs a server and a way to check who people are, so it is not built yet.", "आगे चलकर यहाँ एक बाज़ार जोड़ा जा सकता है जहाँ मालिक अपनी ज़मीन दिखा सकें। उसके लिए सर्वर और लोगों की पहचान जांचने का तरीका चाहिए, इसलिए वह अभी नहीं बना है।")}</p>${srcList(["lease", "forest"])}`;
+  $("#shareBox").innerHTML = html;
+  $$("#shareBox [data-q] .chip").forEach((b) => (b.onclick = () => {
+    const q = b.parentElement.dataset.q, v = b.dataset.v;
+    if (q === "role") saveProfile({ land_share: { role: v }, interest_land_sharing: true, ...(v === "owner" && !profile.land_ownership ? { land_ownership: "own" } : {}) });
+    if (q === "trees") saveProfile({ land_share: { trees: v } });
+    if (q === "tractor") saveProfile({ plantation: { tractor_access: v } });
+    renderShare();
+  }));
+  if ($("#shAcres")) $("#shAcres").onchange = (e) => { saveProfile({ land_size_acres: +e.target.value || null }); renderShare(); };
+  if ($("#shWater")) $("#shWater").onchange = (e) => { setWater(e.target.value); renderShare(); };
+  if ($("#shDistrict")) $("#shDistrict").onchange = (e) => { setDistrict(e.target.value); renderShare(); };
+  if ($("#shSend")) $("#shSend").onclick = () => window.open(`https://wa.me/?text=${encodeURIComponent($("#shText").value)}`, "_blank", "noopener");
+  if ($("#shCopy")) $("#shCopy").onclick = async () => { try { await navigator.clipboard.writeText($("#shText").value); toast(T2("Copied.", "कॉपी हो गया।")); } catch { $("#shText").select(); toast(T2("Select the text and copy it.", "संदेश चुनकर कॉपी करें।")); } };
+  if ($("#shReset")) $("#shReset").onclick = () => { saveProfile({ land_share: { role: null, trees: null }, interest_land_sharing: null }); renderShare(); };
+}
+if (profile.irrigation) $("#water").value = profile.irrigation;
+$("#water").addEventListener("change", () => saveProfile({ irrigation: $("#water").value }));
+if (profile.location.district && !state.point) { const d0 = DISTRICTS.find((x) => x.name === profile.location.district); if (d0) { state.district = d0; fillSelects(); } }
+try { if (localStorage.getItem("km-view") === "true") { rs.overlay = "true"; applyLayers(); } } catch {}
 let savedVoice = false; try { savedVoice = localStorage.getItem("km-voice") === "1"; } catch {}
 setVoice(savedVoice);
 renderGuide(false);
@@ -1941,6 +2275,8 @@ if (TABS.includes(initial) && initial !== "land") showTab(initial, false);
 refreshMapDates();
 // A saved or shared field is checked straight away, so the farmer opens the app and sees today's condition
 let welcomed = true; try { welcomed = localStorage.getItem("km-welcomed") === "1" || !!localStorage.getItem("km-fields") || !!localStorage.getItem("km-field"); } catch {}
+let typeAsked = true; try { typeAsked = localStorage.getItem("km-typeasked") === "1"; } catch {}
 if (!welcomed) showWelcome();
+else if (!profile.farmer_category && !typeAsked) showWelcome("type");
 if (state.point) setTimeout(() => { if (state.point && !state.report && !state.busy) analyse({ auto: true }); }, 600);
-window.__km = { state, map }; // handy for debugging in the console
+window.__km = { state, map, get profile() { return profile; } }; // handy for debugging in the console

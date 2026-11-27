@@ -879,3 +879,83 @@ table { border-radius: 12px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 #mapVeil.off { opacity: 0; visibility: hidden; }
 .mapfab button.end { color: var(--line-2); }
+
+/* ---------------- land check: buildings, water, trees ---------------- */
+.vbtns { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
+.vbtns .btn { flex: 1 1 12rem; min-height: 48px; font-size: 1rem; }
+#tab-advice.blocked > :not(.tabhead):not(#adviceBlock) { display: none; }
+#adviceBlock .verdict { margin-bottom: 0.8rem; }
+
+/* ---------------- kind of farming: first-visit steps, profile, orchard and tree planning, land on share ---------------- */
+.welcome { position: relative; }
+.wsteps { display: flex; justify-content: center; gap: 6px; }
+.wsteps i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); }
+.wsteps i.on { background: var(--green); width: 20px; border-radius: 4px; }
+.wback { position: absolute; top: -0.4rem; left: 0; }
+.welcome .sheet-close { top: -0.4rem; right: 0; }
+.welcome label.f.wide { text-align: left; margin: 0; }
+.welcome label.f.wide select { width: 100%; min-height: 54px; font-size: 1.1rem; }
+.wskip { justify-self: center; margin: 0; min-height: 44px; color: var(--soil-2); }
+.typepage h2 { padding: 0 2.6rem; }
+.typecards { display: grid; gap: 0.6rem; text-align: left; }
+.typecard { display: flex; align-items: center; gap: 0.8rem; width: 100%; padding: 0.8rem; border-radius: 16px; border: 2px solid transparent; background: var(--paper); color: var(--soil); font: inherit; cursor: pointer; text-align: left; min-height: 84px; }
+.profile .typecard { background: var(--paper-2); }
+.typecard .tc-ic { flex: none; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--green-l); color: var(--green); }
+.typecard .tc-ic .ic { width: 1.7rem; height: 1.7rem; }
+.typecard .tc-t { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.typecard .tc-t b { font-size: 1.12rem; }
+.typecard .tc-t span { font-size: 0.95rem; }
+.typecard .tc-t small { font-size: 0.85rem; color: var(--soil-2); }
+.typecard .tc-check { flex: none; color: var(--line-2); }
+.typecard .tc-check .ic { width: 1.6rem; height: 1.6rem; }
+.typecard.on { border-color: var(--green); background: var(--green-l); }
+.typecard.on .tc-ic { background: var(--green); color: var(--on-accent); }
+.typecard.on .tc-check { color: var(--green); }
+.btn[disabled] { opacity: 0.4; cursor: default; }
+.profile h3 { margin: 0 0 0.2rem; font-size: 1.2rem; }
+.profile .typecards { margin-top: 0.7rem; }
+.pf-head { display: flex; align-items: center; gap: 0.8rem; }
+.pf-head .vicon { flex: none; width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; background: var(--green-l); color: var(--green); }
+.pf-head .vicon .ic { width: 1.6rem; height: 1.6rem; }
+.pf-t { flex: 1; min-width: 0; display: grid; }
+.pf-t small { color: var(--soil-2); font-size: 0.84rem; }
+.pf-t b { font-size: 1.2rem; }
+.pf-head .linkbtn { margin: 0; min-height: 44px; }
+h3.sec { font-size: 0.86rem; font-weight: 600; color: var(--soil-2); margin: 1.1rem 0.9rem 0.4rem; }
+.panel > div > .card, .panel > div > .verdict, .panel > div > details.card { margin-bottom: 0.8rem; }
+.seg2 { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 0.8rem; }
+.seg2 button { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; min-height: 42px; font-size: 0.95rem; }
+.fruitlist { padding: 0 0.9rem; }
+.fruit { padding: 0.8rem 0; }
+.fruit + .fruit { border-top: 0.5px solid var(--line-2); }
+.fr-h { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.fr-h b { font-size: 1.08rem; }
+.fruit p { margin: 0.25rem 0 0; font-size: 0.95rem; color: var(--soil-2); }
+.fit { font-size: 0.78rem; font-weight: 600; border-radius: 999px; padding: 0.2rem 0.6rem; white-space: nowrap; }
+.fit.yes { background: var(--green-l); color: var(--green); }
+.fit.ok { background: var(--chip); color: var(--soil-2); }
+.fit.no { background: var(--mustard-l); color: var(--mustard-d); }
+#planBox .card h3, #shareBox .card h3 { display: flex; align-items: center; gap: 0.4rem; font-size: 1.05rem; margin: 0.2rem 0 0.4rem; }
+#planBox .card h3 + .chips, #shareBox .card h3 + .chips { margin-top: 0; }
+#planBox .card .chips + h3, #shareBox .card .chips + h3, #shareBox .card .filters + h3 { margin-top: 1rem; }
+#planBox .card p, #shareBox .card p { margin: 0.3rem 0 0.6rem; }
+#planBox .card .btn, #shareBox .card .btn { min-height: 46px; font-size: 1rem; }
+.chips.wrap { flex-wrap: wrap; overflow: visible; padding-bottom: 0; }
+.chips.wrap .chip { min-height: 46px; font: inherit; font-size: 0.98rem; color: var(--soil); }
+.chips.wrap .chip.on { background: var(--green); color: var(--on-accent); font-weight: 600; }
+ul.plain, ol.plain { margin: 0.2rem 0 0.4rem; padding-left: 1.2rem; display: grid; gap: 0.35rem; }
+.grp { margin: 0.3rem 0 !important; }
+details.srcs summary { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.95rem; }
+details.srcs ul { margin: 0.6rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.4rem; font-size: 0.88rem; }
+details.srcs a { color: var(--canal); }
+#shareBox textarea { width: 100%; padding: 0.7rem; font-size: 1rem; line-height: 1.4; resize: vertical; }
+#shareBox .filters { grid-template-columns: 1fr 1fr; margin-top: 0.8rem; }
+#shareBox .filters input { width: 100%; padding: 0 0.7rem; }
+#shareBox .row { flex-wrap: wrap; margin-top: 0.6rem; }
+#shareBox .row .btn { flex: 1 1 9rem; }
+#planBox .filters { grid-template-columns: 1fr 1fr; }
+/* the map sheet: every step has a plain way back */
+.guide .row .gsmall { flex: 0 1 auto; white-space: nowrap; font-size: 0.98rem; padding: 0 0.9rem; }
+.guide .row #gBack, .guide .row #gStop { min-height: 46px; font-size: 1rem; }
+.gdel { display: flex; margin: 0.6rem auto 0; min-height: 44px; color: var(--soil-2); }
+.gdel.sure { color: var(--risk); font-weight: 600; }

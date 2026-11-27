@@ -1,6 +1,6 @@
 // Offline support. Pages and app code: network first (always fresh when online), cached copy when offline.
 // Fonts, map library, icons and photos: cache first. Live data APIs (satellite, weather, prices): never cached here.
-const VERSION = "km-20261126202910";
+const VERSION = "km-20261126211353";
 const TILES = "km-tiles-1", TILE_LIMIT = 900;
 let puts = 0;
 function trimTiles(c) { if (++puts % 60) return; c.keys().then((ks) => { if (ks.length > TILE_LIMIT) ks.slice(0, ks.length - TILE_LIMIT).forEach((k) => c.delete(k)); }); }
